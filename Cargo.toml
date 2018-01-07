@@ -19,3 +19,4 @@ travis-ci = {repository = "tversteeg/castle-game"}
 minifb = "0.10"
 blit = "0.1"
 image = "0.18"
+specs = "0.10"
