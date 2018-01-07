@@ -5,3 +5,5 @@ authors = ["Thomas Versteeg <thomasversteeg@gmx.com>"]
 
 [dependencies]
 minifb = "0.10"
+blit = "0.1"
+image = "0.18"

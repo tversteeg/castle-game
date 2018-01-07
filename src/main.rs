@@ -1,9 +1,15 @@
 extern crate minifb;
+extern crate blit;
+extern crate image;
 
 use minifb::*;
+use blit::*;
+use image::GenericImage;
 
 const WIDTH: usize = 640;
-const HEIGHT: usize = 360;
+const HEIGHT: usize = 320;
+
+const MASK_COLOR: u32 = 0xFFFF00FF;
 
 fn main() {
     let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
@@ -13,6 +19,10 @@ fn main() {
         ..WindowOptions::default()
     };
     let mut window = Window::new("Castle Game - Press ESC to exit", WIDTH, HEIGHT, options).expect("Unable to open window");
+
+    let background_img = image::open("assets/background.png").unwrap();
+    let background = background_img.as_rgb8().unwrap();
+    background.blit_with_mask_color(&mut buffer, (WIDTH, HEIGHT), (0, 0), MASK_COLOR);
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         window.get_mouse_pos(MouseMode::Discard).map(|mouse| {
