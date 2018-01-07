@@ -2,6 +2,37 @@ use specs::*;
 use sprite::Sprite;
 use geom::Position;
 
+pub struct RenderSystem {
+    buffer: Buffer
+}
+
+impl RenderSystem {
+    pub fn new(size: (usize, usize)) -> Self {
+        RenderSystem {
+            buffer: Buffer::new(size)
+        }
+    }
+
+    pub fn raw_buffer(&self) -> &Vec<u32> {
+        &self.buffer.data
+    }
+}
+
+impl<'a> System<'a> for RenderSystem {
+    type SystemData = (ReadStorage<'a, Position>,
+                       ReadStorage<'a, Sprite>);
+
+    fn run(&mut self, data: Self::SystemData) {
+        let (pos, sprite) = data;
+
+        let buffer_size = self.buffer.size();
+
+        for (pos, sprite) in (&pos, &sprite).join() {
+            sprite.draw(pos, &mut self.buffer.data, buffer_size);
+        }
+    }
+}
+
 pub struct Buffer {
     pub width: usize,
     pub height: usize,
@@ -18,25 +49,8 @@ impl Buffer {
             data: vec![0; size.0 * size.1]
         }
     }
-}
 
-pub struct RenderSprite;
-
-impl<'a> System<'a> for RenderSprite {
-    type SystemData = (FetchMut<'a, Buffer>,
-                       ReadStorage<'a, Position>,
-                       ReadStorage<'a, Sprite>);
-
-    fn run(&mut self, data: Self::SystemData) {
-        let (mut buffer, pos, sprite) = data;
-
+    pub fn size(&self) -> (usize, usize) {
+        (self.width, self.height)
     }
-}
-
-pub fn register(world: &mut World) {
-    world.register::<Sprite>();
-}
-
-pub fn load_sprites(world: &mut World) {
-    world.create_entity().with(Sprite::new("assets/background.png"));
 }
