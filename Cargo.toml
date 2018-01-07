@@ -2,6 +2,18 @@
 name = "castle-game"
 version = "0.1.0"
 authors = ["Thomas Versteeg <thomasversteeg@gmx.com>"]
+license = "GPL-3.0"
+homepage = "https://github.com/tversteeg/castle-game"
+
+readme = "README.md"
+description = "2D destructable terrain strategy game"
+
+repository = "https://github.com/tversteeg/castle-game.git"
+keywords = ["game", "2d", "destructable"]
+categories = ["games"]
+
+[badges]
+travis-ci = {repository = "tversteeg/castle-game"}
 
 [dependencies]
 minifb = "0.10"
