@@ -15,6 +15,8 @@
 
 # Screenshots
 
-### v0.1
+### v0.2
+![0.2](img/screenshot2.png?raw=true)
 
+### v0.1
 ![0.1](img/screenshot1.png?raw=true)

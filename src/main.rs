@@ -1,6 +1,5 @@
 extern crate minifb;
 extern crate blit;
-extern crate image;
 extern crate specs;
 
 mod draw;
@@ -8,6 +7,7 @@ mod sprite;
 mod geom;
 
 use minifb::*;
+use blit::BlitBuffer;
 use specs::{World, RunNow};
 
 use draw::RenderSystem;
@@ -23,8 +23,15 @@ fn main() {
     world.register::<Sprite>();
     world.register::<Position>();
 
+    let bytes = include_bytes!("../resources/background.png.blit");
     world.create_entity()
-        .with(Sprite::new("assets/background.png"))
+        .with(Sprite::new(BlitBuffer::load_from_memory(bytes).unwrap()))
+        .with(Position::new(0.0, 0.0))
+        .build();
+
+    let bytes = include_bytes!("../resources/level.png.blit");
+    world.create_entity()
+        .with(Sprite::new(BlitBuffer::load_from_memory(bytes).unwrap()))
         .with(Position::new(0.0, 0.0))
         .build();
 
