@@ -60,6 +60,12 @@ impl Render {
         (self.width, self.height)
     }
 
+    pub fn sprite_size(&self, sprite_ref: usize) -> Result<(usize, usize), Box<Error>> {
+        let buf = &self.sprite_buffers[sprite_ref];
+
+        Ok(buf.size())
+    }
+
     pub fn add(&mut self, sprite: BlitBuffer) -> usize {
         self.sprite_buffers.push(sprite);
 

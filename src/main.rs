@@ -9,13 +9,16 @@ mod physics;
 
 use minifb::*;
 use specs::{World, DispatcherBuilder, Join};
-use std::time::SystemTime;
+use std::time::{SystemTime, Duration};
+use std::thread::sleep;
 
 use draw::{Render, Sprite, SpriteSystem};
 use physics::*;
 
 const WIDTH: usize = 640;
 const HEIGHT: usize = 320;
+
+const GRAVITY: f64 = 98.1;
 
 fn main() {
     let mut render = Render::new((WIDTH, HEIGHT));
@@ -30,7 +33,7 @@ fn main() {
     world.register::<Position>();
     world.register::<Velocity>();
 
-    world.add_resource(Gravity(9.45));
+    world.add_resource(Gravity(GRAVITY));
     world.add_resource(DeltaTime::new(1.0 / 60.0));
 
     world.create_entity()
@@ -40,13 +43,7 @@ fn main() {
 
     world.create_entity()
         .with(Sprite::new(level))
-        .with(Position::new(0.0, 0.0))
-        .build();
-
-    world.create_entity()
-        .with(Sprite::new(projectile))
-        .with(Position::new(100.0, 20.0))
-        .with(Velocity::new(0.0, 0.0))
+        .with(Position::new(0.0, (HEIGHT - render.sprite_size(level).unwrap().1) as f64))
         .build();
 
     let mut dispatcher = DispatcherBuilder::new()
@@ -59,6 +56,8 @@ fn main() {
         ..WindowOptions::default()
     };
     let mut window = Window::new("Castle Game", WIDTH, HEIGHT, options).expect("Unable to open window");
+
+    window.set_cursor_style(CursorStyle::Crosshair);
 
     let mut time = SystemTime::now();
     let mut second = 0.0;
@@ -79,6 +78,24 @@ fn main() {
             }
         }
 
+        // Handle mouse events
+        window.get_mouse_pos(MouseMode::Discard).map(|mouse| {
+            if second > 0.9 && window.get_mouse_down(MouseButton::Left) {
+                let x = 630.0;
+                let y = 200.0;
+                let time = 3.0;
+
+                let vx = ((mouse.0 as f64) - x) / time;
+                let vy = (mouse.1 as f64 + 0.5 * -GRAVITY * time * time - y) / time;
+
+                world.create_entity()
+                    .with(Sprite::new(projectile))
+                    .with(Position::new(x, y))
+                    .with(Velocity::new(vx, vy))
+                    .build();
+            }
+        });
+
         dispatcher.dispatch(&mut world.res);
 
         // Render the sprites
@@ -90,5 +107,7 @@ fn main() {
         }
 
         window.update_with_buffer(&render.buffer).unwrap();
+
+        sleep(Duration::from_millis(1));
     }
 }

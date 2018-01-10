@@ -64,10 +64,10 @@ impl<'a> System<'a> for ProjectileSystem {
         let dt = dt.to_seconds();
 
         for (vel, pos) in (&mut vel, &mut pos).join() {
-            vel.y += grav * dt;
-
             pos.x += vel.x * dt;
             pos.y += vel.y * dt;
+
+            vel.y += grav * dt;
         }
     }
 }
