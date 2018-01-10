@@ -21,6 +21,8 @@ travis-ci = {repository = "tversteeg/castle-game"}
 minifb = "0.10"
 blit = "0.2"
 specs = "0.10"
+specs-derive = "0.1"
+line_drawing = "0.6"
 
 [build-dependencies]
 blit = "0.2"

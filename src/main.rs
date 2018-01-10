@@ -1,41 +1,49 @@
 extern crate minifb;
 extern crate blit;
 extern crate specs;
+#[macro_use]
+extern crate specs_derive;
 
 mod draw;
-mod sprite;
-mod geom;
+mod physics;
 
 use minifb::*;
-use blit::BlitBuffer;
-use specs::{World, RunNow};
+use specs::{World, DispatcherBuilder, Join};
 
-use draw::RenderSystem;
-use sprite::Sprite;
-use geom::Position;
+use draw::{Render, Sprite, SpriteSystem};
+use physics::*;
 
 const WIDTH: usize = 640;
 const HEIGHT: usize = 320;
 
 fn main() {
+    let mut render = Render::new((WIDTH, HEIGHT));
+
+    let background = render.add_from_memory(include_bytes!("../resources/background.png.blit"));
+    let level = render.add_from_memory(include_bytes!("../resources/level.png.blit"));
+
     let mut world = World::new();
 
     world.register::<Sprite>();
     world.register::<Position>();
+    world.register::<Velocity>();
 
-    let bytes = include_bytes!("../resources/background.png.blit");
+    world.add_resource(Gravity(0.05));
+
     world.create_entity()
-        .with(Sprite::new(BlitBuffer::load_from_memory(bytes).unwrap()))
+        .with(Sprite::new(background))
         .with(Position::new(0.0, 0.0))
         .build();
 
-    let bytes = include_bytes!("../resources/level.png.blit");
     world.create_entity()
-        .with(Sprite::new(BlitBuffer::load_from_memory(bytes).unwrap()))
+        .with(Sprite::new(level))
         .with(Position::new(0.0, 0.0))
         .build();
 
-    let mut render_system = RenderSystem::new((WIDTH, HEIGHT));
+    let mut dispatcher = DispatcherBuilder::new()
+        .add(ProjectileSystem, "projectile", &[])
+        .add(SpriteSystem, "sprite", &["projectile"])
+        .build();
 
     let options = WindowOptions {
         scale: Scale::X2,
@@ -44,24 +52,16 @@ fn main() {
     let mut window = Window::new("Castle Game - Press ESC to exit", WIDTH, HEIGHT, options).expect("Unable to open window");
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
-        /*
-        window.get_mouse_pos(MouseMode::Discard).map(|mouse| {
-            let screen_pos = ((mouse.1 as usize) * WIDTH) + mouse.0 as usize;
-        });
-        */
+        dispatcher.dispatch(&mut world.res);
 
-        window.get_keys().map(|keys| {
-            for t in keys {
-                match t {
-                    Key::W => println!("holding w!"),
-                    Key::T => println!("holding t!"),
-                    _ => (),
-                }
+        // Render the sprites
+        let sprites = world.read::<Sprite>();
+        for entity in world.entities().join() {
+            if let Some(sprite) = sprites.get(entity) {
+                render.draw(sprite).unwrap();
             }
-        });
+        }
 
-        render_system.run_now(&world.res);
-
-        window.update_with_buffer(render_system.raw_buffer()).unwrap();
+        window.update_with_buffer(&render.buffer).unwrap();
     }
 }
