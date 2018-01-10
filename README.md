@@ -11,7 +11,7 @@
 
 # Run
 
-    cargo run
+    cargo run --release
 
 # Screenshots
 

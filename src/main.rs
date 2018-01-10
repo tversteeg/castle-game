@@ -9,6 +9,7 @@ mod physics;
 
 use minifb::*;
 use specs::{World, DispatcherBuilder, Join};
+use std::time::SystemTime;
 
 use draw::{Render, Sprite, SpriteSystem};
 use physics::*;
@@ -21,6 +22,7 @@ fn main() {
 
     let background = render.add_from_memory(include_bytes!("../resources/background.png.blit"));
     let level = render.add_from_memory(include_bytes!("../resources/level.png.blit"));
+    let projectile = render.add_from_memory(include_bytes!("../resources/projectile1.png.blit"));
 
     let mut world = World::new();
 
@@ -28,7 +30,8 @@ fn main() {
     world.register::<Position>();
     world.register::<Velocity>();
 
-    world.add_resource(Gravity(0.05));
+    world.add_resource(Gravity(9.45));
+    world.add_resource(DeltaTime::new(1.0 / 60.0));
 
     world.create_entity()
         .with(Sprite::new(background))
@@ -40,6 +43,12 @@ fn main() {
         .with(Position::new(0.0, 0.0))
         .build();
 
+    world.create_entity()
+        .with(Sprite::new(projectile))
+        .with(Position::new(100.0, 20.0))
+        .with(Velocity::new(0.0, 0.0))
+        .build();
+
     let mut dispatcher = DispatcherBuilder::new()
         .add(ProjectileSystem, "projectile", &[])
         .add(SpriteSystem, "sprite", &["projectile"])
@@ -49,9 +58,27 @@ fn main() {
         scale: Scale::X2,
         ..WindowOptions::default()
     };
-    let mut window = Window::new("Castle Game - Press ESC to exit", WIDTH, HEIGHT, options).expect("Unable to open window");
+    let mut window = Window::new("Castle Game", WIDTH, HEIGHT, options).expect("Unable to open window");
 
+    let mut time = SystemTime::now();
+    let mut second = 0.0;
     while window.is_open() && !window.is_key_down(Key::Escape) {
+        // Calculate the deltatime
+        {
+            let mut delta = world.write_resource::<DeltaTime>();
+            *delta = DeltaTime(time.elapsed().unwrap());
+            time = SystemTime::now();
+
+            // Update the title every second
+            second += delta.to_seconds();
+            if second > 1.0 {
+                second -= 1.0;
+
+                let title = &format!("Castle Game - Press ESC to exit, FPS: {:.2}", 1.0 / delta.to_seconds());
+                window.set_title(title);
+            }
+        }
+
         dispatcher.dispatch(&mut world.res);
 
         // Render the sprites
