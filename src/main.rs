@@ -21,30 +21,23 @@ const HEIGHT: usize = 320;
 const GRAVITY: f64 = 98.1;
 
 fn main() {
+    let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
+
     let mut render = Render::new((WIDTH, HEIGHT));
 
-    let background = render.add_from_memory(include_bytes!("../resources/background.png.blit"));
-    let level = render.add_from_memory(include_bytes!("../resources/level.png.blit"));
-    let projectile = render.add_from_memory(include_bytes!("../resources/projectile1.png.blit"));
+    render.draw_background_from_memory(include_bytes!("../resources/sprites/background.png.blit"));
+    render.draw_terrain_from_memory(include_bytes!("../resources/sprites/level.png.blit"));
+
+    let projectile = render.add_from_memory(include_bytes!("../resources/sprites/projectile1.png.blit"));
+    let projectile_mask = render.add_from_memory(include_bytes!("../resources/masks/bighole1.png.blit"));
 
     let mut world = World::new();
-
     world.register::<Sprite>();
     world.register::<Position>();
     world.register::<Velocity>();
 
     world.add_resource(Gravity(GRAVITY));
     world.add_resource(DeltaTime::new(1.0 / 60.0));
-
-    world.create_entity()
-        .with(Sprite::new(background))
-        .with(Position::new(0.0, 0.0))
-        .build();
-
-    world.create_entity()
-        .with(Sprite::new(level))
-        .with(Position::new(0.0, (HEIGHT - render.sprite_size(level).unwrap().1) as f64))
-        .build();
 
     let mut dispatcher = DispatcherBuilder::new()
         .add(ProjectileSystem, "projectile", &[])
@@ -80,7 +73,7 @@ fn main() {
 
         // Handle mouse events
         window.get_mouse_pos(MouseMode::Discard).map(|mouse| {
-            if second > 0.9 && window.get_mouse_down(MouseButton::Left) {
+            if (second * 100.0) as i32 % 10 == 1 && window.get_mouse_down(MouseButton::Left) {
                 let x = 630.0;
                 let y = 200.0;
                 let time = 3.0;
@@ -102,11 +95,12 @@ fn main() {
         let sprites = world.read::<Sprite>();
         for entity in world.entities().join() {
             if let Some(sprite) = sprites.get(entity) {
-                render.draw(sprite).unwrap();
+                render.draw_foreground(sprite).unwrap();
             }
         }
 
-        window.update_with_buffer(&render.buffer).unwrap();
+        render.draw_final_buffer(&mut buffer);
+        window.update_with_buffer(&buffer).unwrap();
 
         sleep(Duration::from_millis(1));
     }

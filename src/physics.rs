@@ -1,7 +1,7 @@
 use specs::*;
 use std::time::Duration;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Component, Debug, Copy, Clone)]
 pub struct Position {
     x: f64,
     y: f64
@@ -17,11 +17,7 @@ impl Position {
     }
 }
 
-impl Component for Position {
-    type Storage = VecStorage<Self>;
-}
-
-#[derive(Debug, Copy, Clone)]
+#[derive(Component, Debug, Copy, Clone)]
 pub struct Velocity {
     x: f64,
     y: f64
@@ -31,10 +27,6 @@ impl Velocity {
     pub fn new(x: f64, y: f64) -> Self {
         Velocity { x, y }
     }
-}
-
-impl Component for Velocity {
-    type Storage = VecStorage<Self>;
 }
 
 pub struct DeltaTime(pub Duration);
