@@ -9,6 +9,10 @@
 
     sudo apt install xorg-dev
 
+## Windows & Mac
+
+None
+
 # Run
 
     cargo run --release
