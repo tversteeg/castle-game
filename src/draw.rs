@@ -3,7 +3,10 @@ use blit::*;
 use std::error::Error;
 
 use physics::Position;
-use terrain::Terrain;
+use terrain::*;
+
+#[derive(Component)]
+pub struct MaskId(pub usize);
 
 #[derive(Component)]
 pub struct Sprite {
@@ -33,38 +36,6 @@ impl<'a> System<'a> for SpriteSystem {
     fn run(&mut self, (pos, mut sprite): Self::SystemData) {
         for (pos, sprite) in (&pos, &mut sprite).join() {
             sprite.pos = *pos;
-        }
-    }
-}
-
-#[derive(Component)]
-pub struct Mask {
-    pub pos: Position,
-    mask_ref: usize
-}
-
-impl Mask {
-    pub fn new(mask_ref: usize) -> Self {
-        Mask {
-            mask_ref,
-            pos: Position::new(0.0, 0.0)
-        }
-    }
-
-    pub fn mask_ref(&self) -> usize {
-        self.mask_ref
-    }
-}
-
-pub struct MaskSystem;
-
-impl<'a> System<'a> for MaskSystem {
-    type SystemData = (ReadStorage<'a, Position>,
-                       WriteStorage<'a, Mask>);
-
-    fn run(&mut self, (pos, mut mask): Self::SystemData) {
-        for (pos, mask) in (&pos, &mut mask).join() {
-            mask.pos = *pos;
         }
     }
 }
@@ -118,11 +89,16 @@ impl Render {
         Ok(())
     }
 
-    pub fn draw_mask_terrain(&mut self, terrain: &mut Terrain, mask: &Mask) -> Result<(), Box<Error>> {
-        let buf = &self.blit_buffers[mask.mask_ref()];
+    pub fn draw_mask_terrain(&mut self, terrain: &mut Terrain, mask: &TerrainMask) -> Result<(), Box<Error>> {
+        let buf = &self.blit_buffers[mask.id];
+
+        // Center the mask
+        let mut pos = mask.pos;
+        pos.0 -= buf.size().0 as i32 / 2;
+        pos.1 -= buf.size().1 as i32 / 2;
 
         let size = self.size();
-        buf.blit(&mut terrain.buffer, size, mask.pos.as_i32());
+        buf.blit(&mut terrain.buffer, size, pos);
 
         Ok(())
     }
