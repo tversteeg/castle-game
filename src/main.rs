@@ -27,16 +27,35 @@ const HEIGHT: i32 = 320;
 
 const GRAVITY: f64 = 98.1;
 
+macro_rules! load_resource {
+    ($render:expr; sprite => $e:expr) => {{
+        $render.add_buf_from_memory($e, include_bytes!(concat!("../resources/sprites/", $e, ".png.blit")))
+    }};
+    ($render:expr; mask => $e:expr) => {{
+        $render.add_buf_from_memory($e, include_bytes!(concat!("../resources/masks/", $e, ".png.blit")))
+    }};
+}
+
 fn main() {
     let mut buffer: Vec<u32> = vec![0; (WIDTH * HEIGHT) as usize];
 
     let mut world = World::new();
+    // draw.rs
     world.register::<Sprite>();
     world.register::<MaskId>();
+
+    // terrain.rs
     world.register::<TerrainMask>();
+
+    // physics.rs
     world.register::<Position>();
     world.register::<Velocity>();
+    world.register::<Rect>();
+
+    // ai.rs
     world.register::<Health>();
+    world.register::<Walk>();
+    world.register::<Destination>();
 
     world.add_resource(Terrain::new((WIDTH, HEIGHT)));
     world.add_resource(Gravity(GRAVITY));
@@ -47,13 +66,24 @@ fn main() {
     render.draw_background_from_memory(include_bytes!("../resources/sprites/background.png.blit"));
     render.draw_terrain_from_memory(&mut *world.write_resource::<Terrain>(), include_bytes!("../resources/sprites/level.png.blit"));
 
-    let projectile = render.add_buf_from_memory(include_bytes!("../resources/sprites/projectile1.png.blit"));
-    let projectile_mask = render.add_buf_from_memory(include_bytes!("../resources/masks/bighole1.png.blit"));
+    let projectile = load_resource!(render; sprite => "projectile1");
+    let soldier = load_resource!(render; sprite => "soldier1");
+
+    let projectile_mask = load_resource!(render; mask => "bighole1");
+
+    world.create_entity()
+        .with(Sprite::new(soldier))
+        .with(Position::new(10.0, 200.0))
+        .with(Velocity::new(0.0, 0.0))
+        .with(Walk(Rect::new(-2.0, -2.0, 4.0, 4.0)))
+        .with(Destination(630.0))
+        .build();
 
     let mut dispatcher = DispatcherBuilder::new()
         .add(ProjectileSystem, "projectile", &[])
+        .add(WalkSystem, "walk", &[])
         .add(UnitSystem, "unit", &["projectile"])
-        .add(SpriteSystem, "sprite", &["projectile", "unit"])
+        .add(SpriteSystem, "sprite", &["projectile", "walk"])
         .build();
 
     let options = WindowOptions {
@@ -93,6 +123,7 @@ fn main() {
                 let vx = ((mouse.0 as f64) - x) / time;
                 let vy = (mouse.1 as f64 + 0.5 * -GRAVITY * time * time - y) / time;
 
+                // Spawn a projectile
                 world.create_entity()
                     .with(Sprite::new(projectile))
                     .with(MaskId(projectile_mask))
