@@ -46,15 +46,15 @@ pub struct Render {
 
     blit_buffers: Vec<BlitBuffer>,
 
-    width: usize,
-    height: usize,
+    width: i32,
+    height: i32,
 }
 
 impl Render {
-    pub fn new(size: (usize, usize)) -> Self {
+    pub fn new(size: (i32, i32)) -> Self {
         Render {
-            background: vec![0; size.0 * size.1],
-            foreground: vec![0xFFFF00FF; size.0 * size.1],
+            background: vec![0; (size.0 * size.1) as usize],
+            foreground: vec![0xFFFF00FF; (size.0 * size.1) as usize],
 
             width: size.0,
             height: size.1,
@@ -94,8 +94,8 @@ impl Render {
 
         // Center the mask
         let mut pos = mask.pos;
-        pos.0 -= buf.size().0 as i32 / 2;
-        pos.1 -= buf.size().1 as i32 / 2;
+        pos.0 -= buf.size().0 / 2;
+        pos.1 -= buf.size().1 / 2;
 
         let size = self.size();
         buf.blit(&mut terrain.buffer, size, pos);
@@ -117,7 +117,7 @@ impl Render {
         buf.blit(&mut self.background, size, (0, 0));
     }
 
-    pub fn size(&self) -> (usize, usize) {
+    pub fn size(&self) -> (i32, i32) {
         (self.width, self.height)
     }
 
