@@ -8,6 +8,8 @@ extern crate specs_derive;
 mod draw;
 mod physics;
 mod terrain;
+mod projectile;
+mod ai;
 
 use minifb::*;
 use specs::{World, DispatcherBuilder, Join};
@@ -17,14 +19,16 @@ use std::thread::sleep;
 use draw::*;
 use physics::*;
 use terrain::*;
+use projectile::*;
+use ai::*;
 
-const WIDTH: usize = 640;
-const HEIGHT: usize = 320;
+const WIDTH: i32 = 640;
+const HEIGHT: i32 = 320;
 
 const GRAVITY: f64 = 98.1;
 
 fn main() {
-    let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
+    let mut buffer: Vec<u32> = vec![0; (WIDTH * HEIGHT) as usize];
 
     let mut world = World::new();
     world.register::<Sprite>();
@@ -32,6 +36,7 @@ fn main() {
     world.register::<TerrainMask>();
     world.register::<Position>();
     world.register::<Velocity>();
+    world.register::<Health>();
 
     world.add_resource(Terrain::new((WIDTH, HEIGHT)));
     world.add_resource(Gravity(GRAVITY));
@@ -47,14 +52,15 @@ fn main() {
 
     let mut dispatcher = DispatcherBuilder::new()
         .add(ProjectileSystem, "projectile", &[])
-        .add(SpriteSystem, "sprite", &["projectile"])
+        .add(UnitSystem, "unit", &["projectile"])
+        .add(SpriteSystem, "sprite", &["projectile", "unit"])
         .build();
 
     let options = WindowOptions {
         scale: Scale::X2,
         ..WindowOptions::default()
     };
-    let mut window = Window::new("Castle Game", WIDTH, HEIGHT, options).expect("Unable to open window");
+    let mut window = Window::new("Castle Game", WIDTH as usize, HEIGHT as usize, options).expect("Unable to open window");
 
     window.set_cursor_style(CursorStyle::Crosshair);
 

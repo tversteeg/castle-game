@@ -3,14 +3,14 @@ use line_drawing::Bresenham;
 pub struct Terrain {
     pub buffer: Vec<u32>,
 
-    width: usize,
-    height: usize
+    width: i32,
+    height: i32
 }
 
 impl Terrain {
-    pub fn new(size: (usize, usize)) -> Self {
+    pub fn new(size: (i32, i32)) -> Self {
         Terrain {
-            buffer: vec![0xFFFF00FF; size.0 * size.1],
+            buffer: vec![0xFFFF00FF; (size.0 * size.1) as usize],
 
             width: size.0,
             height: size.1,
@@ -18,7 +18,7 @@ impl Terrain {
     }
 
     pub fn size(&self) -> (i32, i32) {
-        (self.width as i32, self.height as i32)
+        (self.width, self.height)
     }
 
     pub fn line_collides(&self, start: (i32, i32), end: (i32, i32)) -> Option<(i32, i32)> {
