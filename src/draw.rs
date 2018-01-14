@@ -44,7 +44,7 @@ pub struct Render {
     background: Vec<u32>,
     foreground: Vec<u32>,
 
-    blit_buffers: Vec<BlitBuffer>,
+    blit_buffers: Vec<(String, BlitBuffer)>,
 
     width: i32,
     height: i32,
@@ -81,7 +81,7 @@ impl Render {
     }
 
     pub fn draw_foreground(&mut self, sprite: &Sprite) -> Result<(), Box<Error>> {
-        let buf = &self.blit_buffers[sprite.img_ref()];
+        let buf = &self.blit_buffers[sprite.img_ref()].1;
 
         let size = self.size();
         buf.blit(&mut self.foreground, size, sprite.pos.as_i32());
@@ -90,7 +90,7 @@ impl Render {
     }
 
     pub fn draw_mask_terrain(&mut self, terrain: &mut Terrain, mask: &TerrainMask) -> Result<(), Box<Error>> {
-        let buf = &self.blit_buffers[mask.id];
+        let buf = &self.blit_buffers[mask.id].1;
 
         // Center the mask
         let mut pos = mask.pos;
@@ -121,15 +121,15 @@ impl Render {
         (self.width, self.height)
     }
 
-    pub fn add_buf(&mut self, buf: BlitBuffer) -> usize {
-        self.blit_buffers.push(buf);
+    pub fn add_buf(&mut self, name: &str, buf: BlitBuffer) -> usize {
+        self.blit_buffers.push((String::from(name), buf));
 
         self.blit_buffers.len() - 1
     }
 
-    pub fn add_buf_from_memory(&mut self, bytes: &[u8]) -> usize {
+    pub fn add_buf_from_memory(&mut self, name: &str, bytes: &[u8]) -> usize {
         let buf = BlitBuffer::load_from_memory(bytes).unwrap();
 
-        self.add_buf(buf)
+        self.add_buf(name, buf)
     }
 }
