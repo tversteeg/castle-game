@@ -22,8 +22,8 @@ use terrain::*;
 use projectile::*;
 use ai::*;
 
-const WIDTH: i32 = 640;
-const HEIGHT: i32 = 320;
+const WIDTH: usize = 640;
+const HEIGHT: usize = 320;
 
 const GRAVITY: f64 = 98.1;
 

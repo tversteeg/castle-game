@@ -46,12 +46,12 @@ pub struct Render {
 
     blit_buffers: Vec<(String, BlitBuffer)>,
 
-    width: i32,
-    height: i32,
+    width: usize,
+    height: usize,
 }
 
 impl Render {
-    pub fn new(size: (i32, i32)) -> Self {
+    pub fn new(size: (usize, usize)) -> Self {
         Render {
             background: vec![0; (size.0 * size.1) as usize],
             foreground: vec![0xFFFF00FF; (size.0 * size.1) as usize],
@@ -84,7 +84,7 @@ impl Render {
         let buf = &self.blit_buffers[sprite.img_ref()].1;
 
         let size = self.size();
-        buf.blit(&mut self.foreground, size, sprite.pos.as_i32());
+        buf.blit(&mut self.foreground, size.0, sprite.pos.as_i32());
 
         Ok(())
     }
@@ -98,26 +98,26 @@ impl Render {
         pos.1 -= buf.size().1 / 2;
 
         let size = self.size();
-        buf.blit(&mut terrain.buffer, size, pos);
+        buf.blit(&mut terrain.buffer, size.0, pos);
 
         Ok(())
     }
 
     pub fn draw_terrain_from_memory(&mut self, terrain: &mut Terrain, bytes: &[u8]) {
-        let buf = BlitBuffer::load_from_memory(bytes).unwrap();
+        let buf = BlitBuffer::from_memory(bytes).unwrap();
 
         let size = self.size();
-        buf.blit(&mut terrain.buffer, size, (0, 0));
+        buf.blit(&mut terrain.buffer, size.0, (0, 0));
     }
 
     pub fn draw_background_from_memory(&mut self, bytes: &[u8]) {
-        let buf = BlitBuffer::load_from_memory(bytes).unwrap();
+        let buf = BlitBuffer::from_memory(bytes).unwrap();
 
         let size = self.size();
-        buf.blit(&mut self.background, size, (0, 0));
+        buf.blit(&mut self.background, size.0, (0, 0));
     }
 
-    pub fn size(&self) -> (i32, i32) {
+    pub fn size(&self) -> (usize, usize) {
         (self.width, self.height)
     }
 
@@ -128,7 +128,7 @@ impl Render {
     }
 
     pub fn add_buf_from_memory(&mut self, name: &str, bytes: &[u8]) -> usize {
-        let buf = BlitBuffer::load_from_memory(bytes).unwrap();
+        let buf = BlitBuffer::from_memory(bytes).unwrap();
 
         self.add_buf(name, buf)
     }
