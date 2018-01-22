@@ -16,7 +16,7 @@ fn save_blit_buffer_from_image(folder: &str, name: &str, mask_color: u32) {
         None => panic!("Could not convert image to RGB8 format")
     };
 
-    let blit_buf = img_as_rgb8.as_blit_buffer(mask_color);
+    let blit_buf = img_as_rgb8.to_blit_buffer(Color::from_u32(mask_color));
 
     blit_buf.save(format!("resources/{}/{}.blit", folder, name)).unwrap();
 }

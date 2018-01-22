@@ -1,6 +1,6 @@
 [package]
 name = "castle-game"
-version = "0.1.9"
+version = "0.1.10"
 authors = ["Thomas Versteeg <thomasversteeg@gmx.com>"]
 license = "GPL-3.0"
 homepage = "https://github.com/tversteeg/castle-game"
@@ -19,11 +19,11 @@ travis-ci = {repository = "tversteeg/castle-game"}
 
 [dependencies]
 minifb = "0.10"
-blit = "0.3"
+blit = "0.4"
 specs = "0.10"
 specs-derive = "0.1"
 line_drawing = "0.6"
 
 [build-dependencies]
-blit = "0.3"
+blit = "0.4"
 image = "0.18"
