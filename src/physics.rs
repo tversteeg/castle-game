@@ -1,4 +1,5 @@
 use std::time::Duration;
+use std::ops::Add;
 
 #[derive(Component, Debug, Copy, Clone)]
 pub struct Position {
@@ -28,7 +29,7 @@ impl Velocity {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Debug, Copy, Clone)]
 pub struct Rect {
     pub x: f64,
     pub y: f64,
@@ -44,6 +45,18 @@ impl Rect {
     pub fn hit_point(&self, point: (f64, f64)) -> bool {
         point.0 >= self.x && point.0 < self.x + self.width
             && point.1 >= self.y && point.1 < self.y + self.height
+    }
+
+    pub fn to_i32(&self) -> (i32, i32, i32, i32) {
+        (self.x as i32, self.y as i32, self.width as i32, self.height as i32)
+    }
+}
+
+impl Add<Position> for Rect {
+    type Output = Rect;
+
+    fn add(self, pos: Position) -> Rect {
+        Rect::new(self.x + pos.x, self.y + pos.y, self.width, self.height)
     }
 }
 

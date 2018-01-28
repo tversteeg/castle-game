@@ -35,6 +35,14 @@ impl<'a> System<'a> for WalkSystem {
                        WriteStorage<'a, Position>);
 
     fn run(&mut self, (dt, grav, terrain, bounds, dest, mut pos): Self::SystemData) {
+        let grav = grav.0;
+        let dt = dt.to_seconds();
 
+        for (bounds, dest, pos) in (&bounds, &dest, &mut pos).join() {
+            match terrain.rect_collides(bounds.0 + *pos) {
+                Some(pos) => (),
+                None => pos.y += 1.0
+            }
+        }
     }
 }

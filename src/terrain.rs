@@ -1,5 +1,7 @@
 use line_drawing::Bresenham;
 
+use physics::Rect;
+
 pub struct Terrain {
     pub buffer: Vec<u32>,
 
@@ -32,6 +34,42 @@ impl Terrain {
             let index = pos.0 as usize + pos.1 as usize * width;
             if (self.buffer[index] & 0xFFFFFF) != 0xFF00FF {
                 return Some(pos);
+            }
+        }
+
+        None
+    }
+
+    pub fn rect_collides(&self, rect: Rect) -> Option<(i32, i32)> {
+        let mut rect = rect.to_i32();
+
+        // Clip the rectangle to the buffer
+        if rect.0 < 0 {
+            rect.2 += rect.0;
+            rect.0 = 0;
+        }
+        if rect.1 < 0 {
+            rect.3 += rect.1;
+            rect.1 = 0;
+        }
+
+        let (width, height) = self.size();
+        if rect.0 + rect.2 >= width as i32 {
+            rect.2 = width as i32 - rect.0 - 1;
+        }
+        if rect.1 + rect.3 >= height as i32 {
+            rect.3 = height as i32 - rect.1 - 1;
+        }
+
+        let start = (rect.0, rect.1);
+        let end = (rect.0 + rect.2, rect.1 + rect.3);
+
+        for y in start.1..end.1 {
+            for x in start.0..end.0 {
+                let index = x as usize + y as usize * width;
+                if (self.buffer[index] & 0xFFFFFF) != 0xFF00FF {
+                    return Some((x, y));
+                }
             }
         }
 
