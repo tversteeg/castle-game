@@ -20,7 +20,16 @@ impl<'a> System<'a> for UnitSystem {
 }
 
 #[derive(Component)]
-pub struct Walk(pub Rect);
+pub struct Walk {
+    pub bounds: Rect,
+    pub speed: f64
+}
+
+impl Walk {
+    pub fn new(bounds: Rect, speed: f64) -> Self {
+        Walk { bounds, speed }
+    }
+}
 
 #[derive(Component)]
 pub struct Destination(pub f64);
@@ -28,20 +37,32 @@ pub struct Destination(pub f64);
 pub struct WalkSystem;
 impl<'a> System<'a> for WalkSystem {
     type SystemData = (Fetch<'a, DeltaTime>,
-                       Fetch<'a, Gravity>,
                        Fetch<'a, Terrain>,
                        ReadStorage<'a, Walk>,
                        ReadStorage<'a, Destination>,
                        WriteStorage<'a, Position>);
 
-    fn run(&mut self, (dt, grav, terrain, bounds, dest, mut pos): Self::SystemData) {
-        let grav = grav.0;
+    fn run(&mut self, (dt, terrain, walk, dest, mut pos): Self::SystemData) {
         let dt = dt.to_seconds();
 
-        for (bounds, dest, pos) in (&bounds, &dest, &mut pos).join() {
-            match terrain.rect_collides(bounds.0 + *pos) {
-                Some(pos) => (),
-                None => pos.y += 1.0
+        for (walk, dest, pos) in (&walk, &dest, &mut pos).join() {
+            pos.y += 1.0;
+
+            loop {
+                let hit_box = walk.bounds + *pos;
+                match terrain.rect_collides(hit_box) {
+                    Some(hit) => {
+                        pos.y -= 1.0;
+
+                        if hit.1 == hit_box.y as i32 {
+                            // Top edge of bounding box is hit, don't walk anymore
+                            break;
+                        }
+
+                        pos.x += walk.speed * dt * dest.0.signum();
+                    },
+                    None => break
+                }
             }
         }
     }
