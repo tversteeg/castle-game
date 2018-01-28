@@ -75,7 +75,7 @@ fn main() {
         .with(Sprite::new(soldier))
         .with(Position::new(10.0, 200.0))
         .with(Velocity::new(0.0, 0.0))
-        .with(Walk(Rect::new(-2.0, -2.0, 4.0, 4.0)))
+        .with(Walk::new(Rect::new(1.0, 5.0, 3.0, 5.0), 10.0))
         .with(Destination(630.0))
         .build();
 
