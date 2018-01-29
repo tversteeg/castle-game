@@ -18,8 +18,9 @@ build = "build.rs"
 travis-ci = {repository = "tversteeg/castle-game"}
 
 [dependencies]
-minifb = "0.10"
 blit = "0.4"
+direct-gui = "0.1"
+minifb = "0.10"
 specs = "0.10"
 specs-derive = "0.1"
 line_drawing = "0.6"
