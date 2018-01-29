@@ -1,4 +1,5 @@
 extern crate blit;
+extern crate direct_gui;
 extern crate minifb;
 extern crate line_drawing;
 extern crate specs;
@@ -15,6 +16,8 @@ use minifb::*;
 use specs::{World, DispatcherBuilder, Join};
 use std::time::{SystemTime, Duration};
 use std::thread::sleep;
+use direct_gui::*;
+use direct_gui::controls::*;
 
 use draw::*;
 use physics::*;
@@ -39,7 +42,9 @@ macro_rules! load_resource {
 fn main() {
     let mut buffer: Vec<u32> = vec![0; (WIDTH * HEIGHT) as usize];
 
+    // Setup game related things
     let mut world = World::new();
+
     // draw.rs
     world.register::<Sprite>();
     world.register::<MaskId>();
@@ -57,6 +62,7 @@ fn main() {
     world.register::<Walk>();
     world.register::<Destination>();
 
+    // Resources to `Fetch`
     world.add_resource(Terrain::new((WIDTH, HEIGHT)));
     world.add_resource(Gravity(GRAVITY));
     world.add_resource(DeltaTime::new(1.0 / 60.0));
@@ -86,14 +92,22 @@ fn main() {
         .add(SpriteSystem, "sprite", &["projectile", "walk"])
         .build();
 
+    // Setup minifb window related things
     let options = WindowOptions {
         scale: Scale::X2,
         ..WindowOptions::default()
     };
-    let mut window = Window::new("Castle Game", WIDTH as usize, HEIGHT as usize, options).expect("Unable to open window");
+    let mut window = Window::new("Castle Game", WIDTH, HEIGHT, options).expect("Unable to open window");
 
     window.set_cursor_style(CursorStyle::Crosshair);
 
+    // Setup the GUI system
+    let mut gui = Gui::new((WIDTH as i32, HEIGHT as i32));
+
+    let default_font = gui.default_font();
+    gui.register(Label::new(default_font).pos(2, 2).text("Castle Game, click to shoot."));
+
+    // Game loop
     let mut time = SystemTime::now();
     let mut second = 0.0;
     while window.is_open() && !window.is_key_down(Key::Escape) {
@@ -153,6 +167,11 @@ fn main() {
         }
 
         render.draw_final_buffer(&mut buffer, &*world.write_resource::<Terrain>());
+
+        // Render the gui on the buffer
+        gui.draw_to_buffer(&mut buffer);
+
+        // Finally draw the buffer on the window
         window.update_with_buffer(&buffer).unwrap();
 
         sleep(Duration::from_millis(1));
