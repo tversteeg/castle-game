@@ -62,6 +62,9 @@ fn main() {
     world.register::<Walk>();
     world.register::<Destination>();
 
+    // projectile.rs
+    world.register::<Damage>();
+
     // Resources to `Fetch`
     world.add_resource(Terrain::new((WIDTH, HEIGHT)));
     world.add_resource(Gravity(GRAVITY));
@@ -141,6 +144,7 @@ fn main() {
                 world.create_entity()
                     .with(Sprite::new(projectile))
                     .with(MaskId(projectile_mask))
+                    .with(Damage(100.0))
                     .with(Position::new(x, y))
                     .with(Velocity::new(vx, vy))
                     .build();
