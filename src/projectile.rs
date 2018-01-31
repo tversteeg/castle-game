@@ -4,6 +4,9 @@ use physics::*;
 use draw::*;
 use terrain::*;
 
+#[derive(Component)]
+pub struct Damage(pub f64);
+
 pub struct ProjectileSystem;
 
 impl<'a> System<'a> for ProjectileSystem {

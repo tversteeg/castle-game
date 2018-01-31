@@ -14,7 +14,7 @@ impl<'a> System<'a> for UnitSystem {
                        Fetch<'a, Terrain>,
                        WriteStorage<'a, Health>);
 
-    fn run(&mut self, (entities, dt, grav, terrain, mut health): Self::SystemData) {
+    fn run(&mut self, (_entities, _dt, _grav, _terrain, mut _health): Self::SystemData) {
 
     }
 }
