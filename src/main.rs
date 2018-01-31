@@ -97,7 +97,7 @@ fn main() {
         scale: Scale::X2,
         ..WindowOptions::default()
     };
-    let mut window = Window::new("Castle Game", WIDTH, HEIGHT, options).expect("Unable to open window");
+    let mut window = Window::new("Castle Game - Click to shoot & ESC to exit.", WIDTH, HEIGHT, options).expect("Unable to open window");
 
     window.set_cursor_style(CursorStyle::Crosshair);
 
@@ -105,7 +105,7 @@ fn main() {
     let mut gui = Gui::new((WIDTH as i32, HEIGHT as i32));
 
     let default_font = gui.default_font();
-    gui.register(Label::new(default_font).pos(2, 2).text("Castle Game, click to shoot."));
+    let fps_ref = gui.register(Label::new(default_font).with_pos(2, 2).with_text("FPS"));
 
     // Game loop
     let mut time = SystemTime::now();
@@ -119,11 +119,11 @@ fn main() {
 
             // Update the title every second
             second += delta.to_seconds();
-            if second > 1.0 {
-                second -= 1.0;
+            if second > 0.5 {
+                second -= 0.5;
 
-                let title = &format!("Castle Game - Press ESC to exit, FPS: {:.2}", 1.0 / delta.to_seconds());
-                window.set_title(title);
+                let fps = &format!("FPS {:.2}", 1.0 / delta.to_seconds());
+                gui.get_mut::<Label>(fps_ref).unwrap().set_text(fps);
             }
         }
 
