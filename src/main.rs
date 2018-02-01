@@ -1,8 +1,9 @@
 extern crate blit;
 extern crate direct_gui;
 extern crate minifb;
-extern crate line_drawing;
 extern crate specs;
+extern crate line_drawing;
+extern crate aabb2;
 #[macro_use]
 extern crate specs_derive;
 
@@ -56,6 +57,7 @@ fn main() {
     world.register::<Position>();
     world.register::<Velocity>();
     world.register::<Rect>();
+    world.register::<BoundingBox>();
 
     // ai.rs
     world.register::<Health>();
@@ -85,13 +87,15 @@ fn main() {
         .with(Position::new(10.0, 200.0))
         .with(Velocity::new(0.0, 0.0))
         .with(Walk::new(Rect::new(1.0, 5.0, 3.0, 5.0), 10.0))
+        .with(BoundingBox(Rect::new(0.0, 0.0, 10.0, 10.0)))
         .with(Destination(630.0))
+        .with(Health(100.0))
         .build();
 
     let mut dispatcher = DispatcherBuilder::new()
         .add(ProjectileSystem, "projectile", &[])
+        .add(ProjectileCollisionSystem, "projectile_collision", &["projectile"])
         .add(WalkSystem, "walk", &[])
-        .add(UnitSystem, "unit", &["projectile"])
         .add(SpriteSystem, "sprite", &["projectile", "walk"])
         .build();
 
@@ -144,6 +148,7 @@ fn main() {
                 world.create_entity()
                     .with(Sprite::new(projectile))
                     .with(MaskId(projectile_mask))
+                    .with(BoundingBox(Rect::new(0.0, 0.0, 5.0, 5.0)))
                     .with(Damage(100.0))
                     .with(Position::new(x, y))
                     .with(Velocity::new(vx, vy))

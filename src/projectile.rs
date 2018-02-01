@@ -1,14 +1,15 @@
 use specs::*;
+use aabb2;
 
 use physics::*;
 use draw::*;
 use terrain::*;
+use ai::Health;
 
 #[derive(Component)]
 pub struct Damage(pub f64);
 
 pub struct ProjectileSystem;
-
 impl<'a> System<'a> for ProjectileSystem {
     type SystemData = (Entities<'a>,
                        Fetch<'a, DeltaTime>,
@@ -36,6 +37,29 @@ impl<'a> System<'a> for ProjectileSystem {
                 None => {
                     *pos = next;
                     vel.y += grav * dt;
+                }
+            }
+        }
+    }
+}
+
+pub struct ProjectileCollisionSystem;
+impl<'a> System<'a> for ProjectileCollisionSystem {
+    type SystemData = (Entities<'a>,
+                       ReadStorage<'a, Position>,
+                       ReadStorage<'a, BoundingBox>,
+                       ReadStorage<'a, Damage>,
+                       WriteStorage<'a, Health>);
+
+    fn run(&mut self, (entities, pos, bb, dmg, mut health): Self::SystemData) {
+        for (proj, proj_pos, proj_bb, proj_dmg) in (&*entities, &pos, &bb, &dmg).join() {
+            let proj_aabb = proj_bb.to_aabb(proj_pos);
+            for (target_pos, target_bb, target_health) in (&pos, &bb, &mut health).join() {
+                let target_aabb = target_bb.to_aabb(target_pos);
+                if aabb2::intersects(&proj_aabb, &target_aabb) {
+                    target_health.0 -= proj_dmg.0;
+
+                    let _ = entities.delete(proj);
                 }
             }
         }
