@@ -24,6 +24,7 @@ minifb = "0.10"
 specs = "0.10"
 specs-derive = "0.1"
 line_drawing = "0.6"
+aabb2 = "0.1"
 
 [build-dependencies]
 blit = "0.4"

@@ -3,23 +3,10 @@ use specs::*;
 use physics::*;
 use terrain::*;
 
-#[derive(Component)]
-pub struct Health(i32);
+#[derive(Component, Debug, Copy, Clone)]
+pub struct Health(pub f64);
 
-pub struct UnitSystem;
-impl<'a> System<'a> for UnitSystem {
-    type SystemData = (Entities<'a>,
-                       Fetch<'a, DeltaTime>,
-                       Fetch<'a, Gravity>,
-                       Fetch<'a, Terrain>,
-                       WriteStorage<'a, Health>);
-
-    fn run(&mut self, (_entities, _dt, _grav, _terrain, mut _health): Self::SystemData) {
-
-    }
-}
-
-#[derive(Component)]
+#[derive(Component, Debug, Copy, Clone)]
 pub struct Walk {
     pub bounds: Rect,
     pub speed: f64
@@ -31,7 +18,7 @@ impl Walk {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Debug, Copy, Clone)]
 pub struct Destination(pub f64);
 
 pub struct WalkSystem;

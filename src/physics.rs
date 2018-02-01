@@ -1,5 +1,6 @@
 use std::time::Duration;
 use std::ops::Add;
+use aabb2::{self, AABB2};
 
 #[derive(Component, Debug, Copy, Clone)]
 pub struct Position {
@@ -57,6 +58,18 @@ impl Add<Position> for Rect {
 
     fn add(self, pos: Position) -> Rect {
         Rect::new(self.x + pos.x, self.y + pos.y, self.width, self.height)
+    }
+}
+
+#[derive(Component, Debug, Copy, Clone)]
+pub struct BoundingBox(pub Rect);
+
+impl BoundingBox {
+    pub fn to_aabb(&self, pos: &Position) -> AABB2<f64> {
+        let new_x = self.0.x + pos.x;
+        let new_y = self.0.y + pos.y;
+        aabb2::new([new_x, new_y],
+                   [new_x + self.0.width, new_y + self.0.height])
     }
 }
 
