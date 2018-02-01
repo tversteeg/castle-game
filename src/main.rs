@@ -95,6 +95,7 @@ fn main() {
     let mut dispatcher = DispatcherBuilder::new()
         .add(ProjectileSystem, "projectile", &[])
         .add(ProjectileCollisionSystem, "projectile_collision", &["projectile"])
+        .add(HealthSystem, "health", &["projectile_collision"])
         .add(WalkSystem, "walk", &[])
         .add(SpriteSystem, "sprite", &["projectile", "walk"])
         .build();
@@ -117,6 +118,7 @@ fn main() {
     // Game loop
     let mut time = SystemTime::now();
     let mut second = 0.0;
+    let mut shot_time = 0.0;
     while window.is_open() && !window.is_key_down(Key::Escape) {
         // Calculate the deltatime
         {
@@ -134,9 +136,12 @@ fn main() {
             }
         }
 
+        shot_time -= world.read_resource::<DeltaTime>().to_seconds();
         // Handle mouse events
         window.get_mouse_pos(MouseMode::Discard).map(|mouse| {
-            if (second * 100.0) as i32 % 20 < 3 && window.get_mouse_down(MouseButton::Left) {
+            if shot_time <= 0.0 && window.get_mouse_down(MouseButton::Left) {
+                shot_time = 0.3;
+
                 let x = 630.0;
                 let y = 190.0;
                 let time = 2.0;
@@ -149,7 +154,7 @@ fn main() {
                     .with(Sprite::new(projectile))
                     .with(MaskId(projectile_mask))
                     .with(BoundingBox(Rect::new(0.0, 0.0, 5.0, 5.0)))
-                    .with(Damage(100.0))
+                    .with(Damage(30.0))
                     .with(Position::new(x, y))
                     .with(Velocity::new(vx, vy))
                     .build();

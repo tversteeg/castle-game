@@ -21,6 +21,20 @@ impl Walk {
 #[derive(Component, Debug, Copy, Clone)]
 pub struct Destination(pub f64);
 
+pub struct HealthSystem;
+impl<'a> System<'a> for HealthSystem {
+    type SystemData = (Entities<'a>,
+                       ReadStorage<'a, Health>);
+
+    fn run(&mut self, (entities, health): Self::SystemData) {
+        for (entity, health) in (&*entities, &health).join() {
+            if health.0 <= 0.0 {
+                let _ = entities.delete(entity);
+            }
+        }
+    }
+}
+
 pub struct WalkSystem;
 impl<'a> System<'a> for WalkSystem {
     type SystemData = (Fetch<'a, DeltaTime>,
