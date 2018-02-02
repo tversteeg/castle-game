@@ -52,6 +52,7 @@ fn main() {
 
     // terrain.rs
     world.register::<TerrainMask>();
+    world.register::<TerrainCollapse>();
 
     // physics.rs
     world.register::<Position>();
@@ -95,6 +96,7 @@ fn main() {
     let mut dispatcher = DispatcherBuilder::new()
         .add(ProjectileSystem, "projectile", &[])
         .add(ProjectileCollisionSystem, "projectile_collision", &["projectile"])
+        .add(TerrainCollapseSystem, "terrain_collapse", &["projectile"])
         .add(HealthSystem, "health", &["projectile_collision"])
         .add(WalkSystem, "walk", &[])
         .add(SpriteSystem, "sprite", &["projectile", "walk"])

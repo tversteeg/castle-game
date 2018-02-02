@@ -33,6 +33,12 @@ impl<'a> System<'a> for ProjectileSystem {
 
                     let crater = entities.create();
                     updater.insert(crater, TerrainMask::new(mask.0, point));
+
+                    // TODO replace with proper size
+                    let terrain_rect = Rect::new(point.0 as f64, point.1 as f64, 10.0, 10.0);
+
+                    let collapse = entities.create();
+                    updater.insert(collapse, TerrainCollapse(terrain_rect));
                 },
                 None => {
                     *pos = next;
