@@ -64,6 +64,9 @@ fn main() {
     world.register::<Health>();
     world.register::<Walk>();
     world.register::<Destination>();
+    world.register::<Ally>();
+    world.register::<Enemy>();
+    world.register::<Turret>();
 
     // projectile.rs
     world.register::<Damage>();
@@ -91,6 +94,7 @@ fn main() {
         .with(BoundingBox(Rect::new(0.0, 0.0, 10.0, 10.0)))
         .with(Destination(630.0))
         .with(Health(100.0))
+        .with(Ally)
         .build();
 
     let mut dispatcher = DispatcherBuilder::new()
@@ -99,6 +103,7 @@ fn main() {
         .add(TerrainCollapseSystem, "terrain_collapse", &["projectile"])
         .add(HealthSystem, "health", &["projectile_collision"])
         .add(WalkSystem, "walk", &[])
+        .add(TurretSystem, "turret", &[])
         .add(SpriteSystem, "sprite", &["projectile", "walk"])
         .build();
 
@@ -122,6 +127,10 @@ fn main() {
     let mut second = 0.0;
     let mut shot_time = 0.0;
     while window.is_open() && !window.is_key_down(Key::Escape) {
+        let mut cs = ControlState {
+            ..ControlState::default()
+        };
+
         // Calculate the deltatime
         {
             let mut delta = world.write_resource::<DeltaTime>();
@@ -141,6 +150,9 @@ fn main() {
         shot_time -= world.read_resource::<DeltaTime>().to_seconds();
         // Handle mouse events
         window.get_mouse_pos(MouseMode::Discard).map(|mouse| {
+            cs.mouse_pos = (mouse.0 as i32, mouse.1 as i32);
+            cs.mouse_down = window.get_mouse_down(MouseButton::Left);
+
             if shot_time <= 0.0 && window.get_mouse_down(MouseButton::Left) {
                 shot_time = 0.3;
 
@@ -185,6 +197,7 @@ fn main() {
         render.draw_final_buffer(&mut buffer, &*world.write_resource::<Terrain>());
 
         // Render the gui on the buffer
+        gui.update(&cs);
         gui.draw_to_buffer(&mut buffer);
 
         // Finally draw the buffer on the window
