@@ -16,6 +16,13 @@ impl Position {
     pub fn as_i32(&self) -> (i32, i32) {
         (self.x as i32, self.y as i32)
     }
+
+    pub fn distance_to(&self, other: &Position) -> f64 {
+        let dx = other.x - self.x;
+        let dy = other.y - self.y;
+
+        (dx * dx + dy * dy).sqrt()
+    }
 }
 
 #[derive(Component, Debug, Copy, Clone)]
