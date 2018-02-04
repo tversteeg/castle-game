@@ -55,17 +55,26 @@ impl<'a> System<'a> for ProjectileCollisionSystem {
                        ReadStorage<'a, Position>,
                        ReadStorage<'a, BoundingBox>,
                        ReadStorage<'a, Damage>,
-                       WriteStorage<'a, Health>);
+                       WriteStorage<'a, Health>,
+                       Fetch<'a, LazyUpdate>);
 
-    fn run(&mut self, (entities, pos, bb, dmg, mut health): Self::SystemData) {
+    fn run(&mut self, (entities, pos, bb, dmg, mut health, updater): Self::SystemData) {
         for (proj, proj_pos, proj_bb, proj_dmg) in (&*entities, &pos, &bb, &dmg).join() {
             let proj_aabb = proj_bb.to_aabb(proj_pos);
-            for (target_pos, target_bb, target_health) in (&pos, &bb, &mut health).join() {
+            for (target, target_pos, target_bb, target_health) in (&*entities, &pos, &bb, &mut health).join() {
                 let target_aabb = target_bb.to_aabb(target_pos);
                 if aabb2::intersects(&proj_aabb, &target_aabb) {
                     target_health.0 -= proj_dmg.0;
+                    if target_health.0 <= 0.0 {
+                        let _ = entities.delete(target);
+                    }
 
                     let _ = entities.delete(proj);
+
+                    let blood = entities.create();
+                    updater.insert(blood, PixelParticle::new(0xFF0000, 10.0));
+                    updater.insert(blood, *target_pos);
+                    updater.insert(blood, Velocity::new(-10.0, -10.0));
                 }
             }
         }
