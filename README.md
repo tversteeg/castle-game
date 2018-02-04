@@ -19,6 +19,9 @@ None
 
 # Screenshots
 
+### v5 - Add units with terrain collision and automatic turrets
+![0.5](img/screengrab5.gif?raw=true)
+
 ### v4 - Detect collision between entities and the terrain and draw using masks
 ![0.4](img/screengrab4.gif?raw=true)
 
