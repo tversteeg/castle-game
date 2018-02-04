@@ -47,8 +47,9 @@ fn main() {
     let mut world = World::new();
 
     // draw.rs
-    world.register::<Sprite>();
+    world.register::<PixelParticle>();
     world.register::<MaskId>();
+    world.register::<Sprite>();
 
     // terrain.rs
     world.register::<TerrainMask>();
@@ -130,10 +131,10 @@ fn main() {
         .add(ProjectileSystem, "projectile", &[])
         .add(ProjectileCollisionSystem, "projectile_collision", &["projectile"])
         .add(TerrainCollapseSystem, "terrain_collapse", &["projectile"])
-        .add(HealthSystem, "health", &["projectile_collision"])
         .add(WalkSystem, "walk", &[])
         .add(TurretSystem, "turret", &[])
         .add(SpriteSystem, "sprite", &["projectile", "walk"])
+        .add(ParticleSystem, "particle", &[])
         .build();
 
     // Setup minifb window related things
@@ -211,11 +212,17 @@ fn main() {
 
         // Render the sprites & masks
         let sprites = world.read::<Sprite>();
+        let pixels = world.read::<PixelParticle>();
         let terrain_masks = world.read::<TerrainMask>();
         for entity in world.entities().join() {
             if let Some(sprite) = sprites.get(entity) {
                 render.draw_foreground(sprite).unwrap();
             }
+
+            if let Some(pixel) = pixels.get(entity) {
+                render.draw_foreground_pixel(pixel.pos(), pixel.color);
+            }
+
             if let Some(mask) = terrain_masks.get(entity) {
                 render.draw_mask_terrain(&mut *world.write_resource::<Terrain>(), mask).unwrap();
 

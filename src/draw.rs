@@ -2,8 +2,34 @@ use specs::*;
 use blit::*;
 use std::error::Error;
 
-use physics::Position;
+use physics::*;
 use terrain::*;
+
+#[derive(Component, Debug, Copy, Clone)]
+pub struct PixelParticle {
+    pub color: u32,
+    pub life: f64,
+
+    pos: (usize, usize)
+}
+
+impl PixelParticle {
+    pub fn new(color: u32, life: f64) -> Self {
+        PixelParticle {
+            color, life,
+            pos: (0, 0)
+        }
+    }
+
+    pub fn pos(&self) -> (usize, usize) {
+        self.pos
+    }
+
+    pub fn set_pos(&mut self, pos: &Position) {
+        self.pos.0 = pos.x as usize;
+        self.pos.1 = pos.y as usize;
+    }
+}
 
 #[derive(Component, Debug, Copy, Clone)]
 pub struct MaskId(pub usize);
@@ -27,8 +53,34 @@ impl Sprite {
     }
 }
 
-pub struct SpriteSystem;
+pub struct ParticleSystem;
+impl<'a> System<'a> for ParticleSystem {
+    type SystemData = (Entities<'a>,
+                       Fetch<'a, DeltaTime>,
+                       Fetch<'a, Gravity>,
+                       WriteStorage<'a, Position>,
+                       WriteStorage<'a, Velocity>,
+                       WriteStorage<'a, PixelParticle>);
 
+    fn run(&mut self, (entities, dt, grav, mut pos, mut vel, mut par): Self::SystemData) {
+        let grav = grav.0;
+        let dt = dt.to_seconds();
+        
+        for (entity, pos, vel, par) in (&*entities, &mut pos, &mut vel, &mut par).join() {
+            pos.x += vel.x * dt;
+            pos.y += vel.y * dt;
+            vel.y += grav * dt;
+
+            par.set_pos(pos);
+            par.life -= dt;
+            if par.life < 0.0 {
+                let _ = entities.delete(entity);
+            }
+        }
+    }
+}
+
+pub struct SpriteSystem;
 impl<'a> System<'a> for SpriteSystem {
     type SystemData = (ReadStorage<'a, Position>,
                        WriteStorage<'a, Sprite>);
@@ -87,6 +139,14 @@ impl Render {
         buf.blit(&mut self.foreground, size.0, sprite.pos.as_i32());
 
         Ok(())
+    }
+
+    pub fn draw_foreground_pixel(&mut self, pos: (usize, usize), color: u32) {
+        if pos.0 >= self.width || pos.1 >= self.height {
+            return;
+        }
+
+        self.foreground[pos.0 + pos.1 * self.width] = color;
     }
 
     pub fn draw_mask_terrain(&mut self, terrain: &mut Terrain, mask: &TerrainMask) -> Result<(), Box<Error>> {
