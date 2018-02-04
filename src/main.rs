@@ -88,13 +88,42 @@ fn main() {
 
     world.create_entity()
         .with(Sprite::new(soldier))
-        .with(Position::new(10.0, 200.0))
-        .with(Velocity::new(0.0, 0.0))
+        .with(Position::new(12.0, 200.0))
         .with(Walk::new(Rect::new(1.0, 5.0, 3.0, 5.0), 10.0))
         .with(BoundingBox(Rect::new(0.0, 0.0, 10.0, 10.0)))
         .with(Destination(630.0))
         .with(Health(100.0))
         .with(Ally)
+        .build();
+
+    world.create_entity()
+        .with(Sprite::new(soldier))
+        .with(Position::new(5.0, 200.0))
+        .with(Walk::new(Rect::new(1.0, 5.0, 3.0, 5.0), 10.0))
+        .with(BoundingBox(Rect::new(0.0, 0.0, 10.0, 10.0)))
+        .with(Destination(630.0))
+        .with(Health(100.0))
+        .with(Ally)
+        .build();
+
+    world.create_entity()
+        .with(Turret::default())
+        .with(Position::new(630.0, 190.0))
+        .with(Enemy)
+        .with(Sprite::new(projectile))
+        .with(MaskId(projectile_mask))
+        .with(BoundingBox(Rect::new(0.0, 0.0, 5.0, 5.0)))
+        .with(Damage(30.0))
+        .build();
+
+    world.create_entity()
+        .with(Turret::new(6.0, 230.0, 4.0))
+        .with(Position::new(610.0, 215.0))
+        .with(Enemy)
+        .with(Sprite::new(projectile))
+        .with(MaskId(projectile_mask))
+        .with(BoundingBox(Rect::new(0.0, 0.0, 5.0, 5.0)))
+        .with(Damage(30.0))
         .build();
 
     let mut dispatcher = DispatcherBuilder::new()
