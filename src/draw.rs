@@ -5,10 +5,10 @@ use std::error::Error;
 use physics::Position;
 use terrain::*;
 
-#[derive(Component)]
+#[derive(Component, Debug, Copy, Clone)]
 pub struct MaskId(pub usize);
 
-#[derive(Component)]
+#[derive(Component, Debug, Copy, Clone)]
 pub struct Sprite {
     pub pos: Position,
     img_ref: usize

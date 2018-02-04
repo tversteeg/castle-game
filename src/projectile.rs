@@ -6,7 +6,7 @@ use draw::*;
 use terrain::*;
 use ai::Health;
 
-#[derive(Component)]
+#[derive(Component, Debug, Copy, Clone)]
 pub struct Damage(pub f64);
 
 pub struct ProjectileSystem;

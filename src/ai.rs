@@ -2,6 +2,8 @@ use specs::*;
 
 use physics::*;
 use terrain::*;
+use draw::*;
+use projectile::*;
 
 #[derive(Component, Debug, Copy, Clone)]
 pub struct Health(pub f64);
@@ -36,12 +38,21 @@ pub struct Turret {
     delay_left: f64
 }
 
+impl Turret {
+    pub fn new(delay: f64, max_strength: f64, flight_time: f64) -> Self {
+        Turret {
+            delay, max_strength, flight_time,
+            delay_left: 0.0
+        }
+    }
+}
+
 impl Default for Turret {
     fn default() -> Self {
         Turret {
             delay: 5.0,
-            max_strength: 10.0,
-            flight_time: 5.0,
+            max_strength: 210.0,
+            flight_time: 3.0,
 
             delay_left: 0.0
         }
@@ -104,40 +115,56 @@ impl<'a> System<'a> for TurretSystem {
                        ReadStorage<'a, Ally>,
                        ReadStorage<'a, Enemy>,
                        ReadStorage<'a, Position>,
+                       ReadStorage<'a, Sprite>,
+                       ReadStorage<'a, MaskId>,
+                       ReadStorage<'a, BoundingBox>,
+                       ReadStorage<'a, Damage>,
+                       ReadStorage<'a, Walk>,
                        WriteStorage<'a, Turret>,
                        Fetch<'a, LazyUpdate>);
 
-    fn run(&mut self, (entities, dt, grav, ally, enemy, pos, mut turret, updater): Self::SystemData) {
+    fn run(&mut self, (entities, dt, grav, ally, enemy, pos, sprite, mask, bb, dmg, walk, mut turret, updater): Self::SystemData) {
         let dt = dt.to_seconds();
         let grav = grav.0;
 
-        for (tpos, enemy, turret) in (&pos, &enemy, &mut turret).join() {
+        for (tpos, enemy, sprite, mask, bb, dmg, turret) in (&pos, &enemy, &sprite, &mask, &bb, &dmg, &mut turret).join() {
             turret.delay_left -= dt;
             if turret.delay_left > 0.0 {
                 continue;
             }
 
             // Find the nearest ally to shoot
-            let mut closest = Position::new(-100.0, -100.0);
+            let mut closest = Position::new(-1000.0, -1000.0);
             let mut dist = tpos.distance_to(&closest);
 
-            for (apos, ally) in (&pos, &ally).join() {
-                let dist_to = tpos.distance_to(&apos);
+            for (apos, ally, walk) in (&pos, &ally, &walk).join() {
+                let mut pos = *apos;
+                pos.x += walk.speed * turret.flight_time;
+
+                let dist_to = tpos.distance_to(&pos);
                 if dist_to < dist {
                     dist = dist_to;
-                    closest = *apos;
+                    closest = pos;
                 }
             }
 
-            // Shoot the turret
             let time = turret.flight_time;
             let vx = (closest.x - tpos.x) / time;
             let vy = (closest.y + 0.5 * -grav * time * time - tpos.y) / time;
 
-            // TODO check max speed
-            let projectile = entities.create();
-            updater.insert(projectile, Position::new(tpos.x, tpos.y));
-            updater.insert(projectile, Velocity::new(vx, vy));
+            if (vx * vx + vy * vy).sqrt() < turret.max_strength {
+                // Shoot the turret
+
+                let projectile = entities.create();
+                updater.insert(projectile, Position::new(tpos.x, tpos.y));
+                updater.insert(projectile, Velocity::new(vx, vy));
+                updater.insert(projectile, *sprite);
+                updater.insert(projectile, *mask);
+                updater.insert(projectile, *bb);
+                updater.insert(projectile, *dmg);
+
+                turret.delay_left = turret.delay;
+            }
         }
     }
 }
