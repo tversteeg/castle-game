@@ -1,6 +1,10 @@
+use specs::*;
 use std::time::Duration;
 use std::ops::Add;
 use aabb2::{self, AABB2};
+
+use draw::*;
+use terrain::*;
 
 #[derive(Component, Debug, Copy, Clone)]
 pub struct Position {
@@ -93,3 +97,30 @@ impl DeltaTime {
 }
 
 pub struct Gravity(pub f64);
+
+pub struct ParticleSystem;
+impl<'a> System<'a> for ParticleSystem {
+    type SystemData = (Entities<'a>,
+                       Fetch<'a, DeltaTime>,
+                       Fetch<'a, Gravity>,
+                       WriteStorage<'a, Position>,
+                       WriteStorage<'a, Velocity>,
+                       WriteStorage<'a, PixelParticle>);
+
+    fn run(&mut self, (entities, dt, grav, mut pos, mut vel, mut par): Self::SystemData) {
+        let grav = grav.0;
+        let dt = dt.to_seconds();
+        
+        for (entity, pos, vel, par) in (&*entities, &mut pos, &mut vel, &mut par).join() {
+            pos.x += vel.x * dt;
+            pos.y += vel.y * dt;
+            vel.y += grav * dt;
+
+            par.set_pos(pos);
+            par.life -= dt;
+            if par.life < 0.0 {
+                let _ = entities.delete(entity);
+            }
+        }
+    }
+}
