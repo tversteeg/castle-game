@@ -1,4 +1,6 @@
 use specs::*;
+use rand;
+use rand::distributions::{IndependentSample, Range};
 
 use physics::*;
 use terrain::*;
@@ -34,14 +36,15 @@ pub struct Turret {
     pub delay: f64,
     pub max_strength: f64,
     pub flight_time: f64,
+    pub strength_variation: f64,
 
     delay_left: f64
 }
 
 impl Turret {
-    pub fn new(delay: f64, max_strength: f64, flight_time: f64) -> Self {
+    pub fn new(delay: f64, max_strength: f64, strength_variation: f64, flight_time: f64) -> Self {
         Turret {
-            delay, max_strength, flight_time,
+            delay, max_strength, flight_time, strength_variation,
             delay_left: 0.0
         }
     }
@@ -53,6 +56,7 @@ impl Default for Turret {
             delay: 5.0,
             max_strength: 210.0,
             flight_time: 3.0,
+            strength_variation: 10.0,
 
             delay_left: 0.0
         }
@@ -134,9 +138,12 @@ impl<'a> System<'a> for TurretSystem {
                 }
             }
 
+            let between = Range::new(-turret.strength_variation, turret.strength_variation);
+            let mut rng = rand::thread_rng();
+
             let time = turret.flight_time;
-            let vx = (closest.x - tpos.x) / time;
-            let vy = (closest.y + 0.5 * -grav * time * time - tpos.y) / time;
+            let vx = (closest.x - tpos.x) / time + between.ind_sample(&mut rng);
+            let vy = (closest.y + 0.5 * -grav * time * time - tpos.y) / time + between.ind_sample(&mut rng);
 
             if (vx * vx + vy * vy).sqrt() < turret.max_strength {
                 // Shoot the turret
