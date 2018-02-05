@@ -3,6 +3,7 @@ extern crate direct_gui;
 extern crate minifb;
 extern crate specs;
 extern crate line_drawing;
+extern crate rand;
 extern crate aabb2;
 #[macro_use]
 extern crate specs_derive;
@@ -118,7 +119,7 @@ fn main() {
         .build();
 
     world.create_entity()
-        .with(Turret::new(6.0, 230.0, 4.0))
+        .with(Turret::new(6.0, 230.0, 10.0, 4.0))
         .with(Position::new(610.0, 215.0))
         .with(Enemy)
         .with(Sprite::new(projectile))
