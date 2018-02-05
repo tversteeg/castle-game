@@ -103,11 +103,12 @@ impl<'a> System<'a> for ParticleSystem {
     type SystemData = (Entities<'a>,
                        Fetch<'a, DeltaTime>,
                        Fetch<'a, Gravity>,
+                       FetchMut<'a, Terrain>,
                        WriteStorage<'a, Position>,
                        WriteStorage<'a, Velocity>,
                        WriteStorage<'a, PixelParticle>);
 
-    fn run(&mut self, (entities, dt, grav, mut pos, mut vel, mut par): Self::SystemData) {
+    fn run(&mut self, (entities, dt, grav, mut terrain, mut pos, mut vel, mut par): Self::SystemData) {
         let grav = grav.0;
         let dt = dt.to_seconds();
         
@@ -115,6 +116,15 @@ impl<'a> System<'a> for ParticleSystem {
             pos.x += vel.x * dt;
             pos.y += vel.y * dt;
             vel.y += grav * dt;
+
+            let old_pos = par.pos();
+            match terrain.line_collides(pos.as_i32(), (old_pos.0 as i32, old_pos.1 as i32)) {
+                Some(point) => {
+                    terrain.draw_pixel((point.0 as usize, point.1 as usize), par.color);
+                    let _ = entities.delete(entity);
+                },
+                None => ()
+            }
 
             par.set_pos(pos);
             par.life -= dt;

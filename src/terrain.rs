@@ -76,6 +76,14 @@ impl Terrain {
 
         None
     }
+
+    pub fn draw_pixel(&mut self, pos: (usize, usize), color: u32) {
+        if pos.0 >= self.width || pos.1 >= self.height {
+            return;
+        }
+
+        self.buffer[pos.0 + pos.1 * self.width] = color;
+    }
 }
 
 #[derive(Component, Debug)]
