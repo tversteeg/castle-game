@@ -33,3 +33,7 @@ None
 
 ### v1 - Render using a simple framebuffer
 ![0.1](img/screenshot1.png?raw=true)
+
+# Contributing
+
+Contributions are more than welcome!
