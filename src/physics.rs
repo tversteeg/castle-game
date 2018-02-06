@@ -54,11 +54,6 @@ impl Rect {
         Rect { x, y, width, height }
     }
 
-    pub fn hit_point(&self, point: (f64, f64)) -> bool {
-        point.0 >= self.x && point.0 < self.x + self.width
-            && point.1 >= self.y && point.1 < self.y + self.height
-    }
-
     pub fn to_i32(&self) -> (i32, i32, i32, i32) {
         (self.x as i32, self.y as i32, self.width as i32, self.height as i32)
     }

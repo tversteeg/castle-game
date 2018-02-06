@@ -1,6 +1,7 @@
 use specs::*;
 use blit::*;
 use std::error::Error;
+use std::collections::HashMap;
 
 use physics::*;
 use terrain::*;
@@ -52,6 +53,8 @@ impl Sprite {
         self.img_ref
     }
 }
+
+pub struct Images(pub HashMap<String, usize>);
 
 pub struct SpriteSystem;
 impl<'a> System<'a> for SpriteSystem {

@@ -13,19 +13,22 @@ mod physics;
 mod terrain;
 mod projectile;
 mod ai;
+mod level;
 
 use minifb::*;
 use specs::{World, DispatcherBuilder, Join};
-use std::time::{SystemTime, Duration};
-use std::thread::sleep;
 use direct_gui::*;
 use direct_gui::controls::*;
+use std::time::{SystemTime, Duration};
+use std::thread::sleep;
+use std::collections::HashMap;
 
 use draw::*;
 use physics::*;
 use terrain::*;
 use projectile::*;
 use ai::*;
+use level::*;
 
 const WIDTH: usize = 640;
 const HEIGHT: usize = 320;
@@ -33,16 +36,23 @@ const HEIGHT: usize = 320;
 const GRAVITY: f64 = 98.1;
 
 macro_rules! load_resource {
-    ($render:expr; sprite => $e:expr) => {{
-        $render.add_buf_from_memory($e, include_bytes!(concat!("../resources/sprites/", $e, ".png.blit")))
+    ($resources:expr; $render:expr; sprite => $e:expr) => {{
+        $resources.insert($e.to_string(), $render.add_buf_from_memory($e, include_bytes!(concat!("../resources/sprites/", $e, ".png.blit"))))
     }};
-    ($render:expr; mask => $e:expr) => {{
-        $render.add_buf_from_memory($e, include_bytes!(concat!("../resources/masks/", $e, ".png.blit")))
+    ($resources:expr; $render:expr; mask => $e:expr) => {{
+        $resources.insert($e.to_string(), $render.add_buf_from_memory($e, include_bytes!(concat!("../resources/masks/", $e, ".png.blit"))))
     }};
 }
 
 fn main() {
     let mut buffer: Vec<u32> = vec![0; (WIDTH * HEIGHT) as usize];
+
+    let mut render = Render::new((WIDTH, HEIGHT));
+
+    let mut resources = HashMap::new();
+    load_resource!(resources; render; sprite => "projectile1");
+    load_resource!(resources; render; sprite => "soldier1");
+    load_resource!(resources; render; mask => "bighole1");
 
     // Setup game related things
     let mut world = World::new();
@@ -77,56 +87,12 @@ fn main() {
     world.add_resource(Terrain::new((WIDTH, HEIGHT)));
     world.add_resource(Gravity(GRAVITY));
     world.add_resource(DeltaTime::new(1.0 / 60.0));
-
-    let mut render = Render::new((WIDTH, HEIGHT));
+    world.add_resource(Images(resources));
 
     render.draw_background_from_memory(include_bytes!("../resources/sprites/background.png.blit"));
     render.draw_terrain_from_memory(&mut *world.write_resource::<Terrain>(), include_bytes!("../resources/sprites/level.png.blit"));
 
-    let projectile = load_resource!(render; sprite => "projectile1");
-    let soldier = load_resource!(render; sprite => "soldier1");
-
-    let projectile_mask = load_resource!(render; mask => "bighole1");
-
-    world.create_entity()
-        .with(Sprite::new(soldier))
-        .with(Position::new(12.0, 200.0))
-        .with(Walk::new(Rect::new(1.0, 5.0, 3.0, 5.0), 10.0))
-        .with(BoundingBox(Rect::new(0.0, 0.0, 10.0, 10.0)))
-        .with(Destination(630.0))
-        .with(Health(100.0))
-        .with(Ally)
-        .build();
-
-    world.create_entity()
-        .with(Sprite::new(soldier))
-        .with(Position::new(5.0, 200.0))
-        .with(Walk::new(Rect::new(1.0, 5.0, 3.0, 5.0), 10.0))
-        .with(BoundingBox(Rect::new(0.0, 0.0, 10.0, 10.0)))
-        .with(Destination(630.0))
-        .with(Health(100.0))
-        .with(Ally)
-        .build();
-
-    world.create_entity()
-        .with(Turret::default())
-        .with(Position::new(630.0, 190.0))
-        .with(Enemy)
-        .with(Sprite::new(projectile))
-        .with(MaskId(projectile_mask))
-        .with(BoundingBox(Rect::new(0.0, 0.0, 5.0, 5.0)))
-        .with(Damage(30.0))
-        .build();
-
-    world.create_entity()
-        .with(Turret::new(6.0, 230.0, 10.0, 4.0))
-        .with(Position::new(610.0, 215.0))
-        .with(Enemy)
-        .with(Sprite::new(projectile))
-        .with(MaskId(projectile_mask))
-        .with(BoundingBox(Rect::new(0.0, 0.0, 5.0, 5.0)))
-        .with(Damage(30.0))
-        .build();
+    place_turrets(&mut world, 1);
 
     let mut dispatcher = DispatcherBuilder::new()
         .add(ProjectileSystem, "projectile", &[])
@@ -156,7 +122,6 @@ fn main() {
     // Game loop
     let mut time = SystemTime::now();
     let mut second = 0.0;
-    let mut shot_time = 0.0;
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let mut cs = ControlState {
             ..ControlState::default()
@@ -178,32 +143,10 @@ fn main() {
             }
         }
 
-        shot_time -= world.read_resource::<DeltaTime>().to_seconds();
         // Handle mouse events
         window.get_mouse_pos(MouseMode::Discard).map(|mouse| {
             cs.mouse_pos = (mouse.0 as i32, mouse.1 as i32);
             cs.mouse_down = window.get_mouse_down(MouseButton::Left);
-
-            if shot_time <= 0.0 && window.get_mouse_down(MouseButton::Left) {
-                shot_time = 0.3;
-
-                let x = 630.0;
-                let y = 190.0;
-                let time = 2.0;
-
-                let vx = ((mouse.0 as f64) - x) / time;
-                let vy = (mouse.1 as f64 + 0.5 * -GRAVITY * time * time - y) / time;
-
-                // Spawn a projectile
-                world.create_entity()
-                    .with(Sprite::new(projectile))
-                    .with(MaskId(projectile_mask))
-                    .with(BoundingBox(Rect::new(0.0, 0.0, 5.0, 5.0)))
-                    .with(Damage(30.0))
-                    .with(Position::new(x, y))
-                    .with(Velocity::new(vx, vy))
-                    .build();
-            }
         });
 
         dispatcher.dispatch(&mut world.res);

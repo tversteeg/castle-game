@@ -117,7 +117,7 @@ impl<'a> System<'a> for TurretSystem {
         let dt = dt.to_seconds();
         let grav = grav.0;
 
-        for (tpos, enemy, sprite, mask, bb, dmg, turret) in (&pos, &enemy, &sprite, &mask, &bb, &dmg, &mut turret).join() {
+        for (tpos, _, sprite, mask, bb, dmg, turret) in (&pos, &enemy, &sprite, &mask, &bb, &dmg, &mut turret).join() {
             turret.delay_left -= dt;
             if turret.delay_left > 0.0 {
                 continue;
@@ -127,7 +127,7 @@ impl<'a> System<'a> for TurretSystem {
             let mut closest = Position::new(-1000.0, -1000.0);
             let mut dist = tpos.distance_to(&closest);
 
-            for (apos, ally, walk) in (&pos, &ally, &walk).join() {
+            for (apos, _, walk) in (&pos, &ally, &walk).join() {
                 let mut pos = *apos;
                 pos.x += walk.speed * turret.flight_time;
 
