@@ -108,10 +108,10 @@ impl<'a> System<'a> for TerrainCollapseSystem {
                        Fetch<'a, Terrain>,
                        WriteStorage<'a, TerrainCollapse>);
 
-    fn run(&mut self, (entities, dt, terrain, mut rect): Self::SystemData) {
-        let dt = dt.to_seconds();
+    fn run(&mut self, (entities, dt, _terrain, mut rect): Self::SystemData) {
+        let _dt = dt.to_seconds();
 
-        for (entities, mut rect) in (&*entities, &mut rect).join() {
+        for (_entities, mut _rect) in (&*entities, &mut rect).join() {
             
         }
     }
