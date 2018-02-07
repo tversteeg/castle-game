@@ -88,7 +88,7 @@ impl<'a> System<'a> for WalkSystem {
                             break;
                         }
 
-                        pos.x += walk.speed * dt * dest.0.signum();
+                        pos.x += walk.speed * dt * (dest.0 - pos.x).signum();
                     },
                     None => break
                 }
