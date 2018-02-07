@@ -63,6 +63,9 @@ impl Default for Turret {
     }
 }
 
+#[derive(Component, Debug)]
+pub struct Melee(pub Damage);
+
 pub struct WalkSystem;
 impl<'a> System<'a> for WalkSystem {
     type SystemData = (Fetch<'a, DeltaTime>,
@@ -94,6 +97,20 @@ impl<'a> System<'a> for WalkSystem {
                 }
             }
         }
+    }
+}
+
+pub struct MeleeSystem;
+impl<'a> System<'a> for MeleeSystem {
+    type SystemData = (ReadStorage<'a, Ally>,
+                       ReadStorage<'a, Enemy>,
+                       ReadStorage<'a, Position>,
+                       ReadStorage<'a, BoundingBox>,
+                       WriteStorage<'a, Melee>,
+                       WriteStorage<'a, Health>);
+
+    fn run(&mut self, (ally, enemy, pos, bb, melee, mut health): Self::SystemData) {
+
     }
 }
 
