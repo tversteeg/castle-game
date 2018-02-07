@@ -80,6 +80,7 @@ fn main() {
     world.register::<Ally>();
     world.register::<Enemy>();
     world.register::<Turret>();
+    world.register::<Melee>();
 
     // projectile.rs
     world.register::<Damage>();
@@ -100,6 +101,7 @@ fn main() {
         .add(ProjectileCollisionSystem, "projectile_collision", &["projectile"])
         .add(TerrainCollapseSystem, "terrain_collapse", &["projectile"])
         .add(WalkSystem, "walk", &[])
+        .add(MeleeSystem, "melee", &["walk"])
         .add(TurretSystem, "turret", &[])
         .add(SpriteSystem, "sprite", &["projectile", "walk"])
         .add(ParticleSystem, "particle", &[])
