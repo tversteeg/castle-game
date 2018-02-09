@@ -23,7 +23,7 @@ direct-gui = "0.1"
 minifb = "0.10"
 specs = "0.10"
 specs-derive = "0.1"
-line_drawing = "0.6"
+line_drawing = "0.7"
 aabb2 = "0.1"
 rand = "0.4"
 
