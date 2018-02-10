@@ -1,6 +1,7 @@
 use specs::*;
 use rand;
 use rand::distributions::{IndependentSample, Range};
+use aabb2;
 
 use physics::*;
 use terrain::*;
@@ -117,18 +118,58 @@ impl<'a> System<'a> for WalkSystem {
 
 pub struct MeleeSystem;
 impl<'a> System<'a> for MeleeSystem {
-    type SystemData = (Fetch<'a, DeltaTime>,
+    type SystemData = (Entities<'a>,
+                       Fetch<'a, DeltaTime>,
                        ReadStorage<'a, Ally>,
                        ReadStorage<'a, Enemy>,
                        ReadStorage<'a, Position>,
                        ReadStorage<'a, BoundingBox>,
                        WriteStorage<'a, Melee>,
-                       WriteStorage<'a, Health>);
+                       WriteStorage<'a, Health>,
+                       Fetch<'a, LazyUpdate>);
 
-    fn run(&mut self, (dt, ally, enemy, pos, bb, melee, mut health): Self::SystemData) {
+    fn run(&mut self, (entities, dt, ally, enemy, pos, bb, mut melee, mut health, updater): Self::SystemData) {
         let dt = dt.to_seconds();
 
-        for (_, a_pos, a_bb, a_melee, mut a_health) in (&ally, &pos, &bb, &melee, &mut health).join() {
+        for (a, _, a_pos, a_bb) in (&*entities, &ally, &pos, &bb).join() {
+            let a_aabb = a_bb.to_aabb(a_pos);
+            for (e, _, e_pos, e_bb) in (&*entities, &enemy, &pos, &bb).join() {
+                let e_aabb = e_bb.to_aabb(e_pos);
+                if aabb2::intersects(&a_aabb, &e_aabb) {
+                    {
+                        let a_melee: Option<&mut Melee> = melee.get_mut(a);
+                        if let Some(melee) = a_melee {
+                            melee.cooldown -= dt;
+                            if melee.cooldown <= 0.0 {
+                                reduce_unit_health(&entities, &e, health.get_mut(e).unwrap(), melee.dmg);
+
+                                melee.cooldown = melee.hitrate;
+
+                                let blood = entities.create();
+                                updater.insert(blood, PixelParticle::new(0xFF0000, 10.0));
+                                updater.insert(blood, *e_pos);
+                                updater.insert(blood, Velocity::new(-10.0, -10.0));
+                            }
+                        }
+                    }
+                    {
+                        let e_melee: Option<&mut Melee> = melee.get_mut(e);
+                        if let Some(melee) = e_melee {
+                            melee.cooldown -= dt;
+                            if melee.cooldown <= 0.0 {
+                                reduce_unit_health(&entities, &a, health.get_mut(a).unwrap(), melee.dmg);
+
+                                melee.cooldown = melee.hitrate;
+
+                                let blood = entities.create();
+                                updater.insert(blood, PixelParticle::new(0xFF0000, 10.0));
+                                updater.insert(blood, *a_pos);
+                                updater.insert(blood, Velocity::new(-10.0, -10.0));
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -196,4 +237,15 @@ impl<'a> System<'a> for TurretSystem {
             }
         }
     }
+}
+
+pub fn reduce_unit_health<'a>(entities: &'a EntitiesRes, unit: &'a Entity, health: &'a mut Health, dmg: f64) -> bool {
+    health.0 -= dmg;
+    if health.0 <= 0.0 {
+        let _ = entities.delete(*unit);
+
+        return true;
+    }
+
+    return false;
 }
