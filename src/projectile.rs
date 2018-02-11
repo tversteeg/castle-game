@@ -1,5 +1,4 @@
 use specs::*;
-use cgmath::Point2;
 use collision::Discrete;
 
 use physics::*;
