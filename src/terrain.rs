@@ -2,6 +2,7 @@ use specs::*;
 use line_drawing::Bresenham;
 
 use physics::*;
+use geom::*;
 
 pub struct Terrain {
     pub buffer: Vec<u32>,
@@ -41,7 +42,7 @@ impl Terrain {
         None
     }
 
-    pub fn rect_collides(&self, rect: Rect) -> Option<(i32, i32)> {
+    pub fn rect_collides(&self, rect: BoundingBox) -> Option<(i32, i32)> {
         let mut rect = rect.to_i32();
 
         // Clip the rectangle to the buffer
@@ -99,7 +100,7 @@ impl TerrainMask {
 }
 
 #[derive(Component, Debug)]
-pub struct TerrainCollapse(pub Rect);
+pub struct TerrainCollapse(pub BoundingBox);
 
 pub struct TerrainCollapseSystem;
 impl<'a> System<'a> for TerrainCollapseSystem {

@@ -4,7 +4,8 @@ extern crate minifb;
 extern crate specs;
 extern crate line_drawing;
 extern crate rand;
-extern crate aabb2;
+extern crate cgmath;
+extern crate collision;
 #[macro_use]
 extern crate specs_derive;
 
@@ -14,6 +15,7 @@ mod terrain;
 mod projectile;
 mod ai;
 mod level;
+mod geom;
 
 use minifb::*;
 use specs::{World, DispatcherBuilder, Join};
@@ -29,6 +31,7 @@ use terrain::*;
 use projectile::*;
 use ai::*;
 use level::*;
+use geom::*;
 
 const WIDTH: usize = 640;
 const HEIGHT: usize = 320;
@@ -68,10 +71,9 @@ fn main() {
     world.register::<TerrainCollapse>();
 
     // physics.rs
-    world.register::<Position>();
-    world.register::<Velocity>();
-    world.register::<Rect>();
+    world.register::<Point>();
     world.register::<BoundingBox>();
+    world.register::<Velocity>();
 
     // ai.rs
     world.register::<Health>();
@@ -168,7 +170,7 @@ fn main() {
             }
 
             if let Some(pixel) = pixels.get(entity) {
-                render.draw_foreground_pixel(pixel.pos(), pixel.color);
+                render.draw_foreground_pixel(pixel.pos, pixel.color);
             }
 
             if let Some(mask) = terrain_masks.get(entity) {
