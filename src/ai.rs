@@ -16,12 +16,17 @@ pub struct Health(pub f64);
 #[derive(Component, Debug, Copy, Clone)]
 pub struct Walk {
     pub bounds: BoundingBox,
-    pub speed: f64
+    pub speed: f64,
+
+    pub can_walk: bool
 }
 
 impl Walk {
     pub fn new(bounds: BoundingBox, speed: f64) -> Self {
-        Walk { bounds, speed }
+        Walk {
+            bounds, speed,
+            can_walk: true 
+        }
     }
 }
 
@@ -88,14 +93,14 @@ pub struct WalkSystem;
 impl<'a> System<'a> for WalkSystem {
     type SystemData = (Fetch<'a, DeltaTime>,
                        Fetch<'a, Terrain>,
-                       ReadStorage<'a, Walk>,
                        ReadStorage<'a, Destination>,
+                       WriteStorage<'a, Walk>,
                        WriteStorage<'a, Point>);
 
-    fn run(&mut self, (dt, terrain, walk, dest, mut pos): Self::SystemData) {
+    fn run(&mut self, (dt, terrain, dest, mut walk, mut pos): Self::SystemData) {
         let dt = dt.to_seconds();
 
-        for (walk, dest, pos) in (&walk, &dest, &mut pos).join() {
+        for (dest, walk, pos) in (&dest, &mut walk, &mut pos).join() {
             pos.y += 1.0;
 
             loop {
@@ -106,10 +111,13 @@ impl<'a> System<'a> for WalkSystem {
 
                         if hit.1 == hit_box.min.y as i32 {
                             // Top edge of bounding box is hit, don't walk anymore
+                            walk.can_walk = false;
                             break;
                         }
 
-                        pos.x += walk.speed * dt * (dest.0 - pos.x).signum();
+                        if walk.can_walk {
+                            pos.x += walk.speed * dt * (dest.0 - pos.x).signum();
+                        }
                     },
                     None => break
                 }
@@ -127,10 +135,11 @@ impl<'a> System<'a> for MeleeSystem {
                        ReadStorage<'a, Point>,
                        ReadStorage<'a, BoundingBox>,
                        WriteStorage<'a, Melee>,
+                       WriteStorage<'a, Walk>,
                        WriteStorage<'a, Health>,
                        Fetch<'a, LazyUpdate>);
 
-    fn run(&mut self, (entities, dt, ally, enemy, pos, bb, mut melee, mut health, updater): Self::SystemData) {
+    fn run(&mut self, (entities, dt, ally, enemy, pos, bb, mut melee, mut walk, mut health, updater): Self::SystemData) {
         let dt = dt.to_seconds();
 
         for (a, _, a_pos, a_bb) in (&*entities, &ally, &pos, &bb).join() {
@@ -153,6 +162,11 @@ impl<'a> System<'a> for MeleeSystem {
                                 updater.insert(blood, Velocity::new(-10.0, -10.0));
                             }
                         }
+
+                        let a_walk: Option<&mut Walk> = walk.get_mut(a);
+                        if let Some(walk) = a_walk {
+                            walk.can_walk = false;
+                        }
                     }
                     {
                         let e_melee: Option<&mut Melee> = melee.get_mut(e);
@@ -168,6 +182,11 @@ impl<'a> System<'a> for MeleeSystem {
                                 updater.insert(blood, *a_pos);
                                 updater.insert(blood, Velocity::new(-10.0, -10.0));
                             }
+                        }
+
+                        let e_walk: Option<&mut Walk> = walk.get_mut(e);
+                        if let Some(walk) = e_walk {
+                            walk.can_walk = false;
                         }
                     }
                 }
