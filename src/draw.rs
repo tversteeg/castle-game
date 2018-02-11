@@ -2,33 +2,25 @@ use specs::*;
 use blit::*;
 use std::error::Error;
 use std::collections::HashMap;
+use cgmath::Point2;
 
-use physics::*;
 use terrain::*;
+use geom::*;
 
 #[derive(Component, Debug, Copy, Clone)]
 pub struct PixelParticle {
     pub color: u32,
     pub life: f64,
 
-    pos: (usize, usize)
+    pub pos: Point2<usize>
 }
 
 impl PixelParticle {
     pub fn new(color: u32, life: f64) -> Self {
         PixelParticle {
             color, life,
-            pos: (0, 0)
+            pos: Point2::new(0, 0)
         }
-    }
-
-    pub fn pos(&self) -> (usize, usize) {
-        self.pos
-    }
-
-    pub fn set_pos(&mut self, pos: &Position) {
-        self.pos.0 = pos.x as usize;
-        self.pos.1 = pos.y as usize;
     }
 }
 
@@ -37,7 +29,7 @@ pub struct MaskId(pub usize);
 
 #[derive(Component, Debug, Copy, Clone)]
 pub struct Sprite {
-    pub pos: Position,
+    pub pos: Point,
     img_ref: usize
 }
 
@@ -45,7 +37,7 @@ impl Sprite {
     pub fn new(img_ref: usize) -> Self {
         Sprite {
             img_ref,
-            pos: Position::new(0.0, 0.0)
+            pos: Point::new(0.0, 0.0)
         }
     }
 
@@ -58,7 +50,7 @@ pub struct Images(pub HashMap<String, usize>);
 
 pub struct SpriteSystem;
 impl<'a> System<'a> for SpriteSystem {
-    type SystemData = (ReadStorage<'a, Position>,
+    type SystemData = (ReadStorage<'a, Point>,
                        WriteStorage<'a, Sprite>);
 
     fn run(&mut self, (pos, mut sprite): Self::SystemData) {
@@ -117,12 +109,12 @@ impl Render {
         Ok(())
     }
 
-    pub fn draw_foreground_pixel(&mut self, pos: (usize, usize), color: u32) {
-        if pos.0 >= self.width || pos.1 >= self.height {
+    pub fn draw_foreground_pixel(&mut self, pos: Point2<usize>, color: u32) {
+        if pos.x >= self.width || pos.y >= self.height {
             return;
         }
 
-        self.foreground[pos.0 + pos.1 * self.width] = color;
+        self.foreground[pos.x + pos.y * self.width] = color;
     }
 
     pub fn draw_mask_terrain(&mut self, terrain: &mut Terrain, mask: &TerrainMask) -> Result<(), Box<Error>> {

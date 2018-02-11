@@ -1,24 +1,26 @@
 use specs::*;
 use rand;
 use rand::distributions::{IndependentSample, Range};
-use aabb2;
+use cgmath::MetricSpace;
+use collision::Discrete;
 
 use physics::*;
 use terrain::*;
 use draw::*;
 use projectile::*;
+use geom::*;
 
 #[derive(Component, Debug, Copy, Clone)]
 pub struct Health(pub f64);
 
 #[derive(Component, Debug, Copy, Clone)]
 pub struct Walk {
-    pub bounds: Rect,
+    pub bounds: BoundingBox,
     pub speed: f64
 }
 
 impl Walk {
-    pub fn new(bounds: Rect, speed: f64) -> Self {
+    pub fn new(bounds: BoundingBox, speed: f64) -> Self {
         Walk { bounds, speed }
     }
 }
@@ -88,7 +90,7 @@ impl<'a> System<'a> for WalkSystem {
                        Fetch<'a, Terrain>,
                        ReadStorage<'a, Walk>,
                        ReadStorage<'a, Destination>,
-                       WriteStorage<'a, Position>);
+                       WriteStorage<'a, Point>);
 
     fn run(&mut self, (dt, terrain, walk, dest, mut pos): Self::SystemData) {
         let dt = dt.to_seconds();
@@ -102,7 +104,7 @@ impl<'a> System<'a> for WalkSystem {
                     Some(hit) => {
                         pos.y -= 1.0;
 
-                        if hit.1 == hit_box.y as i32 {
+                        if hit.1 == hit_box.min.y as i32 {
                             // Top edge of bounding box is hit, don't walk anymore
                             break;
                         }
@@ -122,7 +124,7 @@ impl<'a> System<'a> for MeleeSystem {
                        Fetch<'a, DeltaTime>,
                        ReadStorage<'a, Ally>,
                        ReadStorage<'a, Enemy>,
-                       ReadStorage<'a, Position>,
+                       ReadStorage<'a, Point>,
                        ReadStorage<'a, BoundingBox>,
                        WriteStorage<'a, Melee>,
                        WriteStorage<'a, Health>,
@@ -132,10 +134,10 @@ impl<'a> System<'a> for MeleeSystem {
         let dt = dt.to_seconds();
 
         for (a, _, a_pos, a_bb) in (&*entities, &ally, &pos, &bb).join() {
-            let a_aabb = a_bb.to_aabb(a_pos);
+            let a_aabb = *a_bb + *a_pos;
             for (e, _, e_pos, e_bb) in (&*entities, &enemy, &pos, &bb).join() {
-                let e_aabb = e_bb.to_aabb(e_pos);
-                if aabb2::intersects(&a_aabb, &e_aabb) {
+                let e_aabb = *e_bb + *e_pos;
+                if a_aabb.intersects(&*e_aabb) {
                     {
                         let a_melee: Option<&mut Melee> = melee.get_mut(a);
                         if let Some(melee) = a_melee {
@@ -181,7 +183,7 @@ impl<'a> System<'a> for TurretSystem {
                        Fetch<'a, Gravity>,
                        ReadStorage<'a, Ally>,
                        ReadStorage<'a, Enemy>,
-                       ReadStorage<'a, Position>,
+                       ReadStorage<'a, Point>,
                        ReadStorage<'a, Sprite>,
                        ReadStorage<'a, MaskId>,
                        ReadStorage<'a, BoundingBox>,
@@ -201,14 +203,14 @@ impl<'a> System<'a> for TurretSystem {
             }
 
             // Find the nearest ally to shoot
-            let mut closest = Position::new(-1000.0, -1000.0);
-            let mut dist = tpos.distance_to(&closest);
+            let mut closest = Point::new(-1000.0, -1000.0);
+            let mut dist = tpos.distance(*closest);
 
             for (apos, _, walk) in (&pos, &ally, &walk).join() {
                 let mut pos = *apos;
                 pos.x += walk.speed * turret.flight_time;
 
-                let dist_to = tpos.distance_to(&pos);
+                let dist_to = tpos.distance(*pos);
                 if dist_to < dist {
                     dist = dist_to;
                     closest = pos;
@@ -226,7 +228,7 @@ impl<'a> System<'a> for TurretSystem {
                 // Shoot the turret
 
                 let projectile = entities.create();
-                updater.insert(projectile, Position::new(tpos.x, tpos.y));
+                updater.insert(projectile, Point::new(tpos.x, tpos.y));
                 updater.insert(projectile, Velocity::new(vx, vy));
                 updater.insert(projectile, *sprite);
                 updater.insert(projectile, *mask);

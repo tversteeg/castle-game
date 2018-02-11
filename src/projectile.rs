@@ -1,10 +1,12 @@
 use specs::*;
-use aabb2;
+use cgmath::Point2;
+use collision::Discrete;
 
 use physics::*;
 use draw::*;
 use terrain::*;
 use ai::Health;
+use geom::*;
 
 #[derive(Component, Debug, Copy, Clone)]
 pub struct Damage(pub f64);
@@ -16,7 +18,7 @@ impl<'a> System<'a> for ProjectileSystem {
                        Fetch<'a, Gravity>,
                        Fetch<'a, Terrain>,
                        WriteStorage<'a, Velocity>,
-                       WriteStorage<'a, Position>,
+                       WriteStorage<'a, Point>,
                        ReadStorage<'a, MaskId>,
                        Fetch<'a, LazyUpdate>);
 
@@ -25,7 +27,7 @@ impl<'a> System<'a> for ProjectileSystem {
         let dt = dt.to_seconds();
 
         for (entity, vel, pos, mask) in (&*entities, &mut vel, &mut pos, &mask).join() {
-            let next = Position::new(pos.x + vel.x * dt, pos.y + vel.y * dt);
+            let next: Point = Point::new(pos.x + vel.x * dt, pos.y + vel.y * dt);
 
             match terrain.line_collides(pos.as_i32(), next.as_i32()) {
                 Some(point) => {
@@ -34,11 +36,13 @@ impl<'a> System<'a> for ProjectileSystem {
                     let crater = entities.create();
                     updater.insert(crater, TerrainMask::new(mask.0, point));
 
+                    /*
                     // TODO replace with proper size
-                    let terrain_rect = Rect::new(point.0 as f64, point.1 as f64, 10.0, 10.0);
+                    let terrain_rect = Aabb2::new(point.0 as f64, point.1 as f64, 10.0, 10.0);
 
                     let collapse = entities.create();
                     updater.insert(collapse, TerrainCollapse(terrain_rect));
+                    */
                 },
                 None => {
                     *pos = next;
@@ -52,7 +56,7 @@ impl<'a> System<'a> for ProjectileSystem {
 pub struct ProjectileCollisionSystem;
 impl<'a> System<'a> for ProjectileCollisionSystem {
     type SystemData = (Entities<'a>,
-                       ReadStorage<'a, Position>,
+                       ReadStorage<'a, Point>,
                        ReadStorage<'a, BoundingBox>,
                        ReadStorage<'a, Damage>,
                        WriteStorage<'a, Health>,
@@ -60,10 +64,10 @@ impl<'a> System<'a> for ProjectileCollisionSystem {
 
     fn run(&mut self, (entities, pos, bb, dmg, mut health, updater): Self::SystemData) {
         for (proj, proj_pos, proj_bb, proj_dmg) in (&*entities, &pos, &bb, &dmg).join() {
-            let proj_aabb = proj_bb.to_aabb(proj_pos);
+            let proj_aabb = *proj_bb + *proj_pos;
             for (target, target_pos, target_bb, target_health) in (&*entities, &pos, &bb, &mut health).join() {
-                let target_aabb = target_bb.to_aabb(target_pos);
-                if aabb2::intersects(&proj_aabb, &target_aabb) {
+                let target_aabb = *target_bb + *target_pos;
+                if proj_aabb.intersects(&*target_aabb) {
                     target_health.0 -= proj_dmg.0;
                     if target_health.0 <= 0.0 {
                         let _ = entities.delete(target);
