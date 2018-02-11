@@ -112,7 +112,8 @@ fn main() {
         scale: Scale::X2,
         ..WindowOptions::default()
     };
-    let mut window = Window::new("Castle Game - Click to shoot & ESC to exit.", WIDTH, HEIGHT, options).expect("Unable to open window");
+    let title = format!("Castle Game {} - Press ESC to exit.", env!("CARGO_PKG_VERSION"));
+    let mut window = Window::new(&title, WIDTH, HEIGHT, options).expect("Unable to open window");
 
     window.set_cursor_style(CursorStyle::Crosshair);
 
