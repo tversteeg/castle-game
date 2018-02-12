@@ -76,6 +76,7 @@ fn main() {
     world.register::<Velocity>();
 
     // ai.rs
+    world.register::<UnitState>();
     world.register::<Health>();
     world.register::<Walk>();
     world.register::<Destination>();

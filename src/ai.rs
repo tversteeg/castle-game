@@ -10,6 +10,12 @@ use draw::*;
 use projectile::*;
 use geom::*;
 
+#[derive(Component, Debug, Eq, PartialEq)]
+pub enum UnitState {
+    Walk,
+    Melee
+}
+
 #[derive(Component, Debug, Copy, Clone)]
 pub struct Health(pub f64);
 
@@ -17,16 +23,11 @@ pub struct Health(pub f64);
 pub struct Walk {
     pub bounds: BoundingBox,
     pub speed: f64,
-
-    pub can_walk: bool
 }
 
 impl Walk {
     pub fn new(bounds: BoundingBox, speed: f64) -> Self {
-        Walk {
-            bounds, speed,
-            can_walk: true 
-        }
+        Walk { bounds, speed, }
     }
 }
 
@@ -94,13 +95,14 @@ impl<'a> System<'a> for WalkSystem {
     type SystemData = (Fetch<'a, DeltaTime>,
                        Fetch<'a, Terrain>,
                        ReadStorage<'a, Destination>,
-                       WriteStorage<'a, Walk>,
+                       ReadStorage<'a, Walk>,
+                       WriteStorage<'a, UnitState>,
                        WriteStorage<'a, Point>);
 
-    fn run(&mut self, (dt, terrain, dest, mut walk, mut pos): Self::SystemData) {
+    fn run(&mut self, (dt, terrain, dest, walk, mut state, mut pos): Self::SystemData) {
         let dt = dt.to_seconds();
 
-        for (dest, walk, pos) in (&dest, &mut walk, &mut pos).join() {
+        for (dest, walk, state, pos) in (&dest, &walk, &mut state, &mut pos).join() {
             pos.y += 1.0;
 
             loop {
@@ -109,15 +111,16 @@ impl<'a> System<'a> for WalkSystem {
                     Some(hit) => {
                         pos.y -= 1.0;
 
-                        if hit.1 == hit_box.min.y as i32 {
-                            // Top edge of bounding box is hit, don't walk anymore
-                            walk.can_walk = false;
+                        if *state != UnitState::Walk {
                             break;
                         }
 
-                        if walk.can_walk {
-                            pos.x += walk.speed * dt * (dest.0 - pos.x).signum();
+                        if hit.1 == hit_box.min.y as i32 {
+                            // Top edge of bounding box is hit, don't walk anymore
+                            break;
                         }
+
+                        pos.x += walk.speed * dt * (dest.0 - pos.x).signum();
                     },
                     None => break
                 }
@@ -134,12 +137,12 @@ impl<'a> System<'a> for MeleeSystem {
                        ReadStorage<'a, Enemy>,
                        ReadStorage<'a, Point>,
                        ReadStorage<'a, BoundingBox>,
+                       WriteStorage<'a, UnitState>,
                        WriteStorage<'a, Melee>,
-                       WriteStorage<'a, Walk>,
                        WriteStorage<'a, Health>,
                        Fetch<'a, LazyUpdate>);
 
-    fn run(&mut self, (entities, dt, ally, enemy, pos, bb, mut melee, mut walk, mut health, updater): Self::SystemData) {
+    fn run(&mut self, (entities, dt, ally, enemy, pos, bb, mut state, mut melee, mut health, updater): Self::SystemData) {
         let dt = dt.to_seconds();
 
         for (a, _, a_pos, a_bb) in (&*entities, &ally, &pos, &bb).join() {
@@ -148,11 +151,16 @@ impl<'a> System<'a> for MeleeSystem {
                 let e_aabb = *e_bb + *e_pos;
                 if a_aabb.intersects(&*e_aabb) {
                     {
+                        let a_state: &mut UnitState = state.get_mut(a).unwrap();
+                        *a_state = UnitState::Melee;
+
                         let a_melee: Option<&mut Melee> = melee.get_mut(a);
                         if let Some(melee) = a_melee {
                             melee.cooldown -= dt;
                             if melee.cooldown <= 0.0 {
-                                reduce_unit_health(&entities, &e, health.get_mut(e).unwrap(), melee.dmg);
+                                if reduce_unit_health(&entities, &e, health.get_mut(e).unwrap(), melee.dmg) {
+                                    *a_state = UnitState::Walk;
+                                }
 
                                 melee.cooldown = melee.hitrate;
 
@@ -162,18 +170,18 @@ impl<'a> System<'a> for MeleeSystem {
                                 updater.insert(blood, Velocity::new(-10.0, -10.0));
                             }
                         }
-
-                        let a_walk: Option<&mut Walk> = walk.get_mut(a);
-                        if let Some(walk) = a_walk {
-                            walk.can_walk = false;
-                        }
                     }
                     {
+                        let e_state: &mut UnitState = state.get_mut(e).unwrap();
+                        *e_state = UnitState::Melee;
+
                         let e_melee: Option<&mut Melee> = melee.get_mut(e);
                         if let Some(melee) = e_melee {
                             melee.cooldown -= dt;
                             if melee.cooldown <= 0.0 {
-                                reduce_unit_health(&entities, &a, health.get_mut(a).unwrap(), melee.dmg);
+                                if reduce_unit_health(&entities, &a, health.get_mut(a).unwrap(), melee.dmg) {
+                                    *e_state = UnitState::Walk;
+                                }
 
                                 melee.cooldown = melee.hitrate;
 
@@ -182,11 +190,6 @@ impl<'a> System<'a> for MeleeSystem {
                                 updater.insert(blood, *a_pos);
                                 updater.insert(blood, Velocity::new(-10.0, -10.0));
                             }
-                        }
-
-                        let e_walk: Option<&mut Walk> = walk.get_mut(e);
-                        if let Some(walk) = e_walk {
-                            walk.can_walk = false;
                         }
                     }
                 }

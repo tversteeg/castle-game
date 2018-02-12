@@ -42,6 +42,7 @@ pub fn place_turrets(world: &mut World, level: u8) {
                 .with(Destination(630.0))
                 .with(Health(100.0))
                 .with(Melee::new(10.0, 1.0))
+                .with(UnitState::Walk)
                 .with(Ally)
                 .build();
 
@@ -53,6 +54,7 @@ pub fn place_turrets(world: &mut World, level: u8) {
                 .with(Destination(630.0))
                 .with(Health(100.0))
                 .with(Melee::new(10.0, 1.0))
+                .with(UnitState::Walk)
                 .with(Ally)
                 .build();
 
@@ -64,6 +66,7 @@ pub fn place_turrets(world: &mut World, level: u8) {
                 .with(Destination(10.0))
                 .with(Health(100.0))
                 .with(Melee::new(10.0, 1.0))
+                .with(UnitState::Walk)
                 .with(Enemy)
                 .build();
         },
