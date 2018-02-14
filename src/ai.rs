@@ -207,6 +207,8 @@ impl<'a> System<'a> for TurretSystem {
                        ReadStorage<'a, Enemy>,
                        ReadStorage<'a, Point>,
                        ReadStorage<'a, Sprite>,
+                       ReadStorage<'a, Arrow>,
+                       ReadStorage<'a, Line>,
                        ReadStorage<'a, MaskId>,
                        ReadStorage<'a, BoundingBox>,
                        ReadStorage<'a, Damage>,
@@ -214,11 +216,11 @@ impl<'a> System<'a> for TurretSystem {
                        WriteStorage<'a, Turret>,
                        Fetch<'a, LazyUpdate>);
 
-    fn run(&mut self, (entities, dt, grav, ally, enemy, pos, sprite, mask, bb, dmg, walk, mut turret, updater): Self::SystemData) {
+    fn run(&mut self, (entities, dt, grav, ally, enemy, pos, sprite, arrow, line, mask, bb, dmg, walk, mut turret, updater): Self::SystemData) {
         let dt = dt.to_seconds();
         let grav = grav.0;
 
-        for (tpos, _, sprite, mask, bb, dmg, turret) in (&pos, &enemy, &sprite, &mask, &bb, &dmg, &mut turret).join() {
+        for (e, tpos, _, mask, bb, dmg, turret) in (&*entities, &pos, &enemy, &mask, &bb, &dmg, &mut turret).join() {
             turret.delay_left -= dt;
             if turret.delay_left > 0.0 {
                 continue;
@@ -252,10 +254,21 @@ impl<'a> System<'a> for TurretSystem {
                 let projectile = entities.create();
                 updater.insert(projectile, Point::new(tpos.x, tpos.y));
                 updater.insert(projectile, Velocity::new(vx, vy));
-                updater.insert(projectile, *sprite);
                 updater.insert(projectile, *mask);
                 updater.insert(projectile, *bb);
                 updater.insert(projectile, *dmg);
+                let entity: Option<&Sprite> = sprite.get(e);
+                if let Some(sprite_e) = entity {
+                    updater.insert(projectile, *sprite_e);
+                }
+                let entity: Option<&Arrow> = arrow.get(e);
+                if let Some(arrow_e) = entity {
+                    updater.insert(projectile, *arrow_e);
+                }
+                let entity: Option<&Line> = line.get(e);
+                if let Some(line_e) = entity {
+                    updater.insert(projectile, *line_e);
+                }
 
                 turret.delay_left = turret.delay;
             }
