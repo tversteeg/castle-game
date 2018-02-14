@@ -3,6 +3,7 @@ use blit::*;
 use std::error::Error;
 use std::collections::HashMap;
 use cgmath::Point2;
+use line_drawing::Bresenham;
 
 use terrain::*;
 use geom::*;
@@ -43,6 +44,23 @@ impl Sprite {
 
     pub fn img_ref(&self) -> usize {
         self.img_ref
+    }
+}
+
+#[derive(Component, Debug, Copy, Clone)]
+pub struct Line {
+    pub p1: Point2<usize>,
+    pub p2: Point2<usize>,
+    pub color: u32
+}
+
+impl Line {
+    pub fn new(color: u32) -> Self {
+        Line {
+            color,
+            p1: Point2 {x: 0, y: 0},
+            p2: Point2 {x: 0, y: 0},
+        }
     }
 }
 
@@ -115,6 +133,20 @@ impl Render {
         }
 
         self.foreground[pos.x + pos.y * self.width] = color;
+    }
+
+    pub fn draw_foreground_line(&mut self, p1: Point2<usize>, p2: Point2<usize>, color: u32) {
+        if (p1.x >= self.width || p2.y >= self.height) && (p2.x >= self.width || p2.y >= self.height) {
+            return;
+        }
+
+        for (x, y) in Bresenham::new((p1.x as i32, p1.y as i32), (p2.x as i32, p2.y as i32)) {
+            if x >= self.width as i32 || y >= self.height as i32 {
+                continue;
+            }
+
+            self.foreground[x as usize + y as usize * self.width] = color;
+        }
     }
 
     pub fn draw_mask_terrain(&mut self, terrain: &mut Terrain, mask: &TerrainMask) -> Result<(), Box<Error>> {

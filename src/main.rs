@@ -65,6 +65,7 @@ fn main() {
     world.register::<PixelParticle>();
     world.register::<MaskId>();
     world.register::<Sprite>();
+    world.register::<Line>();
 
     // terrain.rs
     world.register::<TerrainMask>();
@@ -86,6 +87,7 @@ fn main() {
     world.register::<Melee>();
 
     // projectile.rs
+    world.register::<Arrow>();
     world.register::<Damage>();
 
     // Resources to `Fetch`
@@ -101,6 +103,7 @@ fn main() {
 
     let mut dispatcher = DispatcherBuilder::new()
         .add(ProjectileSystem, "projectile", &[])
+        .add(ArrowSystem, "arrow", &["projectile"])
         .add(ProjectileCollisionSystem, "projectile_collision", &["projectile"])
         .add(TerrainCollapseSystem, "terrain_collapse", &["projectile"])
         .add(WalkSystem, "walk", &[])
@@ -163,11 +166,16 @@ fn main() {
 
         // Render the sprites & masks
         let sprites = world.read::<Sprite>();
+        let lines = world.read::<Line>();
         let pixels = world.read::<PixelParticle>();
         let terrain_masks = world.read::<TerrainMask>();
         for entity in world.entities().join() {
             if let Some(sprite) = sprites.get(entity) {
                 render.draw_foreground(sprite).unwrap();
+            }
+
+            if let Some(line) = lines.get(entity) {
+                render.draw_foreground_line(line.p1, line.p2, line.color);
             }
 
             if let Some(pixel) = pixels.get(entity) {

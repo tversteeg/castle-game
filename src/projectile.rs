@@ -8,7 +8,30 @@ use ai::Health;
 use geom::*;
 
 #[derive(Component, Debug, Copy, Clone)]
+pub struct Arrow(pub f64);
+
+#[derive(Component, Debug, Copy, Clone)]
 pub struct Damage(pub f64);
+
+pub struct ArrowSystem;
+impl<'a> System<'a> for ArrowSystem {
+    type SystemData = (ReadStorage<'a, Point>,
+                       ReadStorage<'a, Velocity>,
+                       WriteStorage<'a, Arrow>,
+                       WriteStorage<'a, Line>);
+
+    fn run(&mut self, (pos, vel, mut arrow, mut line): Self::SystemData) {
+        for (pos, vel, arrow, line) in (&pos, &vel, &mut arrow, &mut line).join() {
+            //let rot = (vel.y as f64).atan(vel.x as f64);
+            
+            line.p1.x = pos.x as usize;
+            line.p1.y = pos.y as usize;
+
+            line.p2.x = pos.x as usize - 10;
+            line.p2.y = pos.y as usize;
+        }
+    }
+}
 
 pub struct ProjectileSystem;
 impl<'a> System<'a> for ProjectileSystem {
