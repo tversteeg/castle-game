@@ -73,6 +73,7 @@ fn main() {
     world.register::<TerrainCollapse>();
 
     // physics.rs
+    world.register::<WorldPosition>();
     world.register::<Point>();
     world.register::<BoundingBox>();
     world.register::<Velocity>();
@@ -88,6 +89,7 @@ fn main() {
     world.register::<Melee>();
 
     // projectile.rs
+    world.register::<ProjectileSprite>();
     world.register::<Arrow>();
     world.register::<Damage>();
 

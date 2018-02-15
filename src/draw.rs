@@ -68,12 +68,12 @@ pub struct Images(pub HashMap<String, usize>);
 
 pub struct SpriteSystem;
 impl<'a> System<'a> for SpriteSystem {
-    type SystemData = (ReadStorage<'a, Point>,
+    type SystemData = (ReadStorage<'a, WorldPosition>,
                        WriteStorage<'a, Sprite>);
 
     fn run(&mut self, (pos, mut sprite): Self::SystemData) {
         for (pos, sprite) in (&pos, &mut sprite).join() {
-            sprite.pos = *pos;
+            sprite.pos = pos.0;
         }
     }
 }
