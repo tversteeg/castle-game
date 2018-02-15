@@ -3,13 +3,14 @@ use specs::*;
 use ::*;
 
 pub fn place_turrets(world: &mut World, level: u8) {
-    let (projectile1, bighole1, ally_soldier1, enemy_soldier1) = {
+    let (projectile1, bighole1, ally_melee1, ally_archer1, enemy_soldier1) = {
         let images = &*world.read_resource::<Images>();
 
         (*images.0.get("projectile1").unwrap(),
          *images.0.get("bighole1").unwrap(),
-         *images.0.get("ally-soldier1").unwrap(),
-         *images.0.get("enemy-soldier1").unwrap())
+         *images.0.get("ally-melee1").unwrap(),
+         *images.0.get("ally-archer1").unwrap(),
+         *images.0.get("enemy-melee1").unwrap())
     };
 
     match level {
@@ -36,7 +37,7 @@ pub fn place_turrets(world: &mut World, level: u8) {
                 .build();
 
             world.create_entity()
-                .with(Sprite::new(ally_soldier1))
+                .with(Sprite::new(ally_melee1))
                 .with(Point::new(12.0, 200.0))
                 .with(Walk::new(bb(p(1.0, 5.0), p(4.0, 10.0)), 10.0))
                 .with(bb(p(0.0, 0.0), p(10.0, 10.0)))
@@ -48,7 +49,7 @@ pub fn place_turrets(world: &mut World, level: u8) {
                 .build();
 
             world.create_entity()
-                .with(Sprite::new(ally_soldier1))
+                .with(Sprite::new(ally_melee1))
                 .with(Point::new(5.0, 200.0))
                 .with(Walk::new(bb(p(1.0, 5.0), p(4.0, 10.0)), 10.0))
                 .with(bb(p(0.0, 0.0), p(10.0, 10.0)))

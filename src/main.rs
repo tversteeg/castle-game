@@ -54,8 +54,9 @@ fn main() {
 
     let mut resources = HashMap::new();
     load_resource!(resources; render; sprite => "projectile1");
-    load_resource!(resources; render; sprite => "ally-soldier1");
-    load_resource!(resources; render; sprite => "enemy-soldier1");
+    load_resource!(resources; render; sprite => "ally-melee1");
+    load_resource!(resources; render; sprite => "ally-archer1");
+    load_resource!(resources; render; sprite => "enemy-melee1");
     load_resource!(resources; render; mask => "bighole1");
 
     // Setup game related things
