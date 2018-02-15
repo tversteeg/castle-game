@@ -97,19 +97,19 @@ impl<'a> System<'a> for WalkSystem {
                        ReadStorage<'a, Destination>,
                        ReadStorage<'a, Walk>,
                        WriteStorage<'a, UnitState>,
-                       WriteStorage<'a, Point>);
+                       WriteStorage<'a, WorldPosition>);
 
     fn run(&mut self, (dt, terrain, dest, walk, mut state, mut pos): Self::SystemData) {
         let dt = dt.to_seconds();
 
         for (dest, walk, state, pos) in (&dest, &walk, &mut state, &mut pos).join() {
-            pos.y += 1.0;
+            pos.0.y += 1.0;
 
             loop {
-                let hit_box = walk.bounds + *pos;
+                let hit_box = walk.bounds + *pos.0;
                 match terrain.rect_collides(hit_box) {
                     Some(hit) => {
-                        pos.y -= 1.0;
+                        pos.0.y -= 1.0;
 
                         if *state != UnitState::Walk {
                             break;
@@ -120,7 +120,7 @@ impl<'a> System<'a> for WalkSystem {
                             break;
                         }
 
-                        pos.x += walk.speed * dt * (dest.0 - pos.x).signum();
+                        pos.0.x += walk.speed * dt * (dest.0 - pos.0.x).signum();
                     },
                     None => break
                 }
@@ -135,7 +135,7 @@ impl<'a> System<'a> for MeleeSystem {
                        Fetch<'a, DeltaTime>,
                        ReadStorage<'a, Ally>,
                        ReadStorage<'a, Enemy>,
-                       ReadStorage<'a, Point>,
+                       ReadStorage<'a, WorldPosition>,
                        ReadStorage<'a, BoundingBox>,
                        WriteStorage<'a, UnitState>,
                        WriteStorage<'a, Melee>,
@@ -146,9 +146,9 @@ impl<'a> System<'a> for MeleeSystem {
         let dt = dt.to_seconds();
 
         for (a, _, a_pos, a_bb) in (&*entities, &ally, &pos, &bb).join() {
-            let a_aabb = *a_bb + *a_pos;
+            let a_aabb = *a_bb + *a_pos.0;
             for (e, _, e_pos, e_bb) in (&*entities, &enemy, &pos, &bb).join() {
-                let e_aabb = *e_bb + *e_pos;
+                let e_aabb = *e_bb + *e_pos.0;
                 if a_aabb.intersects(&*e_aabb) {
                     {
                         let a_state: &mut UnitState = state.get_mut(a).unwrap();
@@ -206,7 +206,8 @@ impl<'a> System<'a> for TurretSystem {
                        ReadStorage<'a, Ally>,
                        ReadStorage<'a, Enemy>,
                        ReadStorage<'a, Point>,
-                       ReadStorage<'a, Sprite>,
+                       ReadStorage<'a, WorldPosition>,
+                       ReadStorage<'a, ProjectileSprite>,
                        ReadStorage<'a, Arrow>,
                        ReadStorage<'a, Line>,
                        ReadStorage<'a, MaskId>,
@@ -216,11 +217,11 @@ impl<'a> System<'a> for TurretSystem {
                        WriteStorage<'a, Turret>,
                        Fetch<'a, LazyUpdate>);
 
-    fn run(&mut self, (entities, dt, grav, ally, enemy, pos, sprite, arrow, line, mask, bb, dmg, walk, mut turret, updater): Self::SystemData) {
+    fn run(&mut self, (entities, dt, grav, ally, enemy, pos, wpos, sprite, arrow, line, mask, bb, dmg, walk, mut turret, updater): Self::SystemData) {
         let dt = dt.to_seconds();
         let grav = grav.0;
 
-        for (e, tpos, _, mask, bb, dmg, turret) in (&*entities, &pos, &enemy, &mask, &bb, &dmg, &mut turret).join() {
+        for (e, tpos, _, bb, dmg, turret) in (&*entities, &pos, &enemy, &bb, &dmg, &mut turret).join() {
             turret.delay_left -= dt;
             if turret.delay_left > 0.0 {
                 continue;
@@ -230,8 +231,8 @@ impl<'a> System<'a> for TurretSystem {
             let mut closest = Point::new(-1000.0, -1000.0);
             let mut dist = tpos.distance(*closest);
 
-            for (apos, _, walk) in (&pos, &ally, &walk).join() {
-                let mut pos = *apos;
+            for (apos, _, walk) in (&wpos, &ally, &walk).join() {
+                let mut pos = apos.0;
                 pos.x += walk.speed * turret.flight_time;
 
                 let dist_to = tpos.distance(*pos);
@@ -250,16 +251,18 @@ impl<'a> System<'a> for TurretSystem {
 
             if (vx * vx + vy * vy).sqrt() < turret.max_strength {
                 // Shoot the turret
-
                 let projectile = entities.create();
-                updater.insert(projectile, Point::new(tpos.x, tpos.y));
+                updater.insert(projectile, WorldPosition(Point::new(tpos.x, tpos.y)));
                 updater.insert(projectile, Velocity::new(vx, vy));
-                updater.insert(projectile, *mask);
                 updater.insert(projectile, *bb);
                 updater.insert(projectile, *dmg);
-                let entity: Option<&Sprite> = sprite.get(e);
+                let entity: Option<&MaskId> = mask.get(e);
+                if let Some(mask_e) = entity {
+                    updater.insert(projectile, *mask_e);
+                }
+                let entity: Option<&ProjectileSprite> = sprite.get(e);
                 if let Some(sprite_e) = entity {
-                    updater.insert(projectile, *sprite_e);
+                    updater.insert(projectile, sprite_e.0);
                 }
                 let entity: Option<&Arrow> = arrow.get(e);
                 if let Some(arrow_e) = entity {

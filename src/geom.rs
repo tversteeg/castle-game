@@ -2,13 +2,8 @@ use cgmath::{Point2, EuclideanSpace};
 use collision::Aabb2;
 use std::ops::{Add, Deref, DerefMut};
 
-pub fn p(x: f64, y: f64) -> Point {
-    Point::new(x, y)
-}
-
-pub fn bb(min: Point, max: Point) -> BoundingBox {
-    BoundingBox::new(min, max)
-}
+#[derive(Component, Debug, Copy, Clone)]
+pub struct WorldPosition(pub Point);
 
 #[derive(Component, Debug, Copy, Clone)]
 pub struct Point(Point2<f64>);
