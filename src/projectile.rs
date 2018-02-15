@@ -22,13 +22,13 @@ impl<'a> System<'a> for ArrowSystem {
 
     fn run(&mut self, (pos, vel, mut arrow, mut line): Self::SystemData) {
         for (pos, vel, arrow, line) in (&pos, &vel, &mut arrow, &mut line).join() {
-            //let rot = (vel.y as f64).atan(vel.x as f64);
+            let rot = (vel.y as f64).atan2(vel.x as f64);
             
             line.p1.x = pos.x as usize;
             line.p1.y = pos.y as usize;
 
-            line.p2.x = pos.x as usize - 10;
-            line.p2.y = pos.y as usize;
+            line.p2.x = pos.x as usize + (rot.cos() * arrow.0) as usize;
+            line.p2.y = pos.y as usize + (rot.sin() * arrow.0) as usize;
         }
     }
 }

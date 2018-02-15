@@ -25,14 +25,14 @@ pub fn place_turrets(world: &mut World, level: u8) {
                 .build();
 
             world.create_entity()
-                .with(Turret::new(6.0, 230.0, 10.0, 4.0))
-                .with(Point::new(610.0, 215.0))
+                .with(Turret::new(2.0, 200.0, 5.0, 3.0))
+                .with(Point::new(615.0, 205.0))
                 .with(Enemy)
                 .with(Arrow(3.0))
                 .with(Line::new(0x000000))
                 .with(MaskId(bighole1))
                 .with(bb(p(0.0, 0.0), p(1.0, 1.0)))
-                .with(Damage(30.0))
+                .with(Damage(10.0))
                 .build();
 
             world.create_entity()
