@@ -19,6 +19,9 @@ None
 
 # Screenshots
 
+### v6 - Upgrade the projectile system and add a particle system
+![0.6](img/screengrab6.gif?raw=true)
+
 ### v5 - Add units with terrain collision and automatic turrets
 ![0.5](img/screengrab5.gif?raw=true)
 
