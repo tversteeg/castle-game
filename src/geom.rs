@@ -6,7 +6,7 @@ use std::ops::{Add, Deref, DerefMut};
 pub struct WorldPosition(pub Point);
 
 #[derive(Component, Debug, Copy, Clone)]
-pub struct Point(Point2<f64>);
+pub struct Point(pub Point2<f64>);
 
 impl Point {
     pub fn new(x: f64, y: f64) -> Self {

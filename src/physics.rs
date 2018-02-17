@@ -44,27 +44,25 @@ impl<'a> System<'a> for ParticleSystem {
     fn run(&mut self, (entities, dt, grav, mut terrain, mut pos, mut vel, mut par): Self::SystemData) {
         let grav = grav.0;
         let dt = dt.to_seconds();
-        
-        for (entity, pos, vel, par) in (&*entities, &mut pos, &mut vel, &mut par).join() {
-            let mut pos = pos.0;
 
-            pos.x += vel.x * dt;
-            pos.y += vel.y * dt;
+        for (entity, pos, vel, par) in (&*entities, &mut pos, &mut vel, &mut par).join() {
+            pos.0.x += vel.x * dt;
+            pos.0.y += vel.y * dt;
             vel.y += grav * dt;
 
             let old_pos = par.pos;
-            match terrain.line_collides(pos.as_i32(), (old_pos.x as i32, old_pos.y as i32)) {
+            match terrain.line_collides(pos.0.as_i32(), (old_pos.x as i32, old_pos.y as i32)) {
                 Some(point) => {
                     terrain.draw_pixel((point.0 as usize, point.1 as usize), par.color);
                     let _ = entities.delete(entity);
                 },
-                None => ()
-            }
-
-            par.pos = pos.as_usize();
-            par.life -= dt;
-            if par.life < 0.0 {
-                let _ = entities.delete(entity);
+                None => {
+                    par.pos = pos.0.as_usize();
+                    par.life -= dt;
+                    if par.life < 0.0 {
+                        let _ = entities.delete(entity);
+                    }
+                }
             }
         }
     }

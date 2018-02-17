@@ -53,10 +53,13 @@ fn main() {
     let mut render = Render::new((WIDTH, HEIGHT));
 
     let mut resources = HashMap::new();
-    load_resource!(resources; render; sprite => "projectile1");
     load_resource!(resources; render; sprite => "ally-melee1");
     load_resource!(resources; render; sprite => "ally-archer1");
     load_resource!(resources; render; sprite => "enemy-melee1");
+    load_resource!(resources; render; sprite => "enemy-archer1");
+
+    load_resource!(resources; render; sprite => "projectile1");
+
     load_resource!(resources; render; mask => "bighole1");
 
     // Setup game related things
@@ -86,10 +89,14 @@ fn main() {
     world.register::<Ally>();
     world.register::<Enemy>();
     world.register::<Turret>();
+    world.register::<TurretOffset>();
     world.register::<Melee>();
 
     // projectile.rs
+    world.register::<Projectile>();
     world.register::<ProjectileSprite>();
+    world.register::<ProjectileBoundingBox>();
+    world.register::<IgnoreCollision>();
     world.register::<Arrow>();
     world.register::<Damage>();
 
@@ -111,7 +118,8 @@ fn main() {
         .add(TerrainCollapseSystem, "terrain_collapse", &["projectile"])
         .add(WalkSystem, "walk", &[])
         .add(MeleeSystem, "melee", &["walk"])
-        .add(TurretSystem, "turret", &[])
+        .add(TurretUnitSystem, "turret_unit", &["walk"])
+        .add(TurretSystem, "turret", &["turret_unit"])
         .add(SpriteSystem, "sprite", &["projectile", "walk"])
         .add(ParticleSystem, "particle", &[])
         .build();
