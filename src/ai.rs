@@ -72,6 +72,9 @@ impl Default for Turret {
     }
 }
 
+#[derive(Component, Debug, Copy, Clone)]
+pub struct TurretOffset(pub (f64, f64));
+
 #[derive(Component, Debug)]
 pub struct Melee {
     dmg: f64,
@@ -198,6 +201,21 @@ impl<'a> System<'a> for MeleeSystem {
     }
 }
 
+pub struct TurretUnitSystem;
+impl<'a> System<'a> for TurretUnitSystem {
+    type SystemData = (ReadStorage<'a, Turret>,
+                       ReadStorage<'a, WorldPosition>,
+                       ReadStorage<'a, TurretOffset>,
+                       WriteStorage<'a, Point>);
+
+    fn run(&mut self, (_, wpos, offset, mut pos): Self::SystemData) {
+        for (wpos, offset, pos) in (&wpos, &offset, &mut pos).join() {
+            pos.0.x = wpos.0.x + (offset.0).0;
+            pos.0.y = wpos.0.y + (offset.0).1;
+        }
+    }
+}
+
 pub struct TurretSystem;
 impl<'a> System<'a> for TurretSystem {
     type SystemData = (Entities<'a>,
@@ -211,17 +229,18 @@ impl<'a> System<'a> for TurretSystem {
                        ReadStorage<'a, Arrow>,
                        ReadStorage<'a, Line>,
                        ReadStorage<'a, MaskId>,
-                       ReadStorage<'a, BoundingBox>,
+                       ReadStorage<'a, IgnoreCollision>,
+                       ReadStorage<'a, ProjectileBoundingBox>,
                        ReadStorage<'a, Damage>,
                        ReadStorage<'a, Walk>,
                        WriteStorage<'a, Turret>,
                        Fetch<'a, LazyUpdate>);
 
-    fn run(&mut self, (entities, dt, grav, ally, enemy, pos, wpos, sprite, arrow, line, mask, bb, dmg, walk, mut turret, updater): Self::SystemData) {
+    fn run(&mut self, (entities, dt, grav, ally, enemy, pos, wpos, sprite, arrow, line, mask, ignore, bb, dmg, walk, mut turret, updater): Self::SystemData) {
         let dt = dt.to_seconds();
         let grav = grav.0;
 
-        for (e, tpos, _, bb, dmg, turret) in (&*entities, &pos, &enemy, &bb, &dmg, &mut turret).join() {
+        for (e, tpos, bb, dmg, turret) in (&*entities, &pos, &bb, &dmg, &mut turret).join() {
             turret.delay_left -= dt;
             if turret.delay_left > 0.0 {
                 continue;
@@ -231,14 +250,28 @@ impl<'a> System<'a> for TurretSystem {
             let mut closest = Point::new(-1000.0, -1000.0);
             let mut dist = tpos.distance(*closest);
 
-            for (apos, _, walk) in (&wpos, &ally, &walk).join() {
-                let mut pos = apos.0;
-                pos.x += walk.speed * turret.flight_time;
+            let is_ally: Option<&Ally> = ally.get(e);
+            if let Some(_) = is_ally {
+                for (epos, _, walk) in (&wpos, &enemy, &walk).join() {
+                    let mut pos = epos.0;
+                    pos.x += walk.speed * turret.flight_time;
 
-                let dist_to = tpos.distance(*pos);
-                if dist_to < dist {
-                    dist = dist_to;
-                    closest = pos;
+                    let dist_to = tpos.distance(*pos);
+                    if dist_to < dist {
+                        dist = dist_to;
+                        closest = pos;
+                    }
+                }
+            } else {
+                for (apos, _, walk) in (&wpos, &ally, &walk).join() {
+                    let mut pos = apos.0;
+                    pos.x += walk.speed * turret.flight_time;
+
+                    let dist_to = tpos.distance(*pos);
+                    if dist_to < dist {
+                        dist = dist_to;
+                        closest = pos;
+                    }
                 }
             }
 
@@ -252,6 +285,7 @@ impl<'a> System<'a> for TurretSystem {
             if (vx * vx + vy * vy).sqrt() < turret.max_strength {
                 // Shoot the turret
                 let projectile = entities.create();
+                updater.insert(projectile, Projectile);
                 updater.insert(projectile, WorldPosition(Point::new(tpos.x, tpos.y)));
                 updater.insert(projectile, Velocity::new(vx, vy));
                 updater.insert(projectile, *bb);
@@ -271,6 +305,10 @@ impl<'a> System<'a> for TurretSystem {
                 let entity: Option<&Line> = line.get(e);
                 if let Some(line_e) = entity {
                     updater.insert(projectile, *line_e);
+                }
+                let entity: Option<&IgnoreCollision> = ignore.get(e);
+                if let Some(ignore_e) = entity {
+                    updater.insert(projectile, *ignore_e);
                 }
 
                 turret.delay_left = turret.delay;
