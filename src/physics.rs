@@ -37,7 +37,7 @@ impl<'a> System<'a> for ParticleSystem {
                        Fetch<'a, DeltaTime>,
                        Fetch<'a, Gravity>,
                        FetchMut<'a, Terrain>,
-                       WriteStorage<'a, Point>,
+                       WriteStorage<'a, WorldPosition>,
                        WriteStorage<'a, Velocity>,
                        WriteStorage<'a, PixelParticle>);
 
@@ -46,6 +46,8 @@ impl<'a> System<'a> for ParticleSystem {
         let dt = dt.to_seconds();
         
         for (entity, pos, vel, par) in (&*entities, &mut pos, &mut vel, &mut par).join() {
+            let mut pos = pos.0;
+
             pos.x += vel.x * dt;
             pos.y += vel.y * dt;
             vel.y += grav * dt;
