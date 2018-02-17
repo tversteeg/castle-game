@@ -1,9 +1,11 @@
 extern crate image;
 extern crate blit;
+extern crate git2;
 
 use std::fs;
 
 use blit::*;
+use git2::Repository;
 
 fn save_blit_buffer_from_image(folder: &str, name: &str, mask_color: u32) {
     let path = format!("assets/{}/{}", folder, name);
@@ -34,6 +36,13 @@ fn parse_folder(folder: &str, mask_color: u32) {
 }
 
 fn main() {
+    if !std::path::Path::new("assets").exists() {
+        let url = "https://github.com/tversteeg/castle-game-assets.git";
+        if let Err(e) = Repository::clone(url, "assets") {
+            panic!("Failed to clone repository: {}", e);
+        }
+    }
+
     parse_folder("sprites", 0xFFFF00FF);
     parse_folder("masks", 0xFF000000);
 }
