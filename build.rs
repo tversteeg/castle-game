@@ -45,4 +45,6 @@ fn main() {
 
     parse_folder("sprites", 0xFFFF00FF);
     parse_folder("masks", 0xFF000000);
+
+    parse_folder("gui", 0xFFFF00FF);
 }
