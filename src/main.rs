@@ -16,11 +16,10 @@ mod projectile;
 mod ai;
 mod level;
 mod geom;
+mod gui;
 
 use minifb::*;
 use specs::{World, DispatcherBuilder, Join};
-use direct_gui::*;
-use direct_gui::controls::*;
 use std::time::{SystemTime, Duration};
 use std::thread::sleep;
 use std::collections::HashMap;
@@ -32,6 +31,7 @@ use projectile::*;
 use ai::*;
 use level::*;
 use geom::*;
+use gui::*;
 
 const WIDTH: usize = 640;
 const HEIGHT: usize = 320;
@@ -135,39 +135,20 @@ fn main() {
     window.set_cursor_style(CursorStyle::Crosshair);
 
     // Setup the GUI system
-    let mut gui = Gui::new((WIDTH as i32, HEIGHT as i32));
-
-    let default_font = gui.default_font();
-    let fps_ref = gui.register(Label::new(default_font).with_pos(2, 2).with_text("FPS"));
+    let mut gui = IngameGui::new((WIDTH as i32, HEIGHT as i32));
 
     // Game loop
     let mut time = SystemTime::now();
-    let mut second = 0.0;
     while window.is_open() && !window.is_key_down(Key::Escape) {
-        let mut cs = ControlState {
-            ..ControlState::default()
-        };
-
-        // Calculate the deltatime
         {
             let mut delta = world.write_resource::<DeltaTime>();
             *delta = DeltaTime(time.elapsed().unwrap());
             time = SystemTime::now();
-
-            // Update the title every second
-            second += delta.to_seconds();
-            if second > 0.5 {
-                second -= 0.5;
-
-                let fps = &format!("FPS {:.2}", 1.0 / delta.to_seconds());
-                gui.get_mut::<Label>(fps_ref).unwrap().set_text(fps);
-            }
         }
 
         // Handle mouse events
         window.get_mouse_pos(MouseMode::Discard).map(|mouse| {
-            cs.mouse_pos = (mouse.0 as i32, mouse.1 as i32);
-            cs.mouse_down = window.get_mouse_down(MouseButton::Left);
+            gui.handle_mouse((mouse.0 as i32, mouse.1 as i32), window.get_mouse_down(MouseButton::Left));
         });
 
         dispatcher.dispatch(&mut world.res);
@@ -203,8 +184,7 @@ fn main() {
         render.draw_final_buffer(&mut buffer, &*world.write_resource::<Terrain>());
 
         // Render the gui on the buffer
-        gui.update(&cs);
-        gui.draw_to_buffer(&mut buffer);
+        gui.render(&mut buffer);
 
         // Finally draw the buffer on the window
         window.update_with_buffer(&buffer).unwrap();
