@@ -6,20 +6,30 @@ pub struct IngameGui {
     gui: Gui,
     cs: ControlState,
     size: (i32, i32),
+    bg_pos: (i32, i32),
 
-    menu_bg: BlitBuffer
+    menu_bg: BlitBuffer,
+    archer_button_img: SpriteRef
 }
 
 impl IngameGui {
     pub fn new(size: (i32, i32)) -> Self {
         // Setup the GUI system
-        let gui = Gui::new(size);
+        let mut gui = Gui::new(size);
+
+        let menu_bg = BlitBuffer::from_memory(include_bytes!("../resources/gui/iconbar.png.blit")).unwrap();
+
+        let bg_x = (size.0 - menu_bg.size().0) / 2;
+        let bg_y = size.1 - menu_bg.size().1;
+
+        let archer_button_img = gui.load_sprite_from_memory(include_bytes!("../resources/gui/archer-button.png.blit")).unwrap();
+        gui.register(Button::new_with_sprite(archer_button_img).with_pos(bg_x + 8, bg_y + 12));
         
         IngameGui {
-            gui, size,
-            cs: ControlState::default(),
+            gui, size, menu_bg, archer_button_img,
 
-            menu_bg: BlitBuffer::from_memory(include_bytes!("../resources/gui/iconbar.png.blit")).unwrap()
+            cs: ControlState::default(),
+            bg_pos: (bg_x, bg_y)
         }
     }
 
@@ -30,10 +40,7 @@ impl IngameGui {
 
     pub fn render(&mut self, buffer: &mut Vec<u32>) {
         self.gui.update(&self.cs);
-
-        let bg_x = (self.size.0 - self.menu_bg.size().0) / 2;
-        let bg_y = self.size.1 - self.menu_bg.size().1;
-        self.menu_bg.blit(buffer, self.size.0 as usize, (bg_x, bg_y));
+        self.menu_bg.blit(buffer, self.size.0 as usize, self.bg_pos);
 
         self.gui.draw_to_buffer(buffer);
     }
