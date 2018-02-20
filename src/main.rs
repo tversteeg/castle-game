@@ -183,6 +183,9 @@ fn main() {
 
         render.draw_final_buffer(&mut buffer, &*world.write_resource::<Terrain>());
 
+        // Update the gui system and receive a possible event
+        gui.update();
+
         // Render the gui on the buffer
         gui.render(&mut buffer);
 
