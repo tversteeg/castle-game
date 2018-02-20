@@ -125,12 +125,8 @@ fn main() {
         .build();
 
     // Setup minifb window related things
-    let options = WindowOptions {
-        scale: Scale::X2,
-        ..WindowOptions::default()
-    };
     let title = format!("Castle Game {} - Press ESC to exit.", env!("CARGO_PKG_VERSION"));
-    let mut window = Window::new(&title, WIDTH, HEIGHT, options).expect("Unable to open window");
+    let mut window = Window::new(&title, WIDTH, HEIGHT, WindowOptions::default()).expect("Unable to open window");
 
     window.set_cursor_style(CursorStyle::Crosshair);
 
