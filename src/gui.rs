@@ -4,6 +4,7 @@ use blit::*;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum GuiEvent {
+    None,
     BuyArcherButton
 }
 
@@ -43,13 +44,13 @@ impl IngameGui {
         self.cs.mouse_down = left_is_down;
     }
 
-    pub fn update(&mut self) -> Option<GuiEvent> {
-        let mut result = None;
+    pub fn update(&mut self) -> GuiEvent {
+        let mut result = GuiEvent::None;
 
         {
             let archer_button: &Button<Image> = self.gui.get(self.archer_button).unwrap();
             if !self.cs.mouse_down && archer_button.pressed() {
-                result = Some(GuiEvent::BuyArcherButton);
+                result = GuiEvent::BuyArcherButton;
             }
         }
 

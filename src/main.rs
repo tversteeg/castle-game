@@ -153,34 +153,41 @@ fn main() {
         world.maintain();
 
         // Render the sprites & masks
-        let sprites = world.read::<Sprite>();
-        let lines = world.read::<Line>();
-        let pixels = world.read::<PixelParticle>();
-        let terrain_masks = world.read::<TerrainMask>();
-        for entity in world.entities().join() {
-            if let Some(sprite) = sprites.get(entity) {
-                render.draw_foreground(sprite).unwrap();
+        {
+            let sprites = world.read::<Sprite>();
+            let lines = world.read::<Line>();
+            let pixels = world.read::<PixelParticle>();
+            let terrain_masks = world.read::<TerrainMask>();
+            for entity in world.entities().join() {
+                if let Some(sprite) = sprites.get(entity) {
+                    render.draw_foreground(sprite).unwrap();
+                }
+
+                if let Some(line) = lines.get(entity) {
+                    render.draw_foreground_line(line.p1, line.p2, line.color);
+                }
+
+                if let Some(pixel) = pixels.get(entity) {
+                    render.draw_foreground_pixel(pixel.pos, pixel.color);
+                }
+
+                if let Some(mask) = terrain_masks.get(entity) {
+                    render.draw_mask_terrain(&mut *world.write_resource::<Terrain>(), mask).unwrap();
+
+                    let _ = world.entities().delete(entity);
+                }
             }
 
-            if let Some(line) = lines.get(entity) {
-                render.draw_foreground_line(line.p1, line.p2, line.color);
-            }
-
-            if let Some(pixel) = pixels.get(entity) {
-                render.draw_foreground_pixel(pixel.pos, pixel.color);
-            }
-
-            if let Some(mask) = terrain_masks.get(entity) {
-                render.draw_mask_terrain(&mut *world.write_resource::<Terrain>(), mask).unwrap();
-
-                let _ = world.entities().delete(entity);
-            }
+            render.draw_final_buffer(&mut buffer, &*world.write_resource::<Terrain>());
         }
 
-        render.draw_final_buffer(&mut buffer, &*world.write_resource::<Terrain>());
-
         // Update the gui system and receive a possible event
-        gui.update();
+        match gui.update() {
+            GuiEvent::BuyArcherButton => {
+                buy_archer(&mut world);
+            },
+            GuiEvent::None => ()
+        }
 
         // Render the gui on the buffer
         gui.render(&mut buffer);
