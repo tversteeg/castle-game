@@ -13,7 +13,8 @@ use geom::*;
 #[derive(Component, Debug, Eq, PartialEq)]
 pub enum UnitState {
     Walk,
-    Melee
+    Melee,
+    Shoot
 }
 
 #[derive(Component, Debug, Copy, Clone)]
@@ -114,7 +115,9 @@ impl<'a> System<'a> for WalkSystem {
                     Some(hit) => {
                         pos.0.y -= 1.0;
 
+                        // Don't walk when the unitstate is not saying that it can walk
                         if *state != UnitState::Walk {
+                            *state = UnitState::Walk;
                             break;
                         }
 
@@ -206,12 +209,18 @@ impl<'a> System<'a> for TurretUnitSystem {
     type SystemData = (ReadStorage<'a, Turret>,
                        ReadStorage<'a, WorldPosition>,
                        ReadStorage<'a, TurretOffset>,
+                       WriteStorage<'a, UnitState>,
                        WriteStorage<'a, Point>);
 
-    fn run(&mut self, (_, wpos, offset, mut pos): Self::SystemData) {
-        for (wpos, offset, pos) in (&wpos, &offset, &mut pos).join() {
+    fn run(&mut self, (turret, wpos, offset, mut state, mut pos): Self::SystemData) {
+        for (turret, wpos, offset, state, pos) in (&turret, &wpos, &offset, &mut state, &mut pos).join() {
             pos.0.x = wpos.0.x + (offset.0).0;
             pos.0.y = wpos.0.y + (offset.0).1;
+
+            // Set the state if the unit turret is shooting
+            if turret.delay_left > 0.0 {
+                *state = UnitState::Shoot;
+            }
         }
     }
 }
