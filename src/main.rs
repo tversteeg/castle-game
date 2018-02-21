@@ -33,8 +33,8 @@ use level::*;
 use geom::*;
 use gui::*;
 
-const WIDTH: usize = 640;
-const HEIGHT: usize = 320;
+const WIDTH: usize = 1280;
+const HEIGHT: usize = 540;
 
 const GRAVITY: f64 = 98.1;
 
