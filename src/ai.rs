@@ -44,6 +44,7 @@ pub struct Enemy;
 #[derive(Component, Debug)]
 pub struct Turret {
     pub delay: f64,
+    pub min_distance: f64,
     pub max_strength: f64,
     pub flight_time: f64,
     pub strength_variation: f64,
@@ -52,9 +53,9 @@ pub struct Turret {
 }
 
 impl Turret {
-    pub fn new(delay: f64, max_strength: f64, strength_variation: f64, flight_time: f64) -> Self {
+    pub fn new(delay: f64, min_distance: f64, max_strength: f64, strength_variation: f64, flight_time: f64) -> Self {
         Turret {
-            delay, max_strength, flight_time, strength_variation,
+            delay, min_distance, max_strength, flight_time, strength_variation,
             delay_left: 0.0
         }
     }
@@ -64,6 +65,7 @@ impl Default for Turret {
     fn default() -> Self {
         Turret {
             delay: 5.0,
+            min_distance: 20.0,
             max_strength: 210.0,
             flight_time: 3.0,
             strength_variation: 10.0,
@@ -267,7 +269,7 @@ impl<'a> System<'a> for TurretSystem {
                     pos.x += walk.speed * turret.flight_time;
 
                     let dist_to = tpos.distance(*pos);
-                    if dist_to < dist {
+                    if dist_to < dist && dist_to > turret.min_distance {
                         dist = dist_to;
                         closest = pos;
 
@@ -283,7 +285,7 @@ impl<'a> System<'a> for TurretSystem {
                     pos.x += walk.speed * turret.flight_time;
 
                     let dist_to = tpos.distance(*pos);
-                    if dist_to < dist {
+                    if dist_to < dist && dist_to > turret.min_distance {
                         dist = dist_to;
                         closest = pos;
 
