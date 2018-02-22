@@ -49,6 +49,14 @@ impl BoundingBox {
          (self.max.x - self.min.x) as i32,
          (self.max.y - self.min.y) as i32)
     }
+
+    pub fn width(self) -> f64 {
+        self.max.x - self.min.x
+    }
+
+    pub fn height(self) -> f64 {
+        self.max.y - self.min.y
+    }
 }
 
 impl Deref for BoundingBox {
