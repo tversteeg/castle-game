@@ -50,6 +50,14 @@ impl BoundingBox {
          (self.max.y - self.min.y) as i32)
     }
 
+    pub fn x(self) -> f64 {
+        self.min.x
+    }
+
+    pub fn y(self) -> f64 {
+        self.min.y
+    }
+
     pub fn width(self) -> f64 {
         self.max.x - self.min.x
     }

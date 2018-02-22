@@ -58,11 +58,12 @@ impl<'a> System<'a> for ProjectileSystem {
                        Fetch<'a, Terrain>,
                        ReadStorage<'a, Projectile>,
                        ReadStorage<'a, MaskId>,
+                       ReadStorage<'a, Line>,
                        WriteStorage<'a, Velocity>,
                        WriteStorage<'a, WorldPosition>,
                        Fetch<'a, LazyUpdate>);
 
-    fn run(&mut self, (entities, dt, grav, terrain, proj, mask, mut vel, mut pos, updater): Self::SystemData) {
+    fn run(&mut self, (entities, dt, grav, terrain, proj, mask, line, mut vel, mut pos, updater): Self::SystemData) {
         let grav = grav.0;
         let dt = dt.to_seconds();
 
@@ -71,13 +72,20 @@ impl<'a> System<'a> for ProjectileSystem {
 
             match terrain.line_collides(pos.0.as_i32(), next.as_i32()) {
                 Some(point) => {
-                    let _ = entities.delete(entity);
-
-                    let e_mask: Option<&MaskId> = mask.get(entity);
-                    if let Some(mask) = e_mask {
-                        let crater = entities.create();
-                        updater.insert(crater, TerrainMask::new(mask.0, point));
+                    let mask_e: Option<&MaskId> = mask.get(entity);
+                    if let Some(mask) = mask_e {
+                        // Create a crater if there is a mask for it
+                        updater.insert(entities.create(), TerrainMask::new(mask.0, point));
                     }
+
+                    let line_e: Option<&Line> = line.get(entity);
+                    if let Some(line) = line_e {
+                        // Keep drawing the line if there is one, this makes the arrows stay stuck
+                        // in the ground
+                        updater.insert(entities.create(), *line);
+                    }
+
+                    let _ = entities.delete(entity);
 
                     /*
                     // TODO replace with proper size
@@ -130,6 +138,7 @@ impl<'a> System<'a> for ProjectileCollisionSystem {
                     }
                 }
 
+                // When there is a collision with a unit
                 let target_aabb = *target_bb + *target_pos.0;
                 if proj_aabb.intersects(&*target_aabb) {
                     target_health.0 -= proj_dmg.0;
