@@ -240,12 +240,13 @@ impl<'a> System<'a> for TurretSystem {
                        ReadStorage<'a, MaskId>,
                        ReadStorage<'a, IgnoreCollision>,
                        ReadStorage<'a, ProjectileBoundingBox>,
+                       ReadStorage<'a, BoundingBox>,
                        ReadStorage<'a, Damage>,
                        ReadStorage<'a, Walk>,
                        WriteStorage<'a, Turret>,
                        Fetch<'a, LazyUpdate>);
 
-    fn run(&mut self, (entities, dt, grav, ally, enemy, pos, wpos, sprite, arrow, line, mask, ignore, bb, dmg, walk, mut turret, updater): Self::SystemData) {
+    fn run(&mut self, (entities, dt, grav, ally, enemy, pos, wpos, sprite, arrow, line, mask, ignore, bb, ubb, dmg, walk, mut turret, updater): Self::SystemData) {
         let dt = dt.to_seconds();
         let grav = grav.0;
 
@@ -261,7 +262,7 @@ impl<'a> System<'a> for TurretSystem {
 
             let is_ally: Option<&Ally> = ally.get(e);
             if let Some(_) = is_ally {
-                for (epos, _, walk) in (&wpos, &enemy, &walk).join() {
+                for (epos, _, walk, ubb) in (&wpos, &enemy, &walk, &ubb).join() {
                     let mut pos = epos.0;
                     pos.x += walk.speed * turret.flight_time;
 
@@ -269,10 +270,15 @@ impl<'a> System<'a> for TurretSystem {
                     if dist_to < dist {
                         dist = dist_to;
                         closest = pos;
+
+                        // Make the projectile hit the center of the target instead of the zero
+                        // point
+                        closest.x += ubb.width() / 2.0;
+                        closest.y += ubb.height() / 2.0;
                     }
                 }
             } else {
-                for (apos, _, walk) in (&wpos, &ally, &walk).join() {
+                for (apos, _, walk, ubb) in (&wpos, &ally, &walk, &ubb).join() {
                     let mut pos = apos.0;
                     pos.x += walk.speed * turret.flight_time;
 
@@ -280,6 +286,11 @@ impl<'a> System<'a> for TurretSystem {
                     if dist_to < dist {
                         dist = dist_to;
                         closest = pos;
+
+                        // Make the projectile hit the center of the target instead of the zero
+                        // point
+                        closest.x += ubb.width() / 2.0;
+                        closest.y += ubb.height() / 2.0;
                     }
                 }
             }
