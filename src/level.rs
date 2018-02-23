@@ -91,7 +91,7 @@ pub fn place_turrets(world: &mut World, level: u8) {
                 world.create_entity()
                     .with(Enemy)
                     .with(Sprite::new(enemy_soldier1))
-                    .with(WorldPosition(Point::new(1130.0 - 20.0 * i as f64, 300.0)))
+                    .with(WorldPosition(Point::new(1130.0 - 20.0 * i as f64, 320.0)))
                     .with(Walk::new(BoundingBox::new(Point::new(2.0, 5.0), Point::new(5.0, 10.0)), 15.0))
                     .with(BoundingBox::new(Point::new(0.0, 0.0), Point::new(10.0, 10.0)))
                     .with(Destination(10.0))
@@ -101,11 +101,11 @@ pub fn place_turrets(world: &mut World, level: u8) {
                     .build();
             }
 
-            for i in 0..20 {
+            for i in 0..40 {
                 world.create_entity()
                     .with(Enemy)
                     .with(Sprite::new(enemy_archer1))
-                    .with(WorldPosition(Point::new(1140.0 - 20.0 * i as f64, 300.0)))
+                    .with(WorldPosition(Point::new(1140.0 - 20.0 * i as f64, 320.0)))
                     .with(Walk::new(BoundingBox::new(Point::new(1.0, 5.0), Point::new(4.0, 10.0)), 20.0))
                     .with(BoundingBox::new(Point::new(0.0, 0.0), Point::new(10.0, 10.0)))
                     .with(Destination(10.0))
