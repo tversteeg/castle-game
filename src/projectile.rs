@@ -44,8 +44,8 @@ impl<'a> System<'a> for ArrowSystem {
             line.p1.x = pos.0.x as usize;
             line.p1.y = pos.0.y as usize;
 
-            line.p2.x = pos.0.x as usize + (rot.cos() * arrow.0) as usize;
-            line.p2.y = pos.0.y as usize + (rot.sin() * arrow.0) as usize;
+            line.p2.x = pos.0.x as usize - (rot.cos() * arrow.0) as usize;
+            line.p2.y = pos.0.y as usize - (rot.sin() * arrow.0) as usize;
         }
     }
 }
@@ -82,7 +82,12 @@ impl<'a> System<'a> for ProjectileSystem {
                     if let Some(line) = line_e {
                         // Keep drawing the line if there is one, this makes the arrows stay stuck
                         // in the ground
-                        updater.insert(entities.create(), *line);
+                        let mut line_copy = *line;
+                        line_copy.p1.x = point.0 as usize;
+                        line_copy.p1.y = point.1 as usize;
+                        line_copy.p2.x += line_copy.p1.x - line.p1.x;
+                        line_copy.p2.y += line_copy.p1.y - line.p1.y;
+                        updater.insert(entities.create(), line_copy);
                     }
 
                     let _ = entities.delete(entity);
