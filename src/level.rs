@@ -18,7 +18,14 @@ pub fn buy_archer(world: &mut World) {
         .with(Destination(1280.0))
         .with(Health(20.0))
         .with(Melee::new(5.0, 1.0))
-        .with(Turret::new(3.0, 30.0, 150.0, 5.0, 2.5))
+        .with(Turret {
+            delay: 3.0,
+            min_distance: 30.0,
+            max_strength: 90.0,
+            flight_time: 2.0,
+            strength_variation: 0.1,
+            ..Turret::default()
+        })
         .with(TurretOffset((2.0, 2.0)))
         .with(Point::new(0.0, 0.0))
         .with(Arrow(3.0))
@@ -35,17 +42,24 @@ pub fn place_turrets(world: &mut World, level: u8) {
         let images = &*world.read_resource::<Images>();
 
         (*images.0.get("projectile1").unwrap(),
-         *images.0.get("bighole1").unwrap(),
-         *images.0.get("ally-melee1").unwrap(),
-         *images.0.get("enemy-melee1").unwrap(),
-         *images.0.get("enemy-archer1").unwrap())
+        *images.0.get("bighole1").unwrap(),
+        *images.0.get("ally-melee1").unwrap(),
+        *images.0.get("enemy-melee1").unwrap(),
+        *images.0.get("enemy-archer1").unwrap())
     };
 
     match level {
         1 => {
             world.create_entity()
                 .with(Enemy)
-                .with(Turret::new(3.0, 50.0, 310.0, 10.0, 5.0))
+                .with(Turret {
+                    delay: 3.0,
+                    min_distance: 50.0,
+                    max_strength: 310.0,
+                    flight_time: 5.0,
+                    strength_variation: 0.05,
+                    ..Turret::default()
+                })
                 .with(Point::new(1270.0, 295.0))
                 .with(ProjectileSprite(Sprite::new(projectile1)))
                 .with(MaskId(bighole1))
@@ -55,7 +69,14 @@ pub fn place_turrets(world: &mut World, level: u8) {
 
             world.create_entity()
                 .with(Enemy)
-                .with(Turret::new(1.0, 50.0, 290.0, 4.0, 3.0))
+                .with(Turret {
+                    delay: 1.0,
+                    min_distance: 50.0,
+                    max_strength: 290.0,
+                    flight_time: 4.0,
+                    strength_variation: 0.05,
+                    ..Turret::default()
+                })
                 .with(Point::new(1255.0, 315.0))
                 .with(Arrow(5.0))
                 .with(Line::new(0x4C2D24))
@@ -63,7 +84,7 @@ pub fn place_turrets(world: &mut World, level: u8) {
                 .with(Damage(10.0))
                 .build();
 
-            world.create_entity()
+                world.create_entity()
                 .with(Ally)
                 .with(Sprite::new(ally_melee1))
                 .with(WorldPosition(Point::new(2.0, 300.0)))
@@ -111,7 +132,14 @@ pub fn place_turrets(world: &mut World, level: u8) {
                     .with(Destination(10.0))
                     .with(Health(20.0))
                     .with(Melee::new(5.0, 1.0))
-                    .with(Turret::new(3.0, 30.0, 150.0, 5.0, 2.5))
+                    .with(Turret {
+                        delay: 3.0,
+                        min_distance: 30.0,
+                        max_strength: 90.0,
+                        flight_time: 2.0,
+                        strength_variation: 0.1,
+                        ..Turret::default()
+                    })
                     .with(TurretOffset((2.0, 2.0)))
                     .with(Point::new(0.0, 0.0))
                     .with(Arrow(3.0))
