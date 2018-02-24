@@ -125,6 +125,8 @@ fn main() {
         .add(ProjectileCollisionSystem, "projectile_collision", &["projectile"])
         .add(TerrainCollapseSystem, "terrain_collapse", &["projectile"])
         .add(WalkSystem, "walk", &[])
+        .add(UnitFallSystem, "unit_fall", &["walk"])
+        .add(UnitCollideSystem, "unit_collide", &["walk"])
         .add(MeleeSystem, "melee", &["walk"])
         .add(TurretUnitSystem, "turret_unit", &["walk"])
         .add(TurretSystem, "turret", &["turret_unit"])
