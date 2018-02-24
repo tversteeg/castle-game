@@ -1,7 +1,7 @@
 # [castle-game](https://tversteeg.itch.io/castle-game)
 A free & open source 2D Lemmings-meets-tower defense destructible terrain game.
 
-[![Build Status](https://travis-ci.org/tversteeg/castle-game.svg?branch=master)](https://travis-ci.org/tversteeg/castle-game) [![](https://img.shields.io/crates/v/castle-game.svg)](https://crates.io/crates/castle-game) [![License: GPL-3.0](https://img.shields.io/crates/l/castle-game.svg)](#license) [![](https://img.shields.io/crates/d/castle-game.svg)](#downloads) [![](https://tokei.rs/b1/github/tversteeg/castle-game)](https://github.com/Aaronepower/tokei) [![Matrix chat](https://img.shields.io/badge/chat-Riot.im-blue.svg)](https://riot.im/app/#/room/#castle-game:matrix.org)
+[![Build Status](https://travis-ci.org/tversteeg/castle-game.svg?branch=master)](https://travis-ci.org/tversteeg/castle-game) [![](https://img.shields.io/crates/v/castle-game.svg)](https://crates.io/crates/castle-game) [![License: PPL-based](https://img.shields.io/badge/license-PPL--based-blue.svg)](https://raddle.me/f/freeAsInFreedom/23802/first-draft-of-a-ppl-based-copyfarleft-license-suitable-for) [![](https://img.shields.io/crates/d/castle-game.svg)](#downloads) [![](https://tokei.rs/b1/github/tversteeg/castle-game)](https://github.com/Aaronepower/tokei) [![Matrix chat](https://img.shields.io/badge/chat-Riot.im-blue.svg)](https://riot.im/app/#/room/#castle-game:matrix.org)
 
 ![Screenshot](img/screengrab.gif?raw=true)
 
