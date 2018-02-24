@@ -3,11 +3,7 @@ use rand;
 use rand::distributions::{IndependentSample, Range};
 use collision::Discrete;
 
-use physics::*;
-use draw::*;
-use terrain::*;
-use ai::*;
-use geom::*;
+use super::*;
 
 #[derive(Component, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum IgnoreCollision {
