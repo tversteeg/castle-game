@@ -49,7 +49,7 @@ pub struct Turret {
     pub flight_time: f64,
     pub strength_variation: f64,
 
-    delay_left: f64
+    pub delay_left: f64
 }
 
 impl Turret {
@@ -245,10 +245,11 @@ impl<'a> System<'a> for TurretSystem {
                        ReadStorage<'a, BoundingBox>,
                        ReadStorage<'a, Damage>,
                        ReadStorage<'a, Walk>,
+                       ReadStorage<'a, UnitState>,
                        WriteStorage<'a, Turret>,
                        Fetch<'a, LazyUpdate>);
 
-    fn run(&mut self, (entities, dt, grav, ally, enemy, pos, wpos, sprite, arrow, line, mask, ignore, bb, ubb, dmg, walk, mut turret, updater): Self::SystemData) {
+    fn run(&mut self, (entities, dt, grav, ally, enemy, pos, wpos, sprite, arrow, line, mask, ignore, bb, ubb, dmg, walk, state, mut turret, updater): Self::SystemData) {
         let dt = dt.to_seconds();
         let grav = grav.0;
 
@@ -264,9 +265,11 @@ impl<'a> System<'a> for TurretSystem {
 
             let is_ally: Option<&Ally> = ally.get(e);
             if let Some(_) = is_ally {
-                for (epos, _, walk, ubb) in (&wpos, &enemy, &walk, &ubb).join() {
+                for (epos, _, walk, ubb, state) in (&wpos, &enemy, &walk, &ubb, &state).join() {
                     let mut pos = epos.0;
-                    pos.x += walk.speed * turret.flight_time;
+                    if *state == UnitState::Walk {
+                        pos.x += walk.speed * turret.flight_time;
+                    }
 
                     let dist_to = tpos.distance(*pos);
                     if dist_to < dist && dist_to > turret.min_distance {
@@ -280,9 +283,11 @@ impl<'a> System<'a> for TurretSystem {
                     }
                 }
             } else {
-                for (apos, _, walk, ubb) in (&wpos, &ally, &walk, &ubb).join() {
+                for (apos, _, walk, ubb, state) in (&wpos, &ally, &walk, &ubb, &state).join() {
                     let mut pos = apos.0;
-                    pos.x += walk.speed * turret.flight_time;
+                    if *state == UnitState::Walk {
+                        pos.x += walk.speed * turret.flight_time;
+                    }
 
                     let dist_to = tpos.distance(*pos);
                     if dist_to < dist && dist_to > turret.min_distance {
@@ -297,12 +302,15 @@ impl<'a> System<'a> for TurretSystem {
                 }
             }
 
-            let between = Range::new(-turret.strength_variation, turret.strength_variation);
-            let mut rng = rand::thread_rng();
+            let mut variation = 0.0;
+            if turret.strength_variation > 0.0 {
+                let between = Range::new(-turret.strength_variation, turret.strength_variation);
+                variation = 1.0 + between.ind_sample(&mut rand::thread_rng());
+            }
 
             let time = turret.flight_time;
-            let vx = (closest.x - tpos.x) / time + between.ind_sample(&mut rng);
-            let vy = (closest.y + 0.5 * -grav * time * time - tpos.y) / time + between.ind_sample(&mut rng);
+            let mut vx = ((closest.x - tpos.x) / time) * variation;
+            let mut vy = ((closest.y + 0.5 * -grav * time * time - tpos.y) / time) * variation;
 
             if (vx * vx + vy * vy).sqrt() < turret.max_strength {
                 // Shoot the turret
