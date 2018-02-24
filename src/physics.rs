@@ -1,9 +1,7 @@
 use specs::*;
 use std::time::Duration;
 
-use draw::*;
-use terrain::*;
-use geom::*;
+use super::*;
 
 #[derive(Component, Debug, Copy, Clone)]
 pub struct Velocity {

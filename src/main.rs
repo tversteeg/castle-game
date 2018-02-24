@@ -14,6 +14,8 @@ mod physics;
 mod terrain;
 mod projectile;
 mod ai;
+mod unit;
+mod turret;
 mod level;
 mod geom;
 mod gui;
@@ -32,6 +34,8 @@ use ai::*;
 use level::*;
 use geom::*;
 use gui::*;
+use unit::*;
+use turret::*;
 
 const WIDTH: usize = 1280;
 const HEIGHT: usize = 540;
@@ -82,15 +86,19 @@ fn main() {
     world.register::<Velocity>();
 
     // ai.rs
-    world.register::<UnitState>();
-    world.register::<Health>();
-    world.register::<Walk>();
     world.register::<Destination>();
     world.register::<Ally>();
     world.register::<Enemy>();
+    world.register::<Melee>();
+
+    // unit.rs
+    world.register::<UnitState>();
+    world.register::<Health>();
+    world.register::<Walk>();
+
+    // turret.rs
     world.register::<Turret>();
     world.register::<TurretOffset>();
-    world.register::<Melee>();
 
     // projectile.rs
     world.register::<Projectile>();
