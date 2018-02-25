@@ -109,7 +109,7 @@ impl<'a> System<'a> for UnitCollideSystem {
                 if *state == UnitState::Wait || *state == UnitState::Melee {
                     // If it's waiting or fighting and not colliding anymore let it walk
                     let mut intersects = false;
-                    for (e2, pos2, bb2) in (&*entities, &pos, &bb).join() {
+                    for (e2, pos2, bb2, dest2) in (&*entities, &pos, &bb, &dest).join() {
                         // Don't collide with itself
                         if e1 == e2 {
                             continue;
@@ -118,19 +118,21 @@ impl<'a> System<'a> for UnitCollideSystem {
                         // Get the bounding box of entity 2
                         let aabb2 = *bb2 + *pos2.0;
 
+                        // If they bounding boxes of both units intersect
                         if aabb1.intersects(&*aabb2) {
-                            intersects = true;
-                            break;
+                            let dist1 = (dest1.0 - pos1.0.x).abs();
+                            let dist2 = (dest2.0 - pos2.0.x).abs();
+
+                            // If this is not the unit closest to it's destination
+                            if dist1 > dist2 {
+                                intersects = true;
+                                break;
+                            }
                         }
                     }
 
                     // Make it walk again if there is no collision
                     if !intersects {
-                        updater.insert(entities.create(), FloatingText {
-                            text: "Walk".to_string(),
-                            pos: pos1.0,
-                            time_alive: 2.0
-                        });
                         *state = UnitState::Walk;
                     }
                 }
@@ -168,20 +170,9 @@ impl<'a> System<'a> for UnitCollideSystem {
                         if let Some(state) = state.get_mut(e1) {
                             *state = UnitState::Wait;
                         }
-
-                        updater.insert(entities.create(), FloatingText {
-                            text: "Wait".to_string(),
-                            pos: pos1.0,
-                            time_alive: 2.0
-                        });
                         break;
                     } else if let Some(state) = state.get_mut(e2) {
                         *state = UnitState::Wait;
-                        updater.insert(entities.create(), FloatingText {
-                            text: "Wait".to_string(),
-                            pos: pos2.0,
-                            time_alive: 2.0
-                        });
                     }
                 } else {
                     // If they are an ally and an enemy let them fight
@@ -191,16 +182,6 @@ impl<'a> System<'a> for UnitCollideSystem {
                     if let Some(state) = state.get_mut(e2) {
                         *state = UnitState::Melee;
                     }
-                    updater.insert(entities.create(), FloatingText {
-                        text: "Melee".to_string(),
-                        pos: pos1.0,
-                        time_alive: 2.0
-                    });
-                    updater.insert(entities.create(), FloatingText {
-                        text: "Melee".to_string(),
-                        pos: pos2.0,
-                        time_alive: 2.0
-                    });
                     break;
                 }
             }
