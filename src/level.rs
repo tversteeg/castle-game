@@ -48,6 +48,13 @@ pub fn place_turrets(world: &mut World, level: u8) {
         *images.0.get("enemy-archer1").unwrap())
     };
 
+    world.create_entity()
+        .with(FloatingText {
+            text: "Hallo".to_string(),
+            pos: Point::new(100.0, 300.0),
+            time_alive: 100.0
+        });
+
     match level {
         1 => {
             world.create_entity()
