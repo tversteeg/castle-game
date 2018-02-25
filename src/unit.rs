@@ -126,6 +126,11 @@ impl<'a> System<'a> for UnitCollideSystem {
 
                     // Make it walk again if there is no collision
                     if !intersects {
+                        updater.insert(entities.create(), FloatingText {
+                            text: "Walk".to_string(),
+                            pos: pos1.0,
+                            time_alive: 2.0
+                        });
                         *state = UnitState::Walk;
                     }
                 }
@@ -163,9 +168,20 @@ impl<'a> System<'a> for UnitCollideSystem {
                         if let Some(state) = state.get_mut(e1) {
                             *state = UnitState::Wait;
                         }
+
+                        updater.insert(entities.create(), FloatingText {
+                            text: "Wait".to_string(),
+                            pos: pos1.0,
+                            time_alive: 2.0
+                        });
                         break;
                     } else if let Some(state) = state.get_mut(e2) {
                         *state = UnitState::Wait;
+                        updater.insert(entities.create(), FloatingText {
+                            text: "Wait".to_string(),
+                            pos: pos2.0,
+                            time_alive: 2.0
+                        });
                     }
                 } else {
                     // If they are an ally and an enemy let them fight
@@ -175,6 +191,16 @@ impl<'a> System<'a> for UnitCollideSystem {
                     if let Some(state) = state.get_mut(e2) {
                         *state = UnitState::Melee;
                     }
+                    updater.insert(entities.create(), FloatingText {
+                        text: "Melee".to_string(),
+                        pos: pos1.0,
+                        time_alive: 2.0
+                    });
+                    updater.insert(entities.create(), FloatingText {
+                        text: "Melee".to_string(),
+                        pos: pos2.0,
+                        time_alive: 2.0
+                    });
                     break;
                 }
             }
