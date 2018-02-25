@@ -1,6 +1,6 @@
 [package]
 name = "castle-game"
-version = "0.1.26"
+version = "0.1.27"
 authors = ["Thomas Versteeg <thomasversteeg@gmx.com>"]
 license = "GPL-3.0"
 homepage = "https://github.com/tversteeg/castle-game"
