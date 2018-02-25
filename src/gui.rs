@@ -1,6 +1,40 @@
+use specs::*;
 use direct_gui::*;
 use direct_gui::controls::*;
 use blit::*;
+
+use super::*;
+
+#[derive(Component, Debug)]
+pub struct FloatingText {
+    pub text: String,
+    pub pos: Point,
+    pub time_alive: f64
+}
+
+pub struct FloatingTextSystem;
+impl<'a> System<'a> for FloatingTextSystem {
+    type SystemData = (Entities<'a>,
+                       Fetch<'a, DeltaTime>,
+                       WriteStorage<'a, FloatingText>);
+
+    fn run(&mut self, (entities, dt, mut text): Self::SystemData) {
+        let dt = dt.to_seconds();
+
+        for (entity, text) in (&*entities, &mut text).join() {
+            // Kill the text if it's time alive is up
+            text.time_alive -= dt;
+            if text.time_alive <= 0.0 {
+                let _ = entities.delete(entity);
+                continue;
+            }
+
+            // Float the text up
+            text.pos.0.y -= dt * 20.0;
+        }
+    }
+}
+
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum GuiEvent {
@@ -57,6 +91,11 @@ impl IngameGui {
         self.gui.update(&self.cs);
 
         result
+    }
+
+    pub fn draw_label(&mut self, buffer: &mut Vec<u32>, text: &String, pos: (i32, i32)) {
+        let default_font = self.gui.default_font();
+        self.gui.draw_label(buffer, default_font, text, pos);
     }
 
     pub fn render(&mut self, buffer: &mut Vec<u32>) {

@@ -108,6 +108,9 @@ fn main() {
     world.register::<Arrow>();
     world.register::<Damage>();
 
+    // gui.rs
+    world.register::<FloatingText>();
+
     // Resources to `Fetch`
     world.add_resource(Terrain::new((WIDTH, HEIGHT)));
     world.add_resource(Gravity(GRAVITY));
@@ -132,6 +135,7 @@ fn main() {
         .add(TurretSystem, "turret", &["turret_unit"])
         .add(SpriteSystem, "sprite", &["projectile", "walk"])
         .add(ParticleSystem, "particle", &[])
+        .add(FloatingTextSystem, "floating_text", &[])
         .build();
 
     // Setup minifb window related things
@@ -199,8 +203,16 @@ fn main() {
             GuiEvent::None => ()
         }
 
+        // Render the floating text
+            let floating_texts = world.read::<FloatingText>();
+
         // Render the gui on the buffer
         gui.render(&mut buffer);
+        for entity in world.entities().join() {
+            if let Some(text) = floating_texts.get(entity) {
+                gui.draw_label(&mut buffer, &text.text, text.pos.as_i32());
+            }
+        }
 
         // Finally draw the buffer on the window
         window.update_with_buffer(&buffer).unwrap();

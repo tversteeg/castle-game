@@ -95,18 +95,19 @@ impl<'a> System<'a> for UnitCollideSystem {
                        ReadStorage<'a, Ally>,
                        ReadStorage<'a, WorldPosition>,
                        ReadStorage<'a, BoundingBox>,
+                       ReadStorage<'a, Destination>,
                        WriteStorage<'a, UnitState>,
                        Fetch<'a, LazyUpdate>);
 
-    fn run(&mut self, (entities, ally, pos, bb, mut state, updater): Self::SystemData) {
-        for (e1, pos1, bb1) in (&*entities, &pos, &bb).join() {
+    fn run(&mut self, (entities, ally, pos, bb, dest, mut state, updater): Self::SystemData) {
+        for (e1, pos1, bb1, dest1) in (&*entities, &pos, &bb, &dest).join() {
             // Get the bounding box of entity 1
             let aabb1 = *bb1 + *pos1.0;
 
             // Don't check if this unit is not walking
             if let Some(state) = state.get_mut(e1){
-                if *state == UnitState::Wait {
-                    // If it's waiting and not colliding anymore let it walk
+                if *state == UnitState::Wait || *state == UnitState::Melee {
+                    // If it's waiting or fighting and not colliding anymore let it walk
                     let mut intersects = false;
                     for (e2, pos2, bb2) in (&*entities, &pos, &bb).join() {
                         // Don't collide with itself
@@ -135,7 +136,8 @@ impl<'a> System<'a> for UnitCollideSystem {
                 }
             }
 
-            for (e2, pos2, bb2) in (&*entities, &pos, &bb).join() {
+            // Check for a collision if this unit is walking
+            for (e2, pos2, bb2, dest2) in (&*entities, &pos, &bb, &dest).join() {
                 // Don't collide with itself
                 if e1 == e2 {
                     continue;
@@ -152,21 +154,29 @@ impl<'a> System<'a> for UnitCollideSystem {
                 let is_ally1 = ally.get(e1).is_some();
                 let is_ally2 = ally.get(e2).is_some();
 
-                // If they are both allies or both enemies
                 if is_ally1 == is_ally2  {
-                    // Let the first one wait
-                    if let Some(state) = state.get_mut(e1) {
+                    // If they are both allies or both enemies let one of them wait
+                    let dist1 = (dest1.0 - pos1.0.x).abs();
+                    let dist2 = (dest2.0 - pos2.0.x).abs();
+                    // Let the unit wait which is furthest away from the destination
+                    if dist1 > dist2 {
+                        if let Some(state) = state.get_mut(e1) {
+                            *state = UnitState::Wait;
+                        }
+                        break;
+                    } else if let Some(state) = state.get_mut(e2) {
                         *state = UnitState::Wait;
                     }
                 } else {
+                    // If they are an ally and an enemy let them fight
                     if let Some(state) = state.get_mut(e1) {
                         *state = UnitState::Melee;
                     }
                     if let Some(state) = state.get_mut(e2) {
                         *state = UnitState::Melee;
                     }
+                    break;
                 }
-                break;
             }
         }
     }
