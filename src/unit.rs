@@ -48,7 +48,7 @@ impl<'a> System<'a> for WalkSystem {
         for (dest, walk, state, pos) in (&dest, &walk, &mut state, &mut pos).join() {
             // Don't walk when the unitstate is not saying that it can walk
             if *state != UnitState::Walk {
-                break;
+                continue;
             }
 
             let hit_box = walk.bounds + *pos.0;
@@ -56,7 +56,7 @@ impl<'a> System<'a> for WalkSystem {
                 if hit.1 == hit_box.min.y as i32 {
                     // Top edge of bounding box is hit, try to climb
                     *state = UnitState::Climb;
-                    break;
+                    continue;
                 }
             }
 
@@ -93,16 +93,48 @@ pub struct UnitCollideSystem;
 impl<'a> System<'a> for UnitCollideSystem {
     type SystemData = (Entities<'a>,
                        ReadStorage<'a, Ally>,
-                       ReadStorage<'a, Enemy>,
                        ReadStorage<'a, WorldPosition>,
                        ReadStorage<'a, BoundingBox>,
                        WriteStorage<'a, UnitState>,
                        Fetch<'a, LazyUpdate>);
 
-    fn run(&mut self, (entities, ally, enemy, pos, bb, mut state, updater): Self::SystemData) {
+    fn run(&mut self, (entities, ally, pos, bb, mut state, updater): Self::SystemData) {
         for (e1, pos1, bb1) in (&*entities, &pos, &bb).join() {
             // Get the bounding box of entity 1
             let aabb1 = *bb1 + *pos1.0;
+
+            // Don't check if this unit is not walking
+            if let Some(state) = state.get_mut(e1){
+                if *state == UnitState::Wait {
+                    // If it's waiting and not colliding anymore let it walk
+                    let mut intersects = false;
+                    for (e2, pos2, bb2) in (&*entities, &pos, &bb).join() {
+                        // Don't collide with itself
+                        if e1 == e2 {
+                            continue;
+                        }
+
+                        // Get the bounding box of entity 2
+                        let aabb2 = *bb2 + *pos2.0;
+
+                        if aabb1.intersects(&*aabb2) {
+                            intersects = true;
+                            break;
+                        }
+                    }
+
+                    // Make it walk again if there is no collision
+                    if !intersects {
+                        *state = UnitState::Walk;
+                    }
+                }
+
+                // If it's not walking ignore it
+                if *state != UnitState::Walk {
+                    continue;
+                }
+            }
+
             for (e2, pos2, bb2) in (&*entities, &pos, &bb).join() {
                 // Don't collide with itself
                 if e1 == e2 {
@@ -117,25 +149,24 @@ impl<'a> System<'a> for UnitCollideSystem {
                     continue;
                 }
 
-                /*
-                let mut state1 = {
-                    let mut entity1 = state.get_mut(e1);
-                    if entity1 == None {
-                        continue;
+                let is_ally1 = ally.get(e1).is_some();
+                let is_ally2 = ally.get(e2).is_some();
+
+                // If they are both allies or both enemies
+                if is_ally1 == is_ally2  {
+                    // Let the first one wait
+                    if let Some(state) = state.get_mut(e1) {
+                        *state = UnitState::Wait;
                     }
-
-                    entity1.unwrap()
-                };
-
-                let mut state2 = {
-                    let mut entity2 = state.get_mut(e2);
-                    if entity2 == None {
-                        continue;
+                } else {
+                    if let Some(state) = state.get_mut(e1) {
+                        *state = UnitState::Melee;
                     }
-
-                    entity2.unwrap()
-                };
-                */
+                    if let Some(state) = state.get_mut(e2) {
+                        *state = UnitState::Melee;
+                    }
+                }
+                break;
             }
         }
     }
