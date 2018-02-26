@@ -46,10 +46,11 @@ impl<'a> System<'a> for TurretUnitSystem {
             pos.0.x = wpos.0.x + (offset.0).0;
             pos.0.y = wpos.0.y + (offset.0).1;
 
-            if turret.delay_left > 0.0 {
+            let unit_stop_moving_offset = turret.delay / 4.0;
+            if turret.delay_left > unit_stop_moving_offset {
                 // Set the state if the unit turret just shot
                 *state = UnitState::Shoot;
-            } else if turret.delay_left < 0.0 && *state == UnitState::Shoot {
+            } else if turret.delay_left < unit_stop_moving_offset && *state == UnitState::Shoot {
                 // Make the unit walk again when the timeout is over
                 *state = UnitState::Walk;
             }
