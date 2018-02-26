@@ -20,8 +20,8 @@ pub fn buy_archer(world: &mut World) {
         .with(Melee::new(5.0, 1.0))
         .with(Turret {
             delay: 3.0,
-            min_distance: 30.0,
-            max_strength: 90.0,
+            min_distance: 20.0,
+            max_strength: 150.0,
             flight_time: 2.0,
             strength_variation: 0.1,
             ..Turret::default()
@@ -62,7 +62,7 @@ pub fn place_turrets(world: &mut World, level: u8) {
                 })
                 .with(Point::new(1270.0, 295.0))
                 .with(ProjectileSprite(Sprite::new(projectile1)))
-                .with(MaskId(bighole1))
+                .with(MaskId { id: bighole1, size: (5, 5) })
                 .with(ProjectileBoundingBox(BoundingBox::new(Point::new(0.0, 0.0), Point::new(5.0, 5.0))))
                 .with(Damage(30.0))
                 .build();
@@ -78,7 +78,7 @@ pub fn place_turrets(world: &mut World, level: u8) {
                     ..Turret::default()
                 })
                 .with(Point::new(1255.0, 315.0))
-                .with(Arrow(5.0))
+                .with(Arrow(10.0))
                 .with(Line::new(0x4C2D24))
                 .with(ProjectileBoundingBox(BoundingBox::new(Point::new(0.0, 0.0), Point::new(1.0, 1.0))))
                 .with(Damage(10.0))
@@ -134,8 +134,8 @@ pub fn place_turrets(world: &mut World, level: u8) {
                     .with(Melee::new(5.0, 1.0))
                     .with(Turret {
                         delay: 3.0,
-                        min_distance: 30.0,
-                        max_strength: 90.0,
+                        min_distance: 20.0,
+                        max_strength: 150.0,
                         flight_time: 2.0,
                         strength_variation: 0.1,
                         ..Turret::default()

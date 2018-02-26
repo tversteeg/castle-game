@@ -96,10 +96,9 @@ impl<'a> System<'a> for UnitCollideSystem {
                        ReadStorage<'a, WorldPosition>,
                        ReadStorage<'a, BoundingBox>,
                        ReadStorage<'a, Destination>,
-                       WriteStorage<'a, UnitState>,
-                       Fetch<'a, LazyUpdate>);
+                       WriteStorage<'a, UnitState>);
 
-    fn run(&mut self, (entities, ally, pos, bb, dest, mut state, updater): Self::SystemData) {
+    fn run(&mut self, (entities, ally, pos, bb, dest, mut state): Self::SystemData) {
         for (e1, pos1, bb1, dest1) in (&*entities, &pos, &bb, &dest).join() {
             // Get the bounding box of entity 1
             let aabb1 = *bb1 + *pos1.0;

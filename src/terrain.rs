@@ -90,12 +90,13 @@ impl Terrain {
 #[derive(Component, Debug)]
 pub struct TerrainMask {
     pub id: usize,
-    pub pos: (i32, i32)
+    pub pos: (i32, i32),
+    pub size: (usize, usize)
 }
 
 impl TerrainMask {
-    pub fn new(id: usize, pos: (i32, i32)) -> Self {
-        TerrainMask { id, pos }
+    pub fn new(id: usize, pos: (i32, i32), size: (usize, usize)) -> Self {
+        TerrainMask { id, pos, size }
     }
 }
 
@@ -110,9 +111,9 @@ impl<'a> System<'a> for TerrainCollapseSystem {
                        WriteStorage<'a, TerrainCollapse>);
 
     fn run(&mut self, (entities, dt, _terrain, mut rect): Self::SystemData) {
-        let _dt = dt.to_seconds();
+        let dt = dt.to_seconds();
 
-        for (_entities, mut _rect) in (&*entities, &mut rect).join() {
+        for (entities, mut rect) in (&*entities, &mut rect).join() {
             
         }
     }
