@@ -132,9 +132,13 @@ impl<'a> System<'a> for ProjectileCollisionSystem {
                 // When there is a collision with a unit
                 let target_aabb = *target_bb + *target_pos.0;
                 if proj_aabb.intersects(&*target_aabb) {
-                    target_health.0 -= proj_dmg.0;
-                    if target_health.0 <= 0.0 {
-                        let _ = entities.delete(target);
+                    if reduce_unit_health(&entities, &target, target_health, proj_dmg.0) {
+                        // The ally died
+                        updater.insert(entities.create(), FloatingText {
+                            text: "x".to_string(),
+                            pos: target_pos.0,
+                            time_alive: 2.0
+                        });
                     }
 
                     let _ = entities.delete(proj);
