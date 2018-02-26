@@ -195,12 +195,4 @@ impl Render {
 
         self.add_buf(name, buf)
     }
-
-    pub fn get_sprite_size(&self, id: usize) -> Option<(i32, i32)> {
-        if id >= self.blit_buffers.len() {
-            return None;
-        }
-
-        Some(self.blit_buffers[id].1.size())
-    }
 }
