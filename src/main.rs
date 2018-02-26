@@ -126,6 +126,7 @@ fn main() {
         .add(ProjectileSystem, "projectile", &[])
         .add(ArrowSystem, "arrow", &["projectile"])
         .add(ProjectileCollisionSystem, "projectile_collision", &["projectile"])
+        .add(ProjectileRemovalFromMaskSystem, "projectile_removal_from_mask", &["projectile"])
         .add(TerrainCollapseSystem, "terrain_collapse", &["projectile"])
         .add(WalkSystem, "walk", &[])
         .add(UnitFallSystem, "unit_fall", &["walk"])
@@ -188,6 +189,7 @@ fn main() {
                 if let Some(mask) = terrain_masks.get(entity) {
                     render.draw_mask_terrain(&mut *world.write_resource::<Terrain>(), mask).unwrap();
 
+                    // Immediately remove the mask after drawing it
                     let _ = world.entities().delete(entity);
                 }
             }
@@ -204,7 +206,7 @@ fn main() {
         }
 
         // Render the floating text
-            let floating_texts = world.read::<FloatingText>();
+        let floating_texts = world.read::<FloatingText>();
 
         // Render the gui on the buffer
         gui.render(&mut buffer);

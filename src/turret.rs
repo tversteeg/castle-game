@@ -16,15 +16,6 @@ pub struct Turret {
     pub delay_left: f64
 }
 
-impl Turret {
-    pub fn new(delay: f64, min_distance: f64, max_strength: f64, strength_variation: f64, flight_time: f64) -> Self {
-        Turret {
-            delay, min_distance, max_strength, flight_time, strength_variation,
-            delay_left: 0.0
-        }
-    }
-}
-
 impl Default for Turret {
     fn default() -> Self {
         Turret {
@@ -32,7 +23,7 @@ impl Default for Turret {
             min_distance: 20.0,
             max_strength: 210.0,
             flight_time: 3.0,
-            strength_variation: 10.0,
+            strength_variation: 0.1,
 
             delay_left: 0.0
         }
@@ -56,7 +47,7 @@ impl<'a> System<'a> for TurretUnitSystem {
             pos.0.y = wpos.0.y + (offset.0).1;
 
             if turret.delay_left > 0.0 {
-                // Set the state if the unit turret just shoot
+                // Set the state if the unit turret just shot
                 *state = UnitState::Shoot;
             } else if turret.delay_left < 0.0 && *state == UnitState::Shoot {
                 // Make the unit walk again when the timeout is over

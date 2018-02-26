@@ -36,7 +36,7 @@ impl<'a> System<'a> for ArrowSystem {
     fn run(&mut self, (pos, vel, mut arrow, mut line): Self::SystemData) {
         for (pos, vel, arrow, line) in (&pos, &vel, &mut arrow, &mut line).join() {
             let rot = (vel.y as f64).atan2(vel.x as f64);
-            
+
             line.p1.x = pos.0.x as usize;
             line.p1.y = pos.0.y as usize;
 
@@ -54,7 +54,7 @@ impl<'a> System<'a> for ProjectileSystem {
                        Fetch<'a, Terrain>,
                        ReadStorage<'a, Projectile>,
                        ReadStorage<'a, MaskId>,
-                       ReadStorage<'a, Line>,
+                       WriteStorage<'a, Line>,
                        WriteStorage<'a, Velocity>,
                        WriteStorage<'a, WorldPosition>,
                        Fetch<'a, LazyUpdate>);
@@ -68,14 +68,12 @@ impl<'a> System<'a> for ProjectileSystem {
 
             match terrain.line_collides(pos.0.as_i32(), next.as_i32()) {
                 Some(point) => {
-                    let mask_e: Option<&MaskId> = mask.get(entity);
-                    if let Some(mask) = mask_e {
+                    if let Some(mask) = mask.get(entity) {
                         // Create a crater if there is a mask for it
-                        updater.insert(entities.create(), TerrainMask::new(mask.0, point));
+                        updater.insert(entities.create(), TerrainMask::new(mask.id, point, mask.size));
                     }
 
-                    let line_e: Option<&Line> = line.get(entity);
-                    if let Some(line) = line_e {
+                    if let Some(line) = line.get(entity) {
                         // Keep drawing the line if there is one, this makes the arrows stay stuck
                         // in the ground
                         let mut line_copy = *line;
@@ -87,14 +85,6 @@ impl<'a> System<'a> for ProjectileSystem {
                     }
 
                     let _ = entities.delete(entity);
-
-                    /*
-                    // TODO replace with proper size
-                    let terrain_rect = Aabb2::new(point.0 as f64, point.1 as f64, 10.0, 10.0);
-
-                    let collapse = entities.create();
-                    updater.insert(collapse, TerrainCollapse(terrain_rect));
-                    */
                 },
                 None => {
                     pos.0 = next;
@@ -157,6 +147,29 @@ impl<'a> System<'a> for ProjectileCollisionSystem {
                         updater.insert(blood, *target_pos);
                         updater.insert(blood, Velocity::new(between.ind_sample(&mut rng), between.ind_sample(&mut rng)));
                     }
+                }
+            }
+        }
+    }
+}
+
+pub struct ProjectileRemovalFromMaskSystem;
+impl<'a> System<'a> for ProjectileRemovalFromMaskSystem {
+    type SystemData = (Entities<'a>,
+                       ReadStorage<'a, TerrainMask>,
+                       ReadStorage<'a, Line>);
+
+    fn run(&mut self, (entities, mask, line): Self::SystemData) {
+        for mask in mask.join() {
+            let sx = (mask.size.0 / 2) as usize;
+            let sy = (mask.size.1 / 2) as usize;
+
+            for (entity, line) in (&*entities, &line).join() {
+                // Check if the line's start point is inside the mask and remove it if that's the case
+                let dx = (mask.pos.0 - line.p1.x as i32).abs() as usize;
+                let dy = (mask.pos.1 - line.p1.y as i32).abs() as usize;
+                if dx <= sx && dy <= sy {
+                    let _ = entities.delete(entity);
                 }
             }
         }

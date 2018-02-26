@@ -26,7 +26,10 @@ impl PixelParticle {
 }
 
 #[derive(Component, Debug, Copy, Clone)]
-pub struct MaskId(pub usize);
+pub struct MaskId {
+    pub id: usize,
+    pub size: (usize, usize)
+}
 
 #[derive(Component, Debug, Copy, Clone)]
 pub struct Sprite {
@@ -191,5 +194,13 @@ impl Render {
         let buf = BlitBuffer::from_memory(bytes).unwrap();
 
         self.add_buf(name, buf)
+    }
+
+    pub fn get_sprite_size(&self, id: usize) -> Option<(i32, i32)> {
+        if id >= self.blit_buffers.len() {
+            return None;
+        }
+
+        Some(self.blit_buffers[id].1.size())
     }
 }
