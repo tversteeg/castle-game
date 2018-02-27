@@ -37,6 +37,26 @@ pub fn buy_archer(world: &mut World) {
         .build();
 }
 
+pub fn buy_soldier(world: &mut World) {
+    let soldier_sprite = {
+        let images = &*world.read_resource::<Images>();
+
+        *images.0.get("ally-melee1").unwrap()
+    };
+
+    world.create_entity()
+        .with(Ally)
+        .with(Sprite::new(soldier_sprite))
+        .with(WorldPosition(Point::new(1.0, 340.0)))
+        .with(Walk::new(BoundingBox::new(Point::new(1.0, 5.0), Point::new(4.0, 10.0)), 15.0))
+        .with(BoundingBox::new(Point::new(0.0, 0.0), Point::new(10.0, 10.0)))
+        .with(Destination(1280.0))
+        .with(Health(50.0))
+        .with(Melee::new(10.0, 1.0))
+        .with(UnitState::Walk)
+        .build();
+}
+
 pub fn place_turrets(world: &mut World, level: u8) {
     let (projectile1, bighole1, ally_melee1, enemy_soldier1, enemy_archer1) = {
         let images = &*world.read_resource::<Images>();
@@ -82,30 +102,6 @@ pub fn place_turrets(world: &mut World, level: u8) {
                 .with(Line::new(0x4C2D24))
                 .with(ProjectileBoundingBox(BoundingBox::new(Point::new(0.0, 0.0), Point::new(1.0, 1.0))))
                 .with(Damage(10.0))
-                .build();
-
-                world.create_entity()
-                .with(Ally)
-                .with(Sprite::new(ally_melee1))
-                .with(WorldPosition(Point::new(2.0, 300.0)))
-                .with(Walk::new(BoundingBox::new(Point::new(1.0, 5.0), Point::new(4.0, 10.0)), 15.0))
-                .with(BoundingBox::new(Point::new(0.0, 0.0), Point::new(10.0, 10.0)))
-                .with(Destination(1280.0))
-                .with(Health(50.0))
-                .with(Melee::new(10.0, 1.0))
-                .with(UnitState::Walk)
-                .build();
-
-            world.create_entity()
-                .with(Ally)
-                .with(Sprite::new(ally_melee1))
-                .with(WorldPosition(Point::new(70.0, 300.0)))
-                .with(Walk::new(BoundingBox::new(Point::new(1.0, 5.0), Point::new(4.0, 10.0)), 15.0))
-                .with(BoundingBox::new(Point::new(0.0, 0.0), Point::new(10.0, 10.0)))
-                .with(Destination(1280.0))
-                .with(Health(50.0))
-                .with(Melee::new(10.0, 1.0))
-                .with(UnitState::Walk)
                 .build();
 
             for i in 0..10 {
