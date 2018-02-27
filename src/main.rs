@@ -202,7 +202,10 @@ fn main() {
             GuiEvent::BuyArcherButton => {
                 buy_archer(&mut world);
             },
-            GuiEvent::None => ()
+            GuiEvent::BuySoldierButton => {
+              buy_soldier(&mut world);  
+            },
+            _ => ()
         }
 
         // Render the floating text

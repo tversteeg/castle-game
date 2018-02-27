@@ -35,11 +35,11 @@ impl<'a> System<'a> for FloatingTextSystem {
     }
 }
 
-
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum GuiEvent {
     None,
-    BuyArcherButton
+    BuyArcherButton,
+    BuySoldierButton
 }
 
 pub struct IngameGui {
@@ -49,7 +49,8 @@ pub struct IngameGui {
     bg_pos: (i32, i32),
 
     menu_bg: BlitBuffer,
-    archer_button: ControlRef
+    archer_button: ControlRef,
+    soldier_button: ControlRef
 }
 
 impl IngameGui {
@@ -65,8 +66,11 @@ impl IngameGui {
         let archer_button_img = gui.load_sprite_from_memory(include_bytes!("../resources/gui/archer-button.png.blit")).unwrap();
         let archer_button = gui.register(Button::new_with_sprite(archer_button_img).with_pos(bg_x + 8, bg_y + 12));
         
+        let soldier_button_img = gui.load_sprite_from_memory(include_bytes!("../resources/gui/soldier-button.png.blit")).unwrap();
+        let soldier_button = gui.register(Button::new_with_sprite(soldier_button_img).with_pos(bg_x + 40, bg_y + 12));
+
         IngameGui {
-            gui, size, menu_bg, archer_button,
+            gui, size, menu_bg, archer_button, soldier_button,
 
             cs: ControlState::default(),
             bg_pos: (bg_x, bg_y)
@@ -81,10 +85,18 @@ impl IngameGui {
     pub fn update(&mut self) -> GuiEvent {
         let mut result = GuiEvent::None;
 
+        // Set the state to the buttons pressed
         {
+            // If the mouse is not down anymore but the button state is still pressed means that
+            // the mouse was just released
             let archer_button: &Button<Image> = self.gui.get(self.archer_button).unwrap();
             if !self.cs.mouse_down && archer_button.pressed() {
                 result = GuiEvent::BuyArcherButton;
+            }
+
+            let soldier_button: &Button<Image> = self.gui.get(self.soldier_button).unwrap();
+            if !self.cs.mouse_down && soldier_button.pressed() {
+                result = GuiEvent::BuySoldierButton;
             }
         }
 
