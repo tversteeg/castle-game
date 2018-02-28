@@ -1,5 +1,6 @@
 use specs::*;
 use collision::Discrete;
+use cgmath::Point2;
 
 use super::*;
 
@@ -20,6 +21,15 @@ pub enum UnitState {
 
 #[derive(Component, Debug, Copy, Clone)]
 pub struct Health(pub f64);
+
+#[derive(Component, Debug, Copy, Clone)]
+pub struct HealthBar {
+    pub health: f64,
+    pub max_health: f64,
+    pub width: usize,
+    pub pos: Point2<usize>,
+    pub offset: (i32, i32)
+}
 
 #[derive(Component, Debug, Copy, Clone)]
 pub struct Walk {
@@ -61,6 +71,22 @@ impl<'a> System<'a> for WalkSystem {
             }
 
             pos.0.x += walk.speed * dt * (dest.0 - pos.0.x).signum();
+        }
+    }
+}
+
+pub struct HealthBarSystem;
+impl<'a> System<'a> for HealthBarSystem {
+    type SystemData = (ReadStorage<'a, Health>,
+                       ReadStorage<'a, WorldPosition>,
+                       WriteStorage<'a, HealthBar>);
+
+    fn run(&mut self, (health, pos, mut bar): Self::SystemData) {
+        for (health, pos, bar) in (&health, &pos, &mut bar).join() {
+            bar.health = health.0;
+            bar.pos = pos.0.as_usize();
+            bar.pos.x = (bar.pos.x as i32 + bar.offset.0) as usize;
+            bar.pos.y = (bar.pos.y as i32 + bar.offset.1) as usize;
         }
     }
 }

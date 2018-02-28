@@ -94,6 +94,7 @@ fn main() {
     // unit.rs
     world.register::<UnitState>();
     world.register::<Health>();
+    world.register::<HealthBar>();
     world.register::<Walk>();
 
     // turret.rs
@@ -132,6 +133,7 @@ fn main() {
         .add(UnitFallSystem, "unit_fall", &["walk"])
         .add(UnitCollideSystem, "unit_collide", &["walk"])
         .add(MeleeSystem, "melee", &["walk"])
+        .add(HealthBarSystem, "health_bar", &["walk"])
         .add(TurretUnitSystem, "turret_unit", &["walk"])
         .add(TurretSystem, "turret", &["turret_unit"])
         .add(SpriteSystem, "sprite", &["projectile", "walk"])
@@ -173,6 +175,7 @@ fn main() {
             let lines = world.read::<Line>();
             let pixels = world.read::<PixelParticle>();
             let terrain_masks = world.read::<TerrainMask>();
+            let health_bars = world.read::<HealthBar>();
             for entity in world.entities().join() {
                 if let Some(sprite) = sprites.get(entity) {
                     render.draw_foreground(sprite).unwrap();
@@ -184,6 +187,10 @@ fn main() {
 
                 if let Some(pixel) = pixels.get(entity) {
                     render.draw_foreground_pixel(pixel.pos, pixel.color);
+                }
+
+                if let Some(bar) = health_bars.get(entity) {
+                    render.draw_healthbar(bar.pos, bar.health / bar.max_health, bar.width);
                 }
 
                 if let Some(mask) = terrain_masks.get(entity) {
