@@ -121,6 +121,28 @@ impl Render {
         }
     }
 
+    pub fn draw_healthbar(&mut self, pos: Point2<usize>, health_ratio: f64, width: usize) {
+        if pos.x >= self.width || pos.y >= self.height {
+            return;
+        }
+
+        let y = pos.y * self.width;
+
+        let width = if pos.x + width >= self.width { self.width - pos.x } else { width };
+        let health = pos.x + (health_ratio * width as f64) as usize;
+
+        // Draw the green bar
+        for x in pos.x..health {
+            self.foreground[x + y] = 0xFF00FF00;
+        }
+
+        // Draw the red bar
+        let max = pos.x + width;
+        for x in health..max {
+            self.foreground[x + y] = 0xFFFF0000;
+        }
+    }
+
     pub fn draw_foreground(&mut self, sprite: &Sprite) -> Result<(), Box<Error>> {
         let buf = &self.blit_buffers[sprite.img_ref()].1;
 
