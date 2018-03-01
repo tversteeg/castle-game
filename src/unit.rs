@@ -197,6 +197,14 @@ impl<'a> System<'a> for UnitCollideSystem {
                 if e1 == e2 {
                     continue;
                 }
+                
+                // Walk past fighting units
+                if let Some(state) = state.get_mut(e2) {
+                    if *state == UnitState::Melee {
+                        continue;
+                    }
+                }
+
 
                 // Get the bounding box of entity 2
                 let aabb2 = *bb2 + *pos2.0;
