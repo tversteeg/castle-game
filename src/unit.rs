@@ -115,6 +115,60 @@ impl<'a> System<'a> for UnitFallSystem {
     }
 }
 
+pub struct UnitResumeWalkingSystem;
+impl<'a> System<'a> for UnitResumeWalkingSystem {
+    type SystemData = (Entities<'a>,
+                       ReadStorage<'a, WorldPosition>,
+                       ReadStorage<'a, BoundingBox>,
+                       ReadStorage<'a, Destination>,
+                       WriteStorage<'a, UnitState>);
+
+    fn run(&mut self, (entities, pos, bb, dest, mut state): Self::SystemData) {
+        for (e1, pos1, bb1, dest1) in (&*entities, &pos, &bb, &dest).join() {
+            // A unit can only resume walking when it's waiting or fighting
+            if let Some(state1) = state.get_mut(e1){
+                if *state1 != UnitState::Wait && *state1 != UnitState::Melee {
+                    continue;
+                }
+            }
+
+            // Get the bounding box of entity 1
+            let aabb1 = *bb1 + *pos1.0;
+
+            // If it's waiting or fighting and not colliding anymore let it walk
+            let mut intersects = false;
+            for (e2, pos2, bb2, dest2) in (&*entities, &pos, &bb, &dest).join() {
+                // Don't collide with itself
+                if e1 == e2 {
+                    continue;
+                }
+
+                // Get the bounding box of entity 2
+                let aabb2 = *bb2 + *pos2.0;
+
+                // If they bounding boxes of both units intersect
+                if aabb1.intersects(&*aabb2) {
+                    let dist1 = (dest1.0 - pos1.0.x).abs();
+                    let dist2 = (dest2.0 - pos2.0.x).abs();
+
+                    // If this is not the unit closest to it's destination
+                    if dist1 > dist2 {
+                        intersects = true;
+                        break;
+                    }
+                }
+            }
+
+            // Make it walk again if there is no collision
+            if !intersects {
+                if let Some(state1) = state.get_mut(e1){
+                    *state1 = UnitState::Walk;
+                }
+            }
+        }
+    }
+}
+
 pub struct UnitCollideSystem;
 impl<'a> System<'a> for UnitCollideSystem {
     type SystemData = (Entities<'a>,
@@ -130,40 +184,9 @@ impl<'a> System<'a> for UnitCollideSystem {
             let aabb1 = *bb1 + *pos1.0;
 
             // Don't check if this unit is not walking
-            if let Some(state) = state.get_mut(e1){
-                if *state == UnitState::Wait || *state == UnitState::Melee {
-                    // If it's waiting or fighting and not colliding anymore let it walk
-                    let mut intersects = false;
-                    for (e2, pos2, bb2, dest2) in (&*entities, &pos, &bb, &dest).join() {
-                        // Don't collide with itself
-                        if e1 == e2 {
-                            continue;
-                        }
-
-                        // Get the bounding box of entity 2
-                        let aabb2 = *bb2 + *pos2.0;
-
-                        // If they bounding boxes of both units intersect
-                        if aabb1.intersects(&*aabb2) {
-                            let dist1 = (dest1.0 - pos1.0.x).abs();
-                            let dist2 = (dest2.0 - pos2.0.x).abs();
-
-                            // If this is not the unit closest to it's destination
-                            if dist1 > dist2 {
-                                intersects = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    // Make it walk again if there is no collision
-                    if !intersects {
-                        *state = UnitState::Walk;
-                    }
-                }
-
+            if let Some(state1) = state.get_mut(e1){
                 // If it's not walking ignore it
-                if *state != UnitState::Walk {
+                if *state1 != UnitState::Walk {
                     continue;
                 }
             }
