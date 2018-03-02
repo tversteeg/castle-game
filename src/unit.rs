@@ -205,7 +205,6 @@ impl<'a> System<'a> for UnitCollideSystem {
                     }
                 }
 
-
                 // Get the bounding box of entity 2
                 let aabb2 = *bb2 + *pos2.0;
 
