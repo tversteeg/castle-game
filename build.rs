@@ -32,6 +32,9 @@ fn parse_folder(folder: &str, mask_color: u32) {
         let filepath = path.unwrap().path();
         let filename = filepath.file_name().unwrap();
         save_blit_buffer_from_image(folder, filename.to_str().unwrap(), mask_color);
+
+        // Rerun the build script if any of the assets changed
+        println!("cargo:rerun-if-changed={:?}", filepath);
     }
 }
 
