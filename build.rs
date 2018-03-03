@@ -10,8 +10,6 @@ use git2::Repository;
 fn save_blit_buffer_from_image(folder: &str, name: &str, mask_color: u32) {
     let path = format!("assets/{}/{}", folder, name);
 
-    println!("Converting image \"{}\" to blit buffer", path);
-
     let img = image::open(path).unwrap();
     let img_as_rgb8 = match img.as_rgb8() {
         Some(i) => i,
