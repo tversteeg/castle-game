@@ -133,13 +133,13 @@ impl Render {
 
         // Draw the green bar
         for x in pos.x..health {
-            self.foreground[x + y] = 0xFF00FF00;
+            self.foreground[x + y] = 0xFF6ABE30;
         }
 
         // Draw the red bar
         let max = pos.x + width;
         for x in health..max {
-            self.foreground[x + y] = 0xFFFF0000;
+            self.foreground[x + y] = 0xFFAC3232;
         }
     }
 

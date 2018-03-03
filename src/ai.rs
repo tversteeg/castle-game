@@ -78,7 +78,7 @@ impl<'a> System<'a> for MeleeSystem {
                                 melee.cooldown = melee.hitrate;
 
                                 let blood = entities.create();
-                                updater.insert(blood, PixelParticle::new(0xFF0000, 10.0));
+                                updater.insert(blood, PixelParticle::new(0xAC3232, 10.0));
                                 updater.insert(blood, *e_pos);
                                 updater.insert(blood, Velocity::new(-10.0, -10.0));
                             }
@@ -101,7 +101,7 @@ impl<'a> System<'a> for MeleeSystem {
                                 melee.cooldown = melee.hitrate;
 
                                 let blood = entities.create();
-                                updater.insert(blood, PixelParticle::new(0xFF0000, 10.0));
+                                updater.insert(blood, PixelParticle::new(0xAC3232, 10.0));
                                 updater.insert(blood, *a_pos);
                                 updater.insert(blood, Velocity::new(-10.0, -10.0));
                             }
