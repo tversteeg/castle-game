@@ -146,8 +146,6 @@ fn main() {
     let title = format!("Castle Game {} - Press ESC to exit.", env!("CARGO_PKG_VERSION"));
     let mut window = Window::new(&title, WIDTH, HEIGHT, WindowOptions::default()).expect("Unable to open window");
 
-    window.set_cursor_style(CursorStyle::Crosshair);
-
     // Setup the GUI system
     let mut gui = IngameGui::new((WIDTH as i32, HEIGHT as i32));
 

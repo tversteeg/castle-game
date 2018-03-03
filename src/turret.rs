@@ -135,7 +135,7 @@ impl<'a> System<'a> for TurretSystem {
 
             let mut variation = 0.0;
             if turret.strength_variation > 0.0 {
-                let between = Range::new(-turret.strength_variation, turret.strength_variation);
+                let between = Range::new(-turret.strength_variation / 2.0, turret.strength_variation * 2.0);
                 variation = 1.0 + between.ind_sample(&mut rand::thread_rng());
             }
 

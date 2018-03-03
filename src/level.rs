@@ -117,13 +117,13 @@ pub fn place_turrets(world: &mut World, level: u8) {
                     ..Turret::default()
                 })
                 .with(Point::new(1255.0, 315.0))
-                .with(Arrow(10.0))
+                .with(Arrow(7.0))
                 .with(Line::new(0x663931))
                 .with(ProjectileBoundingBox(BoundingBox::new(Point::new(0.0, 0.0), Point::new(1.0, 1.0))))
                 .with(Damage(10.0))
                 .build();
 
-            for i in 0..10 {
+            for i in 0..5 {
                 let health = 50.0;
 
                 world.create_entity()
@@ -146,7 +146,7 @@ pub fn place_turrets(world: &mut World, level: u8) {
                     .build();
             }
 
-            for i in 0..40 {
+            for i in 0..20 {
                 let health = 20.0;
 
                 world.create_entity()
