@@ -147,7 +147,7 @@ impl<'a> System<'a> for ProjectileCollisionSystem {
 
                     for _ in 0..4 {
                         let blood = entities.create();
-                        updater.insert(blood, PixelParticle::new(0xDD0000, 10.0));
+                        updater.insert(blood, PixelParticle::new(0xAC3232, 10.0));
                         updater.insert(blood, *target_pos);
                         updater.insert(blood, Velocity::new(between.ind_sample(&mut rng), between.ind_sample(&mut rng)));
                     }
