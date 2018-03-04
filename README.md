@@ -13,6 +13,8 @@ You can download the [latest](https://github.com/tversteeg/castle-game/releases/
 
 ## Prerequisites
 
+To build the project you need to have [Rust](https://www.rustup.rs/) installed.
+
 ### Linux (Debian based)
 
     sudo apt install xorg-dev cmake
