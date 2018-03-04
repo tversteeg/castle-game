@@ -58,15 +58,15 @@ impl IngameGui {
         // Setup the GUI system
         let mut gui = Gui::new(size);
 
-        let menu_bg = BlitBuffer::from_memory(include_bytes!("../resources/gui/iconbar.png.blit")).unwrap();
+        let menu_bg = BlitBuffer::from_memory(include_bytes!("../resources/gui/iconbar.blit")).unwrap();
 
         let bg_x = (size.0 - menu_bg.size().0) / 2;
         let bg_y = size.1 - menu_bg.size().1;
 
-        let archer_button_img = gui.load_sprite_from_memory(include_bytes!("../resources/gui/archer-button.png.blit")).unwrap();
+        let archer_button_img = gui.load_sprite_from_memory(include_bytes!("../resources/gui/archer-button.blit")).unwrap();
         let archer_button = gui.register(Button::new_with_sprite(archer_button_img).with_pos(bg_x + 8, bg_y + 12));
         
-        let soldier_button_img = gui.load_sprite_from_memory(include_bytes!("../resources/gui/soldier-button.png.blit")).unwrap();
+        let soldier_button_img = gui.load_sprite_from_memory(include_bytes!("../resources/gui/soldier-button.blit")).unwrap();
         let soldier_button = gui.register(Button::new_with_sprite(soldier_button_img).with_pos(bg_x + 40, bg_y + 12));
 
         IngameGui {

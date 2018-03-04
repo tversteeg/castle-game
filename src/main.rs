@@ -44,10 +44,10 @@ const GRAVITY: f64 = 98.1;
 
 macro_rules! load_resource {
     ($resources:expr; $render:expr; sprite => $e:expr) => {{
-        $resources.insert($e.to_string(), $render.add_buf_from_memory($e, include_bytes!(concat!("../resources/sprites/", $e, ".png.blit"))))
+        $resources.insert($e.to_string(), $render.add_buf_from_memory($e, include_bytes!(concat!("../resources/sprites/", $e, ".blit"))))
     }};
     ($resources:expr; $render:expr; mask => $e:expr) => {{
-        $resources.insert($e.to_string(), $render.add_buf_from_memory($e, include_bytes!(concat!("../resources/masks/", $e, ".png.blit"))))
+        $resources.insert($e.to_string(), $render.add_buf_from_memory($e, include_bytes!(concat!("../resources/masks/", $e, ".blit"))))
     }};
 }
 
@@ -118,8 +118,8 @@ fn main() {
     world.add_resource(DeltaTime::new(1.0 / 60.0));
     world.add_resource(Images(resources));
 
-    render.draw_background_from_memory(include_bytes!("../resources/sprites/background.png.blit"));
-    render.draw_terrain_from_memory(&mut *world.write_resource::<Terrain>(), include_bytes!("../resources/sprites/level.png.blit"));
+    render.draw_background_from_memory(include_bytes!("../resources/sprites/background.blit"));
+    render.draw_terrain_from_memory(&mut *world.write_resource::<Terrain>(), include_bytes!("../resources/sprites/level.blit"));
 
     place_turrets(&mut world, 1);
 
