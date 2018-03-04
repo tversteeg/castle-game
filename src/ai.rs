@@ -53,7 +53,7 @@ impl<'a> System<'a> for MeleeSystem {
             }
 
             let a_aabb = *a_bb + *a_pos.0;
-            for (e, _, e_pos, e_bb, e_state) in (&*entities, &enemy, &pos, &bb, &state).join() {
+            for (e, _, e_pos, e_bb) in (&*entities, &enemy, &pos, &bb).join() {
                 // Only fight between units with the melee state
                 if *a_state != UnitState::Melee {
                     continue;

@@ -107,10 +107,8 @@ impl<'a> System<'a> for TurretSystem {
                         dist = dist_to;
                         closest = pos;
 
-                        // TODO Make the projectile hit the center of the target instead of the zero
-                        // point
-                        //closest.x += ubb.width() / 2.0 + (epos.0.x - ubb.x());
-                        //closest.y += ubb.height() / 2.0 + (epos.0.y - ubb.y());
+                        closest.x += ubb.width() / 2.0 + (epos.0.x - ubb.x());
+                        closest.y += ubb.height() / 2.0 + (epos.0.y - ubb.y());
                     }
                 }
             } else {
@@ -125,10 +123,8 @@ impl<'a> System<'a> for TurretSystem {
                         dist = dist_to;
                         closest = pos;
 
-                        // TODO Make the projectile hit the center of the target instead of the zero
-                        // point
-                        //closest.x += ubb.width() / 2.0;
-                        //closest.y += ubb.height() / 2.0;
+                        closest.x += ubb.width() / 2.0;
+                        closest.y += ubb.height() / 2.0;
                     }
                 }
             }
