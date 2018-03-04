@@ -77,12 +77,11 @@ pub fn buy_soldier(world: &mut World) {
 }
 
 pub fn place_turrets(world: &mut World, level: u8) {
-    let (projectile1, bighole1, ally_melee1, enemy_soldier1, enemy_archer1) = {
+    let (projectile1, bighole1, enemy_soldier1, enemy_archer1) = {
         let images = &*world.read_resource::<Images>();
 
         (*images.0.get("projectile1").unwrap(),
         *images.0.get("bighole1").unwrap(),
-        *images.0.get("ally-melee1").unwrap(),
         *images.0.get("enemy-melee1").unwrap(),
         *images.0.get("enemy-archer1").unwrap())
     };
