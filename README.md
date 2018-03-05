@@ -4,6 +4,7 @@ A free & open source 2D Lemmings-meets-tower defense destructible terrain game.
 [![Build Status](https://travis-ci.org/tversteeg/castle-game.svg?branch=master)](https://travis-ci.org/tversteeg/castle-game) [![](https://img.shields.io/crates/v/castle-game.svg)](https://crates.io/crates/castle-game) [![License: PPL-based](https://img.shields.io/badge/license-PPL--based-blue.svg)](https://raddle.me/f/freeAsInFreedom/23802/first-draft-of-a-ppl-based-copyfarleft-license-suitable-for) [![](https://img.shields.io/crates/d/castle-game.svg)](#downloads) [![](https://tokei.rs/b1/github/tversteeg/castle-game)](https://github.com/Aaronepower/tokei) [![Matrix chat](https://img.shields.io/badge/chat-Riot.im-blue.svg)](https://riot.im/app/#/room/#castle-game:matrix.org)
 
 ![Screenshot](img/screengrab.gif?raw=true)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Ftversteeg%2Fcastle-game.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Ftversteeg%2Fcastle-game?ref=badge_shield)
 
 # Run
 
@@ -43,3 +44,7 @@ If you-
 - notice any bugs: [create an issue](https://github.com/tversteeg/castle-game/issues/new)
 - want to contribute code: create a Pull Request!
 - want to contribute art: [contact me](mailto:thomasversteeg@gmx.com)
+
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Ftversteeg%2Fcastle-game.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Ftversteeg%2Fcastle-game?ref=badge_large)
