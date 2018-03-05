@@ -46,6 +46,9 @@ macro_rules! load_resource {
     ($resources:expr; $render:expr; sprite => $e:expr) => {{
         $resources.insert($e.to_string(), $render.add_buf_from_memory($e, include_bytes!(concat!("../resources/sprites/", $e, ".blit"))))
     }};
+    ($resources:expr; $render:expr; anim => $e:expr) => {{
+        $resources.insert($e.to_string(), $render.add_anim_buf_from_memory($e, include_bytes!(concat!("../resources/sprites/", $e, ".anim"))))
+    }};
     ($resources:expr; $render:expr; mask => $e:expr) => {{
         $resources.insert($e.to_string(), $render.add_buf_from_memory($e, include_bytes!(concat!("../resources/masks/", $e, ".blit"))))
     }};
@@ -57,8 +60,8 @@ fn main() {
     let mut render = Render::new((WIDTH, HEIGHT));
 
     let mut resources = HashMap::new();
+    load_resource!(resources; render; anim => "ally-archer1");
     load_resource!(resources; render; sprite => "ally-melee1");
-    load_resource!(resources; render; sprite => "ally-archer1");
     load_resource!(resources; render; sprite => "enemy-melee1");
     load_resource!(resources; render; sprite => "enemy-archer1");
 
@@ -72,6 +75,7 @@ fn main() {
     // draw.rs
     world.register::<PixelParticle>();
     world.register::<MaskId>();
+    world.register::<Anim>();
     world.register::<Sprite>();
     world.register::<Line>();
 
@@ -138,6 +142,7 @@ fn main() {
         .add(TurretUnitSystem, "turret_unit", &["walk"])
         .add(TurretSystem, "turret", &["turret_unit"])
         .add(SpriteSystem, "sprite", &["projectile", "walk"])
+        .add(AnimSystem, "anim", &["projectile", "walk"])
         .add(ParticleSystem, "particle", &[])
         .add(FloatingTextSystem, "floating_text", &[])
         .build();
@@ -152,6 +157,7 @@ fn main() {
     // Game loop
     let mut time = SystemTime::now();
     while window.is_open() && !window.is_key_down(Key::Escape) {
+        // Calculate the delta-time
         {
             let mut delta = world.write_resource::<DeltaTime>();
             *delta = DeltaTime(time.elapsed().unwrap());
@@ -170,12 +176,19 @@ fn main() {
 
         // Render the sprites & masks
         {
+            let mut anims = world.write::<Anim>();
             let sprites = world.read::<Sprite>();
             let lines = world.read::<Line>();
             let pixels = world.read::<PixelParticle>();
             let terrain_masks = world.read::<TerrainMask>();
             let health_bars = world.read::<HealthBar>();
             for entity in world.entities().join() {
+                if let Some(anim) = anims.get_mut(entity) {
+                    render.update_anim(anim, world.read_resource::<DeltaTime>().0).unwrap();
+
+                    render.draw_foreground_anim(anim).unwrap();
+                }
+
                 if let Some(sprite) = sprites.get(entity) {
                     render.draw_foreground(sprite).unwrap();
                 }
