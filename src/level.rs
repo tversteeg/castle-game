@@ -1,5 +1,6 @@
 use specs::*;
 use cgmath::Point2;
+use blit::Animation;
 
 use ::*;
 
@@ -14,7 +15,7 @@ pub fn buy_archer(world: &mut World) {
 
     world.create_entity()
         .with(Ally)
-        .with(Sprite::new(archer_sprite))
+        .with(Anim::new(archer_sprite, Animation::start(0, 2, true)))
         .with(WorldPosition(Point::new(1.0, 340.0)))
         .with(Walk::new(BoundingBox::new(Point::new(1.0, 5.0), Point::new(4.0, 10.0)), 20.0))
         .with(BoundingBox::new(Point::new(0.0, 0.0), Point::new(10.0, 10.0)))

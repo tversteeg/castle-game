@@ -1,9 +1,10 @@
 use specs::*;
 use blit::*;
-use std::error::Error;
-use std::collections::HashMap;
 use cgmath::Point2;
 use line_drawing::Bresenham;
+use std::error::Error;
+use std::collections::HashMap;
+use std::time::Duration;
 
 use terrain::*;
 use geom::*;
@@ -51,6 +52,26 @@ impl Sprite {
 }
 
 #[derive(Component, Debug, Copy, Clone)]
+pub struct Anim {
+    pub pos: Point,
+    pub info: Animation,
+    img_ref: usize
+}
+
+impl Anim {
+    pub fn new(img_ref: usize, info: Animation) -> Self {
+        Anim {
+            img_ref, info,
+            pos: Point::new(0.0, 0.0)
+        }
+    }
+
+    pub fn img_ref(&self) -> usize {
+        self.img_ref
+    }
+}
+
+#[derive(Component, Debug, Copy, Clone)]
 pub struct Line {
     pub p1: Point2<usize>,
     pub p2: Point2<usize>,
@@ -81,11 +102,24 @@ impl<'a> System<'a> for SpriteSystem {
     }
 }
 
+pub struct AnimSystem;
+impl<'a> System<'a> for AnimSystem {
+    type SystemData = (ReadStorage<'a, WorldPosition>,
+                       WriteStorage<'a, Anim>);
+
+    fn run(&mut self, (pos, mut anim): Self::SystemData) {
+        for (pos, anim) in (&pos, &mut anim).join() {
+            anim.pos = pos.0;
+        }
+    }
+}
+
 pub struct Render {
     background: Vec<u32>,
     foreground: Vec<u32>,
 
     blit_buffers: Vec<(String, BlitBuffer)>,
+    anim_buffers: Vec<(String, AnimationBlitBuffer)>,
 
     width: usize,
     height: usize,
@@ -100,7 +134,8 @@ impl Render {
             width: size.0,
             height: size.1,
 
-            blit_buffers: Vec::new()
+            blit_buffers: Vec::new(),
+            anim_buffers: Vec::new()
         }
     }
 
@@ -148,6 +183,15 @@ impl Render {
 
         let size = self.size();
         buf.blit(&mut self.foreground, size.0, sprite.pos.as_i32());
+
+        Ok(())
+    }
+
+    pub fn draw_foreground_anim(&mut self, anim: &Anim) -> Result<(), Box<Error>> {
+        let buf = &self.anim_buffers[anim.img_ref()].1;
+
+        let size = self.size();
+        buf.blit(&mut self.foreground, size.0, anim.pos.as_i32(), &anim.info)?;
 
         Ok(())
     }
@@ -202,19 +246,33 @@ impl Render {
         buf.blit(&mut self.background, size.0, (0, 0));
     }
 
-    pub fn size(&self) -> (usize, usize) {
-        (self.width, self.height)
+    /// Update the animation with the buffer, this is needed here because the timings are described
+    /// inside the AnimationBlitBuffer object.
+    pub fn update_anim(&self, anim: &mut Anim, dt: Duration) -> Result<(), Box<Error>> {
+        let buf = &self.anim_buffers[anim.img_ref()].1;
+
+        anim.info.update(buf, dt)?;
+
+        Ok(())
     }
 
-    pub fn add_buf(&mut self, name: &str, buf: BlitBuffer) -> usize {
-        self.blit_buffers.push((String::from(name), buf));
-
-        self.blit_buffers.len() - 1
+    pub fn size(&self) -> (usize, usize) {
+        (self.width, self.height)
     }
 
     pub fn add_buf_from_memory(&mut self, name: &str, bytes: &[u8]) -> usize {
         let buf = BlitBuffer::from_memory(bytes).unwrap();
 
-        self.add_buf(name, buf)
+        self.blit_buffers.push((String::from(name), buf));
+
+        self.blit_buffers.len() - 1
+    }
+
+    pub fn add_anim_buf_from_memory(&mut self, name: &str, bytes: &[u8]) -> usize {
+        let buf = AnimationBlitBuffer::from_memory(bytes).unwrap();
+
+        self.anim_buffers.push((String::from(name), buf));
+
+        self.anim_buffers.len() - 1
     }
 }
