@@ -98,6 +98,9 @@ impl<'a> System<'a> for TurretSystem {
             if let Some(_) = is_ally {
                 for (epos, _, walk, ubb, state) in (&wpos, &enemy, &walk, &ubb, &state).join() {
                     let mut pos = epos.0;
+                    pos.x += ubb.width() / 2.0;
+                    pos.y += ubb.height() / 2.0;
+
                     if *state == UnitState::Walk {
                         pos.x += walk.speed * turret.flight_time;
                     }
@@ -106,14 +109,14 @@ impl<'a> System<'a> for TurretSystem {
                     if dist_to < dist && dist_to > turret.min_distance {
                         dist = dist_to;
                         closest = pos;
-
-                        closest.x += ubb.width() / 2.0 + (epos.0.x - ubb.x());
-                        closest.y += ubb.height() / 2.0 + (epos.0.y - ubb.y());
                     }
                 }
             } else {
                 for (apos, _, walk, ubb, state) in (&wpos, &ally, &walk, &ubb, &state).join() {
                     let mut pos = apos.0;
+                    pos.x += ubb.width() / 2.0;
+                    pos.y += ubb.height() / 2.0;
+
                     if *state == UnitState::Walk {
                         pos.x += walk.speed * turret.flight_time;
                     }
@@ -122,22 +125,24 @@ impl<'a> System<'a> for TurretSystem {
                     if dist_to < dist && dist_to > turret.min_distance {
                         dist = dist_to;
                         closest = pos;
-
-                        closest.x += ubb.width() / 2.0;
-                        closest.y += ubb.height() / 2.0;
                     }
                 }
             }
 
-            let mut variation = 0.0;
+            let mut variation = 1.0;
             if turret.strength_variation > 0.0 {
-                let between = Range::new(-turret.strength_variation / 2.0, turret.strength_variation * 2.0);
-                variation = 1.0 + between.ind_sample(&mut rand::thread_rng());
+                let between = if closest.x > tpos.x {
+                    Range::new(0.0, turret.strength_variation)
+                } else {
+                    Range::new(-turret.strength_variation, 0.0)
+                };
+
+                variation = between.ind_sample(&mut rand::thread_rng()) * dist;
             }
 
             let time = turret.flight_time;
-            let mut vx = ((closest.x - tpos.x) / time) * variation;
-            let mut vy = ((closest.y + 0.5 * -grav * time * time - tpos.y) / time) * variation;
+            let vx = (closest.x - tpos.x + variation) / time;
+            let vy = (closest.y + 0.5 * -grav * time * time - tpos.y) / time;
 
             if (vx * vx + vy * vy).sqrt() < turret.max_strength {
                 // Shoot the turret

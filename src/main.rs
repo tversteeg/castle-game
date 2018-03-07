@@ -166,6 +166,9 @@ fn main() {
 
         // Handle mouse events
         window.get_mouse_pos(MouseMode::Discard).map(|mouse| {
+            if window.get_mouse_down(MouseButton::Left) {
+                println!("Mouse down: {:?}", mouse);
+            }
             gui.handle_mouse((mouse.0 as i32, mouse.1 as i32), window.get_mouse_down(MouseButton::Left));
         });
 
