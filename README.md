@@ -6,7 +6,6 @@ A free & open source 2D Lemmings-meets-tower defense destructible terrain game.
 [![](https://img.shields.io/crates/v/castle-game.svg)](https://crates.io/crates/castle-game)
 [![](https://img.shields.io/github/commits-since/tversteeg/castle-game/latest.svg)]()
 [![License: PPL-based](https://img.shields.io/badge/license-PPL--based-blue.svg)](https://raddle.me/f/freeAsInFreedom/23802/first-draft-of-a-ppl-based-copyfarleft-license-suitable-for)
-[![](https://tokei.rs/b1/github/tversteeg/castle-game)](https://github.com/Aaronepower/tokei)
 
 ![Screenshot](img/screengrab.gif?raw=true)
 
@@ -48,3 +47,24 @@ If you-
 - notice any bugs: [create an issue](https://github.com/tversteeg/castle-game/issues/new)
 - want to contribute code: create a Pull Request!
 - want to contribute art: [contact me](mailto:thomasversteeg@gmx.com)
+
+# Stats
+
+[![](https://img.shields.io/liberapay/receives/tversteeg.svg)](https://liberapay.com/tversteeg/)
+[![](https://img.shields.io/liberapay/patrons/tversteeg.svg)](https://liberapay.com/tversteeg/)
+
+![](https://img.shields.io/github/issues-pr-raw/tversteeg/castle-game.svg)
+![](https://img.shields.io/github/issues-pr-closed-raw/tversteeg/castle-game.svg)
+
+![](https://img.shields.io/github/issues-raw/tversteeg/castle-game.svg)
+![](https://img.shields.io/github/issues-closed-raw/tversteeg/castle-game.svg)
+
+![](https://img.shields.io/github/contributors/tversteeg/castle-game.svg)
+
+![](https://img.shields.io/github/commit-activity/y/tversteeg/castle-game.svg)
+![](https://img.shields.io/github/last-commit/tversteeg/castle-game.svg)
+
+![](https://img.shields.io/github/languages/count/tversteeg/castle-game.svg)
+![](https://img.shields.io/github/languages/code-size/tversteeg/castle-game.svg)
+[![](https://tokei.rs/b1/github/tversteeg/castle-game)](https://github.com/Aaronepower/tokei)
+![](https://img.shields.io/github/repo-size/tversteeg/castle-game.svg)
