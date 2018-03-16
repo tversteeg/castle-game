@@ -7,7 +7,7 @@ A free & open source 2D Lemmings-meets-tower defense destructible terrain game.
 [![](https://img.shields.io/github/commits-since/tversteeg/castle-game/latest.svg)]()
 [![License: PPL-based](https://img.shields.io/badge/license-PPL--based-blue.svg)](https://raddle.me/f/freeAsInFreedom/23802/first-draft-of-a-ppl-based-copyfarleft-license-suitable-for)
 
-![Screenshot](img/screengrab.gif?raw=true)
+![Screenshot](https://github.com/tversteeg/castle-game-assets/blob/master/screengrab.gif?raw=true)
 
 # Run
 
