@@ -8,6 +8,8 @@ extern crate cgmath;
 extern crate collision;
 #[macro_use]
 extern crate specs_derive;
+#[macro_use]
+extern crate rust_embed;
 
 mod draw;
 mod physics;
@@ -25,6 +27,7 @@ use specs::{World, DispatcherBuilder, Join};
 use std::time::{SystemTime, Duration};
 use std::thread::sleep;
 use std::collections::HashMap;
+use rust_embed::*;
 
 use draw::*;
 use physics::*;
@@ -43,14 +46,11 @@ const HEIGHT: usize = 540;
 const GRAVITY: f64 = 98.1;
 
 macro_rules! load_resource {
-    ($resources:expr; $render:expr; sprite => $e:expr) => {{
-        $resources.insert($e.to_string(), $render.add_buf_from_memory($e, include_bytes!(concat!("../resources/sprites/", $e, ".blit"))))
+    ($asset:expr; $resources:expr; $render:expr; sprite => $e:expr) => {{
+        $resources.insert($e.to_string(), $render.add_buf_from_memory($e, &$asset(concat!($e, ".blit").to_owned()).unwrap()))
     }};
-    ($resources:expr; $render:expr; anim => $e:expr) => {{
-        $resources.insert($e.to_string(), $render.add_anim_buf_from_memory($e, include_bytes!(concat!("../resources/sprites/", $e, ".anim"))))
-    }};
-    ($resources:expr; $render:expr; mask => $e:expr) => {{
-        $resources.insert($e.to_string(), $render.add_buf_from_memory($e, include_bytes!(concat!("../resources/masks/", $e, ".blit"))))
+    ($asset:expr; $resources:expr; $render:expr; anim => $e:expr) => {{
+        $resources.insert($e.to_string(), $render.add_anim_buf_from_memory($e, &$asset(concat!($e, ".anim").to_owned()).unwrap()))
     }};
 }
 
@@ -60,14 +60,17 @@ fn main() {
     let mut render = Render::new((WIDTH, HEIGHT));
 
     let mut resources = HashMap::new();
-    load_resource!(resources; render; anim => "ally-archer1");
-    load_resource!(resources; render; sprite => "ally-melee1");
-    load_resource!(resources; render; sprite => "enemy-melee1");
-    load_resource!(resources; render; sprite => "enemy-archer1");
 
-    load_resource!(resources; render; sprite => "projectile1");
+    let folder = embed!("resources/sprites/".to_owned());
+    load_resource!(folder; resources; render; anim => "ally-archer1");
+    load_resource!(folder; resources; render; sprite => "ally-melee1");
+    load_resource!(folder; resources; render; sprite => "enemy-melee1");
+    load_resource!(folder; resources; render; sprite => "enemy-archer1");
 
-    load_resource!(resources; render; mask => "bighole1");
+    load_resource!(folder; resources; render; sprite => "projectile1");
+
+    let folder = embed!("resources/masks/".to_owned());
+    load_resource!(folder; resources; render; sprite => "bighole1");
 
     // Setup game related things
     let mut world = World::new();

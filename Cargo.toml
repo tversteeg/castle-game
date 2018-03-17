@@ -26,7 +26,8 @@ specs-derive = "0.1"
 rand = "0.4"
 line_drawing = "0.7"
 cgmath = "0.16"
-collision = "0.14"
+collision = "0.15"
+rust-embed = "0.5"
 
 [dependencies.blit]
 version = "0.5"
