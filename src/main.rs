@@ -27,7 +27,6 @@ use specs::{World, DispatcherBuilder, Join};
 use std::time::{SystemTime, Duration};
 use std::thread::sleep;
 use std::collections::HashMap;
-use rust_embed::*;
 
 use draw::*;
 use physics::*;

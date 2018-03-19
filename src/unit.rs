@@ -198,15 +198,21 @@ impl<'a> System<'a> for UnitCollideSystem {
                     continue;
                 }
                 
-                // Walk past fighting units
-                if let Some(state) = state.get_mut(e2) {
-                    if *state == UnitState::Melee {
-                        continue;
-                    }
-                }
+                // Join a melee
+                let is_melee = if let Some(state) = state.get_mut(e2) {
+                    *state == UnitState::Melee
+                } else {
+                    // Unit doesn't have a unit state?
+                    panic!("Unit doesn't have a unit state");
+                };
 
-                // Get the bounding box of entity 2
-                let aabb2 = *bb2 + *pos2.0;
+                let aabb2 = if is_melee {
+                    // Get the half bounding box of entity 2
+                    bb2.to_half_width() + *pos2.0
+                } else {
+                    // Get the full bounding box of entity 2
+                    *bb2 + *pos2.0
+                };
 
                 // Ignore the units if they don't collide
                 if !aabb1.intersects(&*aabb2) {

@@ -18,7 +18,7 @@ pub fn buy_archer(world: &mut World) {
         .with(Anim::new(archer_sprite, Animation::start(0, 2, true)))
         .with(WorldPosition(Point::new(1.0, 340.0)))
         .with(Walk::new(BoundingBox::new(Point::new(1.0, 5.0), Point::new(4.0, 10.0)), 20.0))
-        .with(BoundingBox::new(Point::new(0.0, 0.0), Point::new(10.0, 10.0)))
+        .with(BoundingBox::new(Point::new(0.0, 0.0), Point::new(5.0, 10.0)))
         .with(Destination(1280.0))
         .with(Health(20.0))
         .with(HealthBar {
@@ -62,7 +62,7 @@ pub fn buy_soldier(world: &mut World) {
         .with(Sprite::new(soldier_sprite))
         .with(WorldPosition(Point::new(1.0, 340.0)))
         .with(Walk::new(BoundingBox::new(Point::new(1.0, 5.0), Point::new(4.0, 10.0)), 15.0))
-        .with(BoundingBox::new(Point::new(0.0, 0.0), Point::new(10.0, 10.0)))
+        .with(BoundingBox::new(Point::new(0.0, 0.0), Point::new(5.0, 10.0)))
         .with(Destination(1280.0))
         .with(Health(health))
         .with(HealthBar {
@@ -131,7 +131,7 @@ pub fn place_turrets(world: &mut World, level: u8) {
                     .with(Sprite::new(enemy_soldier1))
                     .with(WorldPosition(Point::new(1130.0 - 20.0 * i as f64, 320.0)))
                     .with(Walk::new(BoundingBox::new(Point::new(2.0, 5.0), Point::new(5.0, 10.0)), 15.0))
-                    .with(BoundingBox::new(Point::new(0.0, 0.0), Point::new(10.0, 10.0)))
+                    .with(BoundingBox::new(Point::new(1.0, 0.0), Point::new(6.0, 10.0)))
                     .with(Destination(10.0))
                     .with(Health(health))
                     .with(HealthBar {
@@ -154,7 +154,7 @@ pub fn place_turrets(world: &mut World, level: u8) {
                     .with(Sprite::new(enemy_archer1))
                     .with(WorldPosition(Point::new(1140.0 - 20.0 * i as f64, 320.0)))
                     .with(Walk::new(BoundingBox::new(Point::new(1.0, 5.0), Point::new(4.0, 10.0)), 20.0))
-                    .with(BoundingBox::new(Point::new(0.0, 0.0), Point::new(10.0, 10.0)))
+                    .with(BoundingBox::new(Point::new(1.0, 0.0), Point::new(5.0, 10.0)))
                     .with(Destination(10.0))
                     .with(Health(health))
                     .with(HealthBar {
