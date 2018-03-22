@@ -181,6 +181,8 @@ fn main() {
 
         // Render the sprites & masks
         {
+            render.draw_terrain_and_background(&mut buffer, &*world.write_resource::<Terrain>());
+
             let mut anims = world.write::<Anim>();
             let sprites = world.read::<Sprite>();
             let lines = world.read::<Line>();
@@ -191,23 +193,23 @@ fn main() {
                 if let Some(anim) = anims.get_mut(entity) {
                     render.update_anim(anim, world.read_resource::<DeltaTime>().0).unwrap();
 
-                    render.draw_foreground_anim(anim).unwrap();
+                    render.draw_foreground_anim(&mut buffer, anim).unwrap();
                 }
 
                 if let Some(sprite) = sprites.get(entity) {
-                    render.draw_foreground(sprite).unwrap();
+                    render.draw_foreground(&mut buffer, sprite).unwrap();
                 }
 
                 if let Some(line) = lines.get(entity) {
-                    render.draw_foreground_line(line.p1, line.p2, line.color);
+                    render.draw_foreground_line(&mut buffer, line.p1, line.p2, line.color);
                 }
 
                 if let Some(pixel) = pixels.get(entity) {
-                    render.draw_foreground_pixel(pixel.pos, pixel.color);
+                    render.draw_foreground_pixel(&mut buffer, pixel.pos, pixel.color);
                 }
 
                 if let Some(bar) = health_bars.get(entity) {
-                    render.draw_healthbar(bar.pos, bar.health / bar.max_health, bar.width);
+                    render.draw_healthbar(&mut buffer, bar.pos, bar.health / bar.max_health, bar.width);
                 }
 
                 if let Some(mask) = terrain_masks.get(entity) {
@@ -217,8 +219,6 @@ fn main() {
                     let _ = world.entities().delete(entity);
                 }
             }
-
-            render.draw_final_buffer(&mut buffer, &*world.write_resource::<Terrain>());
         }
 
         // Update the gui system and receive a possible event

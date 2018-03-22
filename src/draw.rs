@@ -116,7 +116,6 @@ impl<'a> System<'a> for AnimSystem {
 
 pub struct Render {
     background: Vec<u32>,
-    foreground: Vec<u32>,
 
     blit_buffers: Vec<(String, BlitBuffer)>,
     anim_buffers: Vec<(String, AnimationBlitBuffer)>,
@@ -129,7 +128,6 @@ impl Render {
     pub fn new(size: (usize, usize)) -> Self {
         Render {
             background: vec![0; (size.0 * size.1) as usize],
-            foreground: vec![0xFFFF00FF; (size.0 * size.1) as usize],
 
             width: size.0,
             height: size.1,
@@ -139,14 +137,8 @@ impl Render {
         }
     }
 
-    pub fn draw_final_buffer(&mut self, buffer: &mut Vec<u32>, terrain: &Terrain) {
-        for (output, (bg, (fg, terrain))) in buffer.iter_mut().zip(self.background.iter().zip(self.foreground.iter_mut().zip(&terrain.buffer))) {
-            if (*fg & 0xFFFFFF) != 0xFF00FF {
-                // Draw the foreground and clear it immediately
-                *output = *fg;
-                *fg = 0xFF00FF;
-                continue;
-            }
+    pub fn draw_terrain_and_background(&mut self, buffer: &mut Vec<u32>, terrain: &Terrain) {
+        for (output, (bg, terrain)) in buffer.iter_mut().zip(self.background.iter().zip(&terrain.buffer)) {
             if (*terrain & 0xFFFFFF) != 0xFF00FF {
                 // The terrain doesn't needs to be cleared
                 *output = *terrain;
@@ -156,7 +148,7 @@ impl Render {
         }
     }
 
-    pub fn draw_healthbar(&mut self, pos: Point2<usize>, health_ratio: f64, width: usize) {
+    pub fn draw_healthbar(&mut self, buffer: &mut Vec<u32>, pos: Point2<usize>, health_ratio: f64, width: usize) {
         if pos.x >= self.width || pos.y >= self.height {
             return;
         }
@@ -168,43 +160,43 @@ impl Render {
 
         // Draw the green bar
         for x in pos.x..health {
-            self.foreground[x + y] = 0xFF6ABE30;
+            buffer[x + y] = 0xFF6ABE30;
         }
 
         // Draw the red bar
         let max = pos.x + width;
         for x in health..max {
-            self.foreground[x + y] = 0xFFAC3232;
+            buffer[x + y] = 0xFFAC3232;
         }
     }
 
-    pub fn draw_foreground(&mut self, sprite: &Sprite) -> Result<(), Box<Error>> {
+    pub fn draw_foreground(&mut self, buffer: &mut Vec<u32>, sprite: &Sprite) -> Result<(), Box<Error>> {
         let buf = &self.blit_buffers[sprite.img_ref()].1;
 
         let size = self.size();
-        buf.blit(&mut self.foreground, size.0, sprite.pos.as_i32());
+        buf.blit(buffer, size.0, sprite.pos.as_i32());
 
         Ok(())
     }
 
-    pub fn draw_foreground_anim(&mut self, anim: &Anim) -> Result<(), Box<Error>> {
+    pub fn draw_foreground_anim(&mut self, buffer: &mut Vec<u32>, anim: &Anim) -> Result<(), Box<Error>> {
         let buf = &self.anim_buffers[anim.img_ref()].1;
 
         let size = self.size();
-        buf.blit(&mut self.foreground, size.0, anim.pos.as_i32(), &anim.info)?;
+        buf.blit(buffer, size.0, anim.pos.as_i32(), &anim.info)?;
 
         Ok(())
     }
 
-    pub fn draw_foreground_pixel(&mut self, pos: Point2<usize>, color: u32) {
+    pub fn draw_foreground_pixel(&mut self, buffer: &mut Vec<u32>, pos: Point2<usize>, color: u32) {
         if pos.x >= self.width || pos.y >= self.height {
             return;
         }
 
-        self.foreground[pos.x + pos.y * self.width] = color;
+        buffer[pos.x + pos.y * self.width] = color;
     }
 
-    pub fn draw_foreground_line(&mut self, p1: Point2<usize>, p2: Point2<usize>, color: u32) {
+    pub fn draw_foreground_line(&mut self, buffer: &mut Vec<u32>, p1: Point2<usize>, p2: Point2<usize>, color: u32) {
         if (p1.x >= self.width || p2.y >= self.height) && (p2.x >= self.width || p2.y >= self.height) {
             return;
         }
@@ -214,7 +206,7 @@ impl Render {
                 continue;
             }
 
-            self.foreground[x as usize + y as usize * self.width] = color;
+            buffer[x as usize + y as usize * self.width] = color;
         }
     }
 
