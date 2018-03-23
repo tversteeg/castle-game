@@ -93,13 +93,16 @@ impl<'a> System<'a> for HealthBarSystem {
 
 pub struct UnitFallSystem;
 impl<'a> System<'a> for UnitFallSystem {
-    type SystemData = (Fetch<'a, Terrain>,
+    type SystemData = (Fetch<'a, DeltaTime>,
+                       Fetch<'a, Terrain>,
                        ReadStorage<'a, Walk>,
                        WriteStorage<'a, WorldPosition>);
 
-    fn run(&mut self, (terrain, walk, mut pos): Self::SystemData) {
+    fn run(&mut self, (dt, terrain, walk, mut pos): Self::SystemData) {
+        let dt = dt.to_seconds();
+
         for (walk, pos) in (&walk, &mut pos).join() {
-            pos.0.y += 1.0;
+            pos.0.y += GRAVITY * dt;
 
             // Move the units if they collide with the ground in a loop until they don't touch the ground anymore
             loop {
