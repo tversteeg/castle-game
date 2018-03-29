@@ -40,8 +40,8 @@ impl<'a> System<'a> for ArrowSystem {
             line.p1.x = pos.0.x as usize;
             line.p1.y = pos.0.y as usize;
 
-            line.p2.x = pos.0.x as usize - (rot.cos() * arrow.0) as usize;
-            line.p2.y = pos.0.y as usize - (rot.sin() * arrow.0) as usize;
+            line.p2.x = (pos.0.x - (rot.cos() * arrow.0)) as usize;
+            line.p2.y = (pos.0.y - (rot.sin() * arrow.0)) as usize;
         }
     }
 }
@@ -68,6 +68,11 @@ impl<'a> System<'a> for ProjectileSystem {
 
             match terrain.line_collides(pos.0.as_i32(), next.as_i32()) {
                 Some(point) => {
+                    if point.0 < 0 || point.1 < 0 {
+                        let _ = entities.delete(entity);
+                        continue;
+                    }
+                    
                     if let Some(mask) = mask.get(entity) {
                         // Create a crater if there is a mask for it
                         updater.insert(entities.create(), TerrainMask::new(mask.id, point, mask.size));
@@ -79,9 +84,16 @@ impl<'a> System<'a> for ProjectileSystem {
                         let mut line_copy = *line;
                         line_copy.p1.x = point.0 as usize;
                         line_copy.p1.y = point.1 as usize;
-                        line_copy.p2.x += line_copy.p1.x - line.p1.x;
-                        line_copy.p2.y += line_copy.p1.y - line.p1.y;
-                        updater.insert(entities.create(), line_copy);
+
+                        // Calculate the end point but be wary of integer overflows
+                        let dx = point.0 - line.p1.x as i32;
+                        let dy = point.1 - line.p1.y as i32;
+                        if line.p2.x as i32 + dx >= 0 && line.p2.y as i32 + dy >= 0 {
+                            line_copy.p2.x = (line_copy.p2.x as i32 + dx) as usize;
+                            line_copy.p2.y = (line_copy.p2.y as i32 + dy) as usize;
+
+                            updater.insert(entities.create(), line_copy);
+                        }
                     }
 
                     let _ = entities.delete(entity);
