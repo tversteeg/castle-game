@@ -26,7 +26,7 @@ specs-derive = "0.1"
 rand = "0.4"
 line_drawing = "0.7"
 cgmath = "0.16"
-collision = "0.15"
+collision = "0.18"
 rust-embed = "0.5"
 
 [dependencies.blit]
