@@ -5,19 +5,12 @@ extern crate aseprite;
 extern crate serde_json;
 
 use std::fs;
-
 use blit::*;
 use git2::Repository;
 
 fn get_blit_buffer(path: &str, mask_color: u32) -> Option<BlitBuffer> {
     let img = image::open(path).unwrap();
-    match img.as_rgb8() {
-        Some(i) => Some(i.to_blit_buffer(Color::from_u32(mask_color))),
-        None => match img.as_rgba8() {
-            Some(i) => Some(i.to_blit_buffer(Color::from_u32(mask_color))),
-            None => panic!("Image doesn't have RGB or RGBA format")
-        }
-    }
+    Some(blit_buffer(&img, Color::from_u32(mask_color)))
 }
 
 fn save_blit_buffer_from_image(folder: &str, name: &str, output: &str, mask_color: u32) {
