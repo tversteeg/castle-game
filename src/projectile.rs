@@ -1,6 +1,6 @@
 use specs::*;
 use rand;
-use rand::distributions::{IndependentSample, Range};
+use rand::distributions::{Distribution, Uniform};
 use collision::Discrete;
 
 use super::*;
@@ -154,14 +154,14 @@ impl<'a> System<'a> for ProjectileCollisionSystem {
                     }
 
                     let _ = entities.delete(proj);
-                    let between = Range::new(-20.0, 20.0);
+                    let between = Uniform::new(-20.0, 20.0);
                     let mut rng = rand::thread_rng();
 
                     for _ in 0..4 {
                         let blood = entities.create();
                         updater.insert(blood, PixelParticle::new(0xAC3232, 10.0));
                         updater.insert(blood, *target_pos);
-                        updater.insert(blood, Velocity::new(between.ind_sample(&mut rng), between.ind_sample(&mut rng)));
+                        updater.insert(blood, Velocity::new(between.sample(&mut rng), between.sample(&mut rng)));
                     }
                 }
             }

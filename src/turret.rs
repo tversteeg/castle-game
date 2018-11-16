@@ -1,6 +1,6 @@
 use specs::*;
 use rand;
-use rand::distributions::{IndependentSample, Range};
+use rand::distributions::{Distribution, Uniform};
 use cgmath::MetricSpace;
 
 use super::*;
@@ -132,12 +132,12 @@ impl<'a> System<'a> for TurretSystem {
             let mut variation = 1.0;
             if turret.strength_variation > 0.0 {
                 let between = if closest.x > tpos.x {
-                    Range::new(0.0, turret.strength_variation)
+                    Uniform::new(0.0, turret.strength_variation)
                 } else {
-                    Range::new(-turret.strength_variation, 0.0)
+                    Uniform::new(-turret.strength_variation, 0.0)
                 };
 
-                variation = between.ind_sample(&mut rand::thread_rng()) * dist;
+                variation = between.sample(&mut rand::thread_rng()) * dist;
             }
 
             let time = turret.flight_time;
