@@ -37,6 +37,6 @@ features = ["aseprite"]
 [build-dependencies]
 git2 = "0.8"
 blit = "0.5"
-image = "0.20"
+image = "0.21"
 aseprite = "0.1"
 serde_json = "1.0"
