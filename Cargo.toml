@@ -27,7 +27,7 @@ rand = "0.6"
 line_drawing = "0.7"
 cgmath = "0.16"
 collision = "0.20"
-rust-embed = "0.5"
+rust-embed = "4.3"
 
 [dependencies.blit]
 version = "0.5"
