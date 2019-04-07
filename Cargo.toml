@@ -25,7 +25,7 @@ specs = "0.10"
 specs-derive = "0.1"
 rand = "0.6"
 line_drawing = "0.7"
-cgmath = "0.16"
+cgmath = "0.17"
 collision = "0.20"
 rust-embed = "0.5"
 
