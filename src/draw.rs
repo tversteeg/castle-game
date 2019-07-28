@@ -170,7 +170,7 @@ impl Render {
         }
     }
 
-    pub fn draw_foreground(&mut self, buffer: &mut Vec<u32>, sprite: &Sprite) -> Result<(), Box<Error>> {
+    pub fn draw_foreground(&mut self, buffer: &mut Vec<u32>, sprite: &Sprite) -> Result<(), Box<dyn Error>> {
         let buf = &self.blit_buffers[sprite.img_ref()].1;
 
         let size = self.size();
@@ -179,7 +179,7 @@ impl Render {
         Ok(())
     }
 
-    pub fn draw_foreground_anim(&mut self, buffer: &mut Vec<u32>, anim: &Anim) -> Result<(), Box<Error>> {
+    pub fn draw_foreground_anim(&mut self, buffer: &mut Vec<u32>, anim: &Anim) -> Result<(), Box<dyn Error>> {
         let buf = &self.anim_buffers[anim.img_ref()].1;
 
         let size = self.size();
@@ -210,7 +210,7 @@ impl Render {
         }
     }
 
-    pub fn draw_mask_terrain(&mut self, terrain: &mut Terrain, mask: &TerrainMask) -> Result<(), Box<Error>> {
+    pub fn draw_mask_terrain(&mut self, terrain: &mut Terrain, mask: &TerrainMask) -> Result<(), Box<dyn Error>> {
         let buf = &self.blit_buffers[mask.id].1;
 
         // Center the mask
@@ -240,7 +240,7 @@ impl Render {
 
     /// Update the animation with the buffer, this is needed here because the timings are described
     /// inside the AnimationBlitBuffer object.
-    pub fn update_anim(&self, anim: &mut Anim, dt: Duration) -> Result<(), Box<Error>> {
+    pub fn update_anim(&self, anim: &mut Anim, dt: Duration) -> Result<(), Box<dyn Error>> {
         let buf = &self.anim_buffers[anim.img_ref()].1;
 
         anim.info.update(buf, dt)?;

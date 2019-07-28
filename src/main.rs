@@ -44,13 +44,43 @@ const HEIGHT: usize = 540;
 
 const GRAVITY: f64 = 98.1;
 
-macro_rules! load_resource {
-    ($asset:expr; $resources:expr; $render:expr; sprite => $e:expr) => {{
-        $resources.insert($e.to_string(), $render.add_buf_from_memory($e, &$asset(concat!($e, ".blit").to_owned()).unwrap()))
-    }};
-    ($asset:expr; $resources:expr; $render:expr; anim => $e:expr) => {{
-        $resources.insert($e.to_string(), $render.add_anim_buf_from_memory($e, &$asset(concat!($e, ".anim").to_owned()).unwrap()))
-    }};
+#[derive(RustEmbed)]
+#[folder = "resources/sprites/"]
+struct SpriteFolder;
+
+impl SpriteFolder {
+    fn load_sprite(render: &mut Render, resources: &mut HashMap<String, usize>, name: &str) {
+        let mut file = name.to_owned();
+        file.push_str(".blit");
+
+        let buf = Self::get(&*file).unwrap();
+
+        resources.insert(name.to_string(), render.add_buf_from_memory(name, &buf));
+    }
+
+    fn load_anim(render: &mut Render, resources: &mut HashMap<String, usize>, name: &str) {
+        let mut file = name.to_owned();
+        file.push_str(".anim");
+
+        let buf = Self::get(&*file).unwrap();
+
+        resources.insert(name.to_string(), render.add_anim_buf_from_memory(name, &buf));
+    }
+}
+
+#[derive(RustEmbed)]
+#[folder = "resources/masks/"]
+struct MaskFolder;
+
+impl MaskFolder {
+    fn load_sprite(render: &mut Render, resources: &mut HashMap<String, usize>, name: &str) {
+        let mut file = name.to_owned();
+        file.push_str(".blit");
+
+        let buf = Self::get(&*file).unwrap();
+
+        resources.insert(name.to_string(), render.add_buf_from_memory(name, &buf));
+    }
 }
 
 fn main() {
@@ -60,16 +90,13 @@ fn main() {
 
     let mut resources = HashMap::new();
 
-    let folder = embed!("resources/sprites/".to_owned());
-    load_resource!(folder; resources; render; anim => "ally-archer1");
-    load_resource!(folder; resources; render; sprite => "ally-melee1");
-    load_resource!(folder; resources; render; sprite => "enemy-melee1");
-    load_resource!(folder; resources; render; sprite => "enemy-archer1");
+    SpriteFolder::load_anim(&mut render, &mut resources, "ally-archer1");
+    SpriteFolder::load_sprite(&mut render, &mut resources, "ally-melee1");
+    SpriteFolder::load_sprite(&mut render, &mut resources, "enemy-melee1");
+    SpriteFolder::load_sprite(&mut render, &mut resources, "enemy-archer1");
+    SpriteFolder::load_sprite(&mut render, &mut resources, "projectile1");
 
-    load_resource!(folder; resources; render; sprite => "projectile1");
-
-    let folder = embed!("resources/masks/".to_owned());
-    load_resource!(folder; resources; render; sprite => "bighole1");
+    MaskFolder::load_sprite(&mut render, &mut resources, "bighole1");
 
     // Setup game related things
     let mut world = World::new();
@@ -168,9 +195,6 @@ fn main() {
 
         // Handle mouse events
         window.get_mouse_pos(MouseMode::Discard).map(|mouse| {
-            if window.get_mouse_down(MouseButton::Left) {
-                println!("Mouse down: {:?}", mouse);
-            }
             gui.handle_mouse((mouse.0 as i32, mouse.1 as i32), window.get_mouse_down(MouseButton::Left));
         });
 
@@ -227,7 +251,7 @@ fn main() {
                 buy_archer(&mut world);
             },
             GuiEvent::BuySoldierButton => {
-              buy_soldier(&mut world);  
+              buy_soldier(&mut world);
             },
             _ => ()
         }
