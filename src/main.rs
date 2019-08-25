@@ -178,7 +178,13 @@ fn main() {
 
     // Setup minifb window related things
     let title = format!("Castle Game {} - Press ESC to exit.", env!("CARGO_PKG_VERSION"));
-    let mut window = Window::new(&title, WIDTH, HEIGHT, WindowOptions::default()).expect("Unable to open window");
+    let options = WindowOptions {
+        borderless: false,
+        title: true,
+        resize: false,
+        scale: Scale::X2
+    };
+    let mut window = Window::new(&title, WIDTH, HEIGHT, options).expect("Unable to open window");
 
     // Setup the GUI system
     let mut gui = IngameGui::new((WIDTH as i32, HEIGHT as i32));
