@@ -22,7 +22,7 @@ is-it-maintained-issue-resolution = { repository = "tversteeg/castle-game" }
 direct-gui = "0.1"
 minifb = "0.13"
 specs = "0.10"
-specs-derive = "0.1"
+specs-derive = "0.4"
 rand = "0.7"
 line_drawing = "0.8"
 cgmath = "0.17"
