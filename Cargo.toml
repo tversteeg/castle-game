@@ -20,7 +20,7 @@ is-it-maintained-issue-resolution = { repository = "tversteeg/castle-game" }
 
 [dependencies]
 direct-gui = "0.1"
-minifb = "0.12"
+minifb = "0.13"
 specs = "0.10"
 specs-derive = "0.1"
 rand = "0.7"
