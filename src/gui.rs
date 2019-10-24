@@ -44,6 +44,20 @@ pub enum GuiEvent {
     BuySoldierButton,
 }
 
+#[derive(RustEmbed)]
+#[folder = "$OUT_DIR/gui/"]
+struct GuiAsset;
+
+impl GuiAsset {
+    pub fn register_button(gui: &mut Gui, file: &str, x: i32, y: i32) -> Button {
+        let button_img = gui
+            .load_sprite_from_memory(Self::get(file).unwrap())
+            .unwrap();
+
+        gui.register(Button::new_with_sprite(button_img).with_pos(x, y))
+    }
+}
+
 pub struct IngameGui {
     gui: Gui,
     cs: ControlState,
@@ -60,23 +74,15 @@ impl IngameGui {
         // Setup the GUI system
         let mut gui = Gui::new(size);
 
-        let menu_bg =
-            BlitBuffer::from_memory(include_bytes!("../resources/gui/iconbar.blit")).unwrap();
+        let menu_bg = BlitBuffer::from_memory(GuiAsset::get("iconbar.blit").unwrap()).unwrap();
 
         let bg_x = (size.0 - menu_bg.size().0) / 2;
         let bg_y = size.1 - menu_bg.size().1;
 
-        let archer_button_img = gui
-            .load_sprite_from_memory(include_bytes!("../resources/gui/archer-button.blit"))
-            .unwrap();
         let archer_button =
-            gui.register(Button::new_with_sprite(archer_button_img).with_pos(bg_x + 8, bg_y + 12));
-
-        let soldier_button_img = gui
-            .load_sprite_from_memory(include_bytes!("../resources/gui/soldier-button.blit"))
-            .unwrap();
-        let soldier_button = gui
-            .register(Button::new_with_sprite(soldier_button_img).with_pos(bg_x + 40, bg_y + 12));
+            GuiAsset::register_button(&mut gui, "archer-button.blit", bg_x + 8, bg_y + 12);
+        let soldier_button =
+            GuiAsset::register_button(&mut gui, "soldier-button.blit", bg_x + 40, bg_y + 12);
 
         IngameGui {
             gui,

@@ -45,7 +45,7 @@ const HEIGHT: usize = 540;
 const GRAVITY: f64 = 98.1;
 
 #[derive(RustEmbed)]
-#[folder = "resources/sprites/"]
+#[folder = "$OUT_DIR/sprites/"]
 struct SpriteFolder;
 
 impl SpriteFolder {
@@ -72,7 +72,7 @@ impl SpriteFolder {
 }
 
 #[derive(RustEmbed)]
-#[folder = "resources/masks/"]
+#[folder = "$OUT_DIR/masks/"]
 struct MaskFolder;
 
 impl MaskFolder {
