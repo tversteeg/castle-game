@@ -1,7 +1,7 @@
-use specs::*;
+use cgmath::MetricSpace;
 use rand;
 use rand::distributions::{Distribution, Uniform};
-use cgmath::MetricSpace;
+use specs::*;
 
 use super::*;
 
@@ -13,7 +13,7 @@ pub struct Turret {
     pub flight_time: f64,
     pub strength_variation: f64,
 
-    pub delay_left: f64
+    pub delay_left: f64,
 }
 
 impl Default for Turret {
@@ -25,7 +25,7 @@ impl Default for Turret {
             flight_time: 3.0,
             strength_variation: 0.1,
 
-            delay_left: 0.0
+            delay_left: 0.0,
         }
     }
 }
@@ -35,14 +35,18 @@ pub struct TurretOffset(pub (f64, f64));
 
 pub struct TurretUnitSystem;
 impl<'a> System<'a> for TurretUnitSystem {
-    type SystemData = (ReadStorage<'a, Turret>,
-                       ReadStorage<'a, WorldPosition>,
-                       ReadStorage<'a, TurretOffset>,
-                       WriteStorage<'a, UnitState>,
-                       WriteStorage<'a, Point>);
+    type SystemData = (
+        ReadStorage<'a, Turret>,
+        ReadStorage<'a, WorldPosition>,
+        ReadStorage<'a, TurretOffset>,
+        WriteStorage<'a, UnitState>,
+        WriteStorage<'a, Point>,
+    );
 
     fn run(&mut self, (turret, wpos, offset, mut state, mut pos): Self::SystemData) {
-        for (turret, wpos, offset, state, pos) in (&turret, &wpos, &offset, &mut state, &mut pos).join() {
+        for (turret, wpos, offset, state, pos) in
+            (&turret, &wpos, &offset, &mut state, &mut pos).join()
+        {
             pos.0.x = wpos.0.x + (offset.0).0;
             pos.0.y = wpos.0.y + (offset.0).1;
 
@@ -60,27 +64,52 @@ impl<'a> System<'a> for TurretUnitSystem {
 
 pub struct TurretSystem;
 impl<'a> System<'a> for TurretSystem {
-    type SystemData = (Entities<'a>,
-                       Fetch<'a, DeltaTime>,
-                       Fetch<'a, Gravity>,
-                       ReadStorage<'a, Ally>,
-                       ReadStorage<'a, Enemy>,
-                       ReadStorage<'a, Point>,
-                       ReadStorage<'a, WorldPosition>,
-                       ReadStorage<'a, ProjectileSprite>,
-                       ReadStorage<'a, Arrow>,
-                       ReadStorage<'a, Line>,
-                       ReadStorage<'a, MaskId>,
-                       ReadStorage<'a, IgnoreCollision>,
-                       ReadStorage<'a, ProjectileBoundingBox>,
-                       ReadStorage<'a, BoundingBox>,
-                       ReadStorage<'a, Damage>,
-                       ReadStorage<'a, Walk>,
-                       ReadStorage<'a, UnitState>,
-                       WriteStorage<'a, Turret>,
-                       Fetch<'a, LazyUpdate>);
+    type SystemData = (
+        Entities<'a>,
+        Fetch<'a, DeltaTime>,
+        Fetch<'a, Gravity>,
+        ReadStorage<'a, Ally>,
+        ReadStorage<'a, Enemy>,
+        ReadStorage<'a, Point>,
+        ReadStorage<'a, WorldPosition>,
+        ReadStorage<'a, ProjectileSprite>,
+        ReadStorage<'a, Arrow>,
+        ReadStorage<'a, Line>,
+        ReadStorage<'a, MaskId>,
+        ReadStorage<'a, IgnoreCollision>,
+        ReadStorage<'a, ProjectileBoundingBox>,
+        ReadStorage<'a, BoundingBox>,
+        ReadStorage<'a, Damage>,
+        ReadStorage<'a, Walk>,
+        ReadStorage<'a, UnitState>,
+        WriteStorage<'a, Turret>,
+        Fetch<'a, LazyUpdate>,
+    );
 
-    fn run(&mut self, (entities, dt, grav, ally, enemy, pos, wpos, sprite, arrow, line, mask, ignore, bb, ubb, dmg, walk, state, mut turret, updater): Self::SystemData) {
+    fn run(
+        &mut self,
+        (
+            entities,
+            dt,
+            grav,
+            ally,
+            enemy,
+            pos,
+            wpos,
+            sprite,
+            arrow,
+            line,
+            mask,
+            ignore,
+            bb,
+            ubb,
+            dmg,
+            walk,
+            state,
+            mut turret,
+            updater,
+        ): Self::SystemData,
+    ) {
         let dt = dt.to_seconds();
         let grav = grav.0;
 

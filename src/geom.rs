@@ -1,4 +1,4 @@
-use cgmath::{Point2, EuclideanSpace};
+use cgmath::{EuclideanSpace, Point2};
 use collision::Aabb2;
 use std::ops::{Add, Deref, DerefMut};
 
@@ -45,9 +45,12 @@ impl BoundingBox {
     }
 
     pub fn to_i32(self) -> (i32, i32, i32, i32) {
-        (self.min.x as i32, self.min.y as i32,
-         (self.max.x - self.min.x) as i32,
-         (self.max.y - self.min.y) as i32)
+        (
+            self.min.x as i32,
+            self.min.y as i32,
+            (self.max.x - self.min.x) as i32,
+            (self.max.y - self.min.y) as i32,
+        )
     }
 
     pub fn width(self) -> f64 {
@@ -87,7 +90,10 @@ impl Add<Point2<f64>> for BoundingBox {
     type Output = Self;
 
     fn add(self, pos: Point2<f64>) -> Self {
-        BoundingBox::new(Point(self.min + pos.to_vec()), Point(self.max + pos.to_vec()))
+        BoundingBox::new(
+            Point(self.min + pos.to_vec()),
+            Point(self.max + pos.to_vec()),
+        )
     }
 }
 
@@ -95,6 +101,9 @@ impl Add<Point> for BoundingBox {
     type Output = Self;
 
     fn add(self, pos: Point) -> Self {
-        BoundingBox::new(Point(self.min + pos.to_vec()), Point(self.max + pos.to_vec()))
+        BoundingBox::new(
+            Point(self.min + pos.to_vec()),
+            Point(self.max + pos.to_vec()),
+        )
     }
 }

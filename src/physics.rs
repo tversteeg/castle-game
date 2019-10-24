@@ -6,7 +6,7 @@ use super::*;
 #[derive(Component, Debug, Copy, Clone)]
 pub struct Velocity {
     pub x: f64,
-    pub y: f64
+    pub y: f64,
 }
 
 impl Velocity {
@@ -31,15 +31,20 @@ pub struct Gravity(pub f64);
 
 pub struct ParticleSystem;
 impl<'a> System<'a> for ParticleSystem {
-    type SystemData = (Entities<'a>,
-                       Fetch<'a, DeltaTime>,
-                       Fetch<'a, Gravity>,
-                       FetchMut<'a, Terrain>,
-                       WriteStorage<'a, WorldPosition>,
-                       WriteStorage<'a, Velocity>,
-                       WriteStorage<'a, PixelParticle>);
+    type SystemData = (
+        Entities<'a>,
+        Fetch<'a, DeltaTime>,
+        Fetch<'a, Gravity>,
+        FetchMut<'a, Terrain>,
+        WriteStorage<'a, WorldPosition>,
+        WriteStorage<'a, Velocity>,
+        WriteStorage<'a, PixelParticle>,
+    );
 
-    fn run(&mut self, (entities, dt, grav, mut terrain, mut pos, mut vel, mut par): Self::SystemData) {
+    fn run(
+        &mut self,
+        (entities, dt, grav, mut terrain, mut pos, mut vel, mut par): Self::SystemData,
+    ) {
         let grav = grav.0;
         let dt = dt.to_seconds();
 
@@ -53,7 +58,7 @@ impl<'a> System<'a> for ParticleSystem {
                 Some(point) => {
                     terrain.draw_pixel((point.0 as usize, point.1 as usize), par.color);
                     let _ = entities.delete(entity);
-                },
+                }
                 None => {
                     par.pos = pos.0.as_usize();
                     par.life -= dt;

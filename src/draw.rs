@@ -1,27 +1,28 @@
-use specs::*;
 use blit::*;
 use cgmath::Point2;
 use line_drawing::Bresenham;
-use std::error::Error;
+use specs::*;
 use std::collections::HashMap;
+use std::error::Error;
 use std::time::Duration;
 
-use terrain::*;
 use geom::*;
+use terrain::*;
 
 #[derive(Component, Debug, Copy, Clone)]
 pub struct PixelParticle {
     pub color: u32,
     pub life: f64,
 
-    pub pos: Point2<usize>
+    pub pos: Point2<usize>,
 }
 
 impl PixelParticle {
     pub fn new(color: u32, life: f64) -> Self {
         PixelParticle {
-            color, life,
-            pos: Point2::new(0, 0)
+            color,
+            life,
+            pos: Point2::new(0, 0),
         }
     }
 }
@@ -29,20 +30,20 @@ impl PixelParticle {
 #[derive(Component, Debug, Copy, Clone)]
 pub struct MaskId {
     pub id: usize,
-    pub size: (usize, usize)
+    pub size: (usize, usize),
 }
 
 #[derive(Component, Debug, Copy, Clone)]
 pub struct Sprite {
     pub pos: Point,
-    img_ref: usize
+    img_ref: usize,
 }
 
 impl Sprite {
     pub fn new(img_ref: usize) -> Self {
         Sprite {
             img_ref,
-            pos: Point::new(0.0, 0.0)
+            pos: Point::new(0.0, 0.0),
         }
     }
 
@@ -55,14 +56,15 @@ impl Sprite {
 pub struct Anim {
     pub pos: Point,
     pub info: Animation,
-    img_ref: usize
+    img_ref: usize,
 }
 
 impl Anim {
     pub fn new(img_ref: usize, info: Animation) -> Self {
         Anim {
-            img_ref, info,
-            pos: Point::new(0.0, 0.0)
+            img_ref,
+            info,
+            pos: Point::new(0.0, 0.0),
         }
     }
 
@@ -75,15 +77,15 @@ impl Anim {
 pub struct Line {
     pub p1: Point2<usize>,
     pub p2: Point2<usize>,
-    pub color: u32
+    pub color: u32,
 }
 
 impl Line {
     pub fn new(color: u32) -> Self {
         Line {
             color,
-            p1: Point2 {x: 0, y: 0},
-            p2: Point2 {x: 0, y: 0},
+            p1: Point2 { x: 0, y: 0 },
+            p2: Point2 { x: 0, y: 0 },
         }
     }
 }
@@ -92,8 +94,7 @@ pub struct Images(pub HashMap<String, usize>);
 
 pub struct SpriteSystem;
 impl<'a> System<'a> for SpriteSystem {
-    type SystemData = (ReadStorage<'a, WorldPosition>,
-                       WriteStorage<'a, Sprite>);
+    type SystemData = (ReadStorage<'a, WorldPosition>, WriteStorage<'a, Sprite>);
 
     fn run(&mut self, (pos, mut sprite): Self::SystemData) {
         for (pos, sprite) in (&pos, &mut sprite).join() {
@@ -104,8 +105,7 @@ impl<'a> System<'a> for SpriteSystem {
 
 pub struct AnimSystem;
 impl<'a> System<'a> for AnimSystem {
-    type SystemData = (ReadStorage<'a, WorldPosition>,
-                       WriteStorage<'a, Anim>);
+    type SystemData = (ReadStorage<'a, WorldPosition>, WriteStorage<'a, Anim>);
 
     fn run(&mut self, (pos, mut anim): Self::SystemData) {
         for (pos, anim) in (&pos, &mut anim).join() {
@@ -133,12 +133,15 @@ impl Render {
             height: size.1,
 
             blit_buffers: Vec::new(),
-            anim_buffers: Vec::new()
+            anim_buffers: Vec::new(),
         }
     }
 
     pub fn draw_terrain_and_background(&mut self, buffer: &mut Vec<u32>, terrain: &Terrain) {
-        for (output, (bg, terrain)) in buffer.iter_mut().zip(self.background.iter().zip(&terrain.buffer)) {
+        for (output, (bg, terrain)) in buffer
+            .iter_mut()
+            .zip(self.background.iter().zip(&terrain.buffer))
+        {
             if (*terrain & 0xFFFFFF) != 0xFF00FF {
                 // The terrain doesn't needs to be cleared
                 *output = *terrain;
@@ -148,14 +151,24 @@ impl Render {
         }
     }
 
-    pub fn draw_healthbar(&mut self, buffer: &mut Vec<u32>, pos: Point2<usize>, health_ratio: f64, width: usize) {
+    pub fn draw_healthbar(
+        &mut self,
+        buffer: &mut Vec<u32>,
+        pos: Point2<usize>,
+        health_ratio: f64,
+        width: usize,
+    ) {
         if pos.x >= self.width || pos.y >= self.height {
             return;
         }
 
         let y = pos.y * self.width;
 
-        let width = if pos.x + width >= self.width { self.width - pos.x } else { width };
+        let width = if pos.x + width >= self.width {
+            self.width - pos.x
+        } else {
+            width
+        };
         let health = pos.x + (health_ratio * width as f64) as usize;
 
         // Draw the green bar
@@ -170,7 +183,11 @@ impl Render {
         }
     }
 
-    pub fn draw_foreground(&mut self, buffer: &mut Vec<u32>, sprite: &Sprite) -> Result<(), Box<dyn Error>> {
+    pub fn draw_foreground(
+        &mut self,
+        buffer: &mut Vec<u32>,
+        sprite: &Sprite,
+    ) -> Result<(), Box<dyn Error>> {
         let buf = &self.blit_buffers[sprite.img_ref()].1;
 
         let size = self.size();
@@ -179,7 +196,11 @@ impl Render {
         Ok(())
     }
 
-    pub fn draw_foreground_anim(&mut self, buffer: &mut Vec<u32>, anim: &Anim) -> Result<(), Box<dyn Error>> {
+    pub fn draw_foreground_anim(
+        &mut self,
+        buffer: &mut Vec<u32>,
+        anim: &Anim,
+    ) -> Result<(), Box<dyn Error>> {
         let buf = &self.anim_buffers[anim.img_ref()].1;
 
         let size = self.size();
@@ -196,8 +217,16 @@ impl Render {
         buffer[pos.x + pos.y * self.width] = color;
     }
 
-    pub fn draw_foreground_line(&mut self, buffer: &mut Vec<u32>, p1: Point2<usize>, p2: Point2<usize>, color: u32) {
-        if (p1.x >= self.width || p2.y >= self.height) && (p2.x >= self.width || p2.y >= self.height) {
+    pub fn draw_foreground_line(
+        &mut self,
+        buffer: &mut Vec<u32>,
+        p1: Point2<usize>,
+        p2: Point2<usize>,
+        color: u32,
+    ) {
+        if (p1.x >= self.width || p2.y >= self.height)
+            && (p2.x >= self.width || p2.y >= self.height)
+        {
             return;
         }
 
@@ -210,7 +239,11 @@ impl Render {
         }
     }
 
-    pub fn draw_mask_terrain(&mut self, terrain: &mut Terrain, mask: &TerrainMask) -> Result<(), Box<dyn Error>> {
+    pub fn draw_mask_terrain(
+        &mut self,
+        terrain: &mut Terrain,
+        mask: &TerrainMask,
+    ) -> Result<(), Box<dyn Error>> {
         let buf = &self.blit_buffers[mask.id].1;
 
         // Center the mask

@@ -1,7 +1,7 @@
-use specs::*;
-use direct_gui::*;
-use direct_gui::controls::*;
 use blit::*;
+use direct_gui::controls::*;
+use direct_gui::*;
+use specs::*;
 
 use super::*;
 
@@ -9,14 +9,16 @@ use super::*;
 pub struct FloatingText {
     pub text: String,
     pub pos: Point,
-    pub time_alive: f64
+    pub time_alive: f64,
 }
 
 pub struct FloatingTextSystem;
 impl<'a> System<'a> for FloatingTextSystem {
-    type SystemData = (Entities<'a>,
-                       Fetch<'a, DeltaTime>,
-                       WriteStorage<'a, FloatingText>);
+    type SystemData = (
+        Entities<'a>,
+        Fetch<'a, DeltaTime>,
+        WriteStorage<'a, FloatingText>,
+    );
 
     fn run(&mut self, (entities, dt, mut text): Self::SystemData) {
         let dt = dt.to_seconds();
@@ -39,7 +41,7 @@ impl<'a> System<'a> for FloatingTextSystem {
 pub enum GuiEvent {
     None,
     BuyArcherButton,
-    BuySoldierButton
+    BuySoldierButton,
 }
 
 pub struct IngameGui {
@@ -50,7 +52,7 @@ pub struct IngameGui {
 
     menu_bg: BlitBuffer,
     archer_button: ControlRef,
-    soldier_button: ControlRef
+    soldier_button: ControlRef,
 }
 
 impl IngameGui {
@@ -58,22 +60,33 @@ impl IngameGui {
         // Setup the GUI system
         let mut gui = Gui::new(size);
 
-        let menu_bg = BlitBuffer::from_memory(include_bytes!("../resources/gui/iconbar.blit")).unwrap();
+        let menu_bg =
+            BlitBuffer::from_memory(include_bytes!("../resources/gui/iconbar.blit")).unwrap();
 
         let bg_x = (size.0 - menu_bg.size().0) / 2;
         let bg_y = size.1 - menu_bg.size().1;
 
-        let archer_button_img = gui.load_sprite_from_memory(include_bytes!("../resources/gui/archer-button.blit")).unwrap();
-        let archer_button = gui.register(Button::new_with_sprite(archer_button_img).with_pos(bg_x + 8, bg_y + 12));
-        
-        let soldier_button_img = gui.load_sprite_from_memory(include_bytes!("../resources/gui/soldier-button.blit")).unwrap();
-        let soldier_button = gui.register(Button::new_with_sprite(soldier_button_img).with_pos(bg_x + 40, bg_y + 12));
+        let archer_button_img = gui
+            .load_sprite_from_memory(include_bytes!("../resources/gui/archer-button.blit"))
+            .unwrap();
+        let archer_button =
+            gui.register(Button::new_with_sprite(archer_button_img).with_pos(bg_x + 8, bg_y + 12));
+
+        let soldier_button_img = gui
+            .load_sprite_from_memory(include_bytes!("../resources/gui/soldier-button.blit"))
+            .unwrap();
+        let soldier_button = gui
+            .register(Button::new_with_sprite(soldier_button_img).with_pos(bg_x + 40, bg_y + 12));
 
         IngameGui {
-            gui, size, menu_bg, archer_button, soldier_button,
+            gui,
+            size,
+            menu_bg,
+            archer_button,
+            soldier_button,
 
             cs: ControlState::default(),
-            bg_pos: (bg_x, bg_y)
+            bg_pos: (bg_x, bg_y),
         }
     }
 

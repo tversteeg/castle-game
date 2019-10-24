@@ -1,43 +1,43 @@
 extern crate blit;
-extern crate direct_gui;
-extern crate minifb;
-extern crate specs;
-extern crate line_drawing;
-extern crate rand;
 extern crate cgmath;
 extern crate collision;
+extern crate direct_gui;
+extern crate line_drawing;
+extern crate minifb;
+extern crate rand;
+extern crate specs;
 #[macro_use]
 extern crate specs_derive;
 #[macro_use]
 extern crate rust_embed;
 
-mod draw;
-mod physics;
-mod terrain;
-mod projectile;
 mod ai;
-mod unit;
-mod turret;
-mod level;
+mod draw;
 mod geom;
 mod gui;
+mod level;
+mod physics;
+mod projectile;
+mod terrain;
+mod turret;
+mod unit;
 
 use minifb::*;
-use specs::{World, DispatcherBuilder, Join};
-use std::time::{SystemTime, Duration};
-use std::thread::sleep;
+use specs::{DispatcherBuilder, Join, World};
 use std::collections::HashMap;
+use std::thread::sleep;
+use std::time::{Duration, SystemTime};
 
-use draw::*;
-use physics::*;
-use terrain::*;
-use projectile::*;
 use ai::*;
-use level::*;
+use draw::*;
 use geom::*;
 use gui::*;
-use unit::*;
+use level::*;
+use physics::*;
+use projectile::*;
+use terrain::*;
 use turret::*;
+use unit::*;
 
 const WIDTH: usize = 1280;
 const HEIGHT: usize = 540;
@@ -64,7 +64,10 @@ impl SpriteFolder {
 
         let buf = Self::get(&*file).unwrap();
 
-        resources.insert(name.to_string(), render.add_anim_buf_from_memory(name, &buf));
+        resources.insert(
+            name.to_string(),
+            render.add_anim_buf_from_memory(name, &buf),
+        );
     }
 }
 
@@ -152,15 +155,26 @@ fn main() {
     world.add_resource(Images(resources));
 
     render.draw_background_from_memory(include_bytes!("../resources/sprites/background.blit"));
-    render.draw_terrain_from_memory(&mut *world.write_resource::<Terrain>(), include_bytes!("../resources/sprites/level.blit"));
+    render.draw_terrain_from_memory(
+        &mut *world.write_resource::<Terrain>(),
+        include_bytes!("../resources/sprites/level.blit"),
+    );
 
     place_turrets(&mut world, 1);
 
     let mut dispatcher = DispatcherBuilder::new()
         .add(ProjectileSystem, "projectile", &[])
         .add(ArrowSystem, "arrow", &["projectile"])
-        .add(ProjectileCollisionSystem, "projectile_collision", &["projectile"])
-        .add(ProjectileRemovalFromMaskSystem, "projectile_removal_from_mask", &["projectile"])
+        .add(
+            ProjectileCollisionSystem,
+            "projectile_collision",
+            &["projectile"],
+        )
+        .add(
+            ProjectileRemovalFromMaskSystem,
+            "projectile_removal_from_mask",
+            &["projectile"],
+        )
         .add(TerrainCollapseSystem, "terrain_collapse", &["projectile"])
         .add(WalkSystem, "walk", &[])
         .add(UnitFallSystem, "unit_fall", &["walk"])
@@ -177,12 +191,15 @@ fn main() {
         .build();
 
     // Setup minifb window related things
-    let title = format!("Castle Game {} - Press ESC to exit.", env!("CARGO_PKG_VERSION"));
+    let title = format!(
+        "Castle Game {} - Press ESC to exit.",
+        env!("CARGO_PKG_VERSION")
+    );
     let options = WindowOptions {
         borderless: false,
         title: true,
         resize: false,
-        scale: Scale::X2
+        scale: Scale::X2,
     };
     let mut window = Window::new(&title, WIDTH, HEIGHT, options).expect("Unable to open window");
 
@@ -201,7 +218,10 @@ fn main() {
 
         // Handle mouse events
         window.get_mouse_pos(MouseMode::Discard).map(|mouse| {
-            gui.handle_mouse((mouse.0 as i32, mouse.1 as i32), window.get_mouse_down(MouseButton::Left));
+            gui.handle_mouse(
+                (mouse.0 as i32, mouse.1 as i32),
+                window.get_mouse_down(MouseButton::Left),
+            );
         });
 
         dispatcher.dispatch(&mut world.res);
@@ -221,7 +241,9 @@ fn main() {
             let health_bars = world.read::<HealthBar>();
             for entity in world.entities().join() {
                 if let Some(anim) = anims.get_mut(entity) {
-                    render.update_anim(anim, world.read_resource::<DeltaTime>().0).unwrap();
+                    render
+                        .update_anim(anim, world.read_resource::<DeltaTime>().0)
+                        .unwrap();
 
                     render.draw_foreground_anim(&mut buffer, anim).unwrap();
                 }
@@ -239,11 +261,18 @@ fn main() {
                 }
 
                 if let Some(bar) = health_bars.get(entity) {
-                    render.draw_healthbar(&mut buffer, bar.pos, bar.health / bar.max_health, bar.width);
+                    render.draw_healthbar(
+                        &mut buffer,
+                        bar.pos,
+                        bar.health / bar.max_health,
+                        bar.width,
+                    );
                 }
 
                 if let Some(mask) = terrain_masks.get(entity) {
-                    render.draw_mask_terrain(&mut *world.write_resource::<Terrain>(), mask).unwrap();
+                    render
+                        .draw_mask_terrain(&mut *world.write_resource::<Terrain>(), mask)
+                        .unwrap();
 
                     // Immediately remove the mask after drawing it
                     let _ = world.entities().delete(entity);
@@ -255,11 +284,11 @@ fn main() {
         match gui.update() {
             GuiEvent::BuyArcherButton => {
                 buy_archer(&mut world);
-            },
+            }
             GuiEvent::BuySoldierButton => {
-              buy_soldier(&mut world);
-            },
-            _ => ()
+                buy_soldier(&mut world);
+            }
+            _ => (),
         }
 
         // Render the floating text

@@ -1,6 +1,6 @@
-use specs::*;
-use cgmath::Point2;
 use blit::Animation;
+use cgmath::Point2;
+use specs::*;
 
 use ::*;
 
@@ -13,12 +13,19 @@ pub fn buy_archer(world: &mut World) {
 
     let health = 20.0;
 
-    world.create_entity()
+    world
+        .create_entity()
         .with(Ally)
         .with(Anim::new(archer_sprite, Animation::start(0, 2, true)))
         .with(WorldPosition(Point::new(1.0, 340.0)))
-        .with(Walk::new(BoundingBox::new(Point::new(1.0, 5.0), Point::new(4.0, 10.0)), 20.0))
-        .with(BoundingBox::new(Point::new(0.0, 0.0), Point::new(5.0, 10.0)))
+        .with(Walk::new(
+            BoundingBox::new(Point::new(1.0, 5.0), Point::new(4.0, 10.0)),
+            20.0,
+        ))
+        .with(BoundingBox::new(
+            Point::new(0.0, 0.0),
+            Point::new(5.0, 10.0),
+        ))
         .with(Destination(1280.0))
         .with(Health(20.0))
         .with(HealthBar {
@@ -26,7 +33,7 @@ pub fn buy_archer(world: &mut World) {
             max_health: health,
             width: 5,
             pos: Point2::new(0, 0),
-            offset: (1, -3)
+            offset: (1, -3),
         })
         .with(Melee::new(5.0, 1.0))
         .with(Turret {
@@ -42,7 +49,10 @@ pub fn buy_archer(world: &mut World) {
         .with(Arrow(3.0))
         .with(Line::new(0x663931))
         .with(Damage(5.0))
-        .with(ProjectileBoundingBox(BoundingBox::new(Point::new(0.0, 0.0), Point::new(1.0, 1.0))))
+        .with(ProjectileBoundingBox(BoundingBox::new(
+            Point::new(0.0, 0.0),
+            Point::new(1.0, 1.0),
+        )))
         .with(IgnoreCollision::Ally)
         .with(UnitState::Walk)
         .build();
@@ -57,12 +67,19 @@ pub fn buy_soldier(world: &mut World) {
 
     let health = 50.0;
 
-    world.create_entity()
+    world
+        .create_entity()
         .with(Ally)
         .with(Sprite::new(soldier_sprite))
         .with(WorldPosition(Point::new(1.0, 340.0)))
-        .with(Walk::new(BoundingBox::new(Point::new(1.0, 5.0), Point::new(4.0, 10.0)), 15.0))
-        .with(BoundingBox::new(Point::new(0.0, 0.0), Point::new(5.0, 10.0)))
+        .with(Walk::new(
+            BoundingBox::new(Point::new(1.0, 5.0), Point::new(4.0, 10.0)),
+            15.0,
+        ))
+        .with(BoundingBox::new(
+            Point::new(0.0, 0.0),
+            Point::new(5.0, 10.0),
+        ))
         .with(Destination(1280.0))
         .with(Health(health))
         .with(HealthBar {
@@ -70,7 +87,7 @@ pub fn buy_soldier(world: &mut World) {
             max_health: health,
             width: 10,
             pos: Point2::new(0, 0),
-            offset: (-2, -3)
+            offset: (-2, -3),
         })
         .with(Melee::new(10.0, 1.0))
         .with(UnitState::Walk)
@@ -81,15 +98,18 @@ pub fn place_turrets(world: &mut World, level: u8) {
     let (projectile1, bighole1, enemy_soldier1, enemy_archer1) = {
         let images = &*world.read_resource::<Images>();
 
-        (*images.0.get("projectile1").unwrap(),
-        *images.0.get("bighole1").unwrap(),
-        *images.0.get("enemy-melee1").unwrap(),
-        *images.0.get("enemy-archer1").unwrap())
+        (
+            *images.0.get("projectile1").unwrap(),
+            *images.0.get("bighole1").unwrap(),
+            *images.0.get("enemy-melee1").unwrap(),
+            *images.0.get("enemy-archer1").unwrap(),
+        )
     };
 
     match level {
         1 => {
-            world.create_entity()
+            world
+                .create_entity()
                 .with(Enemy)
                 .with(Turret {
                     delay: 3.0,
@@ -101,12 +121,19 @@ pub fn place_turrets(world: &mut World, level: u8) {
                 })
                 .with(Point::new(1270.0, 295.0))
                 .with(ProjectileSprite(Sprite::new(projectile1)))
-                .with(MaskId { id: bighole1, size: (5, 5) })
-                .with(ProjectileBoundingBox(BoundingBox::new(Point::new(0.0, 0.0), Point::new(5.0, 5.0))))
+                .with(MaskId {
+                    id: bighole1,
+                    size: (5, 5),
+                })
+                .with(ProjectileBoundingBox(BoundingBox::new(
+                    Point::new(0.0, 0.0),
+                    Point::new(5.0, 5.0),
+                )))
                 .with(Damage(30.0))
                 .build();
 
-            world.create_entity()
+            world
+                .create_entity()
                 .with(Enemy)
                 .with(Turret {
                     delay: 1.0,
@@ -119,19 +146,29 @@ pub fn place_turrets(world: &mut World, level: u8) {
                 .with(Point::new(1255.0, 315.0))
                 .with(Arrow(7.0))
                 .with(Line::new(0x663931))
-                .with(ProjectileBoundingBox(BoundingBox::new(Point::new(0.0, 0.0), Point::new(1.0, 1.0))))
+                .with(ProjectileBoundingBox(BoundingBox::new(
+                    Point::new(0.0, 0.0),
+                    Point::new(1.0, 1.0),
+                )))
                 .with(Damage(10.0))
                 .build();
 
             for i in 0..5 {
                 let health = 50.0;
 
-                world.create_entity()
+                world
+                    .create_entity()
                     .with(Enemy)
                     .with(Sprite::new(enemy_soldier1))
                     .with(WorldPosition(Point::new(1130.0 - 20.0 * i as f64, 320.0)))
-                    .with(Walk::new(BoundingBox::new(Point::new(2.0, 5.0), Point::new(5.0, 10.0)), 15.0))
-                    .with(BoundingBox::new(Point::new(1.0, 0.0), Point::new(6.0, 10.0)))
+                    .with(Walk::new(
+                        BoundingBox::new(Point::new(2.0, 5.0), Point::new(5.0, 10.0)),
+                        15.0,
+                    ))
+                    .with(BoundingBox::new(
+                        Point::new(1.0, 0.0),
+                        Point::new(6.0, 10.0),
+                    ))
                     .with(Destination(10.0))
                     .with(Health(health))
                     .with(HealthBar {
@@ -139,7 +176,7 @@ pub fn place_turrets(world: &mut World, level: u8) {
                         max_health: health,
                         width: 10,
                         pos: Point2::new(0, 0),
-                        offset: (-2, -3)
+                        offset: (-2, -3),
                     })
                     .with(Melee::new(10.0, 1.0))
                     .with(UnitState::Walk)
@@ -149,12 +186,19 @@ pub fn place_turrets(world: &mut World, level: u8) {
             for i in 0..20 {
                 let health = 20.0;
 
-                world.create_entity()
+                world
+                    .create_entity()
                     .with(Enemy)
                     .with(Sprite::new(enemy_archer1))
                     .with(WorldPosition(Point::new(1140.0 - 20.0 * i as f64, 320.0)))
-                    .with(Walk::new(BoundingBox::new(Point::new(1.0, 5.0), Point::new(4.0, 10.0)), 20.0))
-                    .with(BoundingBox::new(Point::new(1.0, 0.0), Point::new(5.0, 10.0)))
+                    .with(Walk::new(
+                        BoundingBox::new(Point::new(1.0, 5.0), Point::new(4.0, 10.0)),
+                        20.0,
+                    ))
+                    .with(BoundingBox::new(
+                        Point::new(1.0, 0.0),
+                        Point::new(5.0, 10.0),
+                    ))
                     .with(Destination(10.0))
                     .with(Health(health))
                     .with(HealthBar {
@@ -162,7 +206,7 @@ pub fn place_turrets(world: &mut World, level: u8) {
                         max_health: health,
                         width: 5,
                         pos: Point2::new(0, 0),
-                        offset: (1, -3)
+                        offset: (1, -3),
                     })
                     .with(Melee::new(5.0, 1.0))
                     .with(Turret {
@@ -178,12 +222,15 @@ pub fn place_turrets(world: &mut World, level: u8) {
                     .with(Arrow(3.0))
                     .with(Line::new(0x663931))
                     .with(Damage(5.0))
-                    .with(ProjectileBoundingBox(BoundingBox::new(Point::new(0.0, 0.0), Point::new(1.0, 1.0))))
+                    .with(ProjectileBoundingBox(BoundingBox::new(
+                        Point::new(0.0, 0.0),
+                        Point::new(1.0, 1.0),
+                    )))
                     .with(IgnoreCollision::Enemy)
                     .with(UnitState::Walk)
                     .build();
             }
-        },
-        _ => ()
+        }
+        _ => (),
     }
 }

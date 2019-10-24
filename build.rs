@@ -1,12 +1,12 @@
-extern crate image;
+extern crate aseprite;
 extern crate blit;
 extern crate git2;
-extern crate aseprite;
+extern crate image;
 extern crate serde_json;
 
-use std::fs;
 use blit::*;
 use git2::Repository;
+use std::fs;
 
 fn get_blit_buffer(path: &str, mask_color: u32) -> Option<BlitBuffer> {
     let img = image::open(path).unwrap();
@@ -17,7 +17,9 @@ fn save_blit_buffer_from_image(folder: &str, name: &str, output: &str, mask_colo
     let path = format!("assets/{}/{}", folder, name);
 
     let blit_buf = get_blit_buffer(&path, mask_color).unwrap();
-    blit_buf.save(format!("resources/{}/{}.blit", folder, output)).unwrap();
+    blit_buf
+        .save(format!("resources/{}/{}.blit", folder, output))
+        .unwrap();
 }
 
 fn save_anim_buffer(folder: &str, name: &str, output: &str, mask_color: u32) {
@@ -33,7 +35,9 @@ fn save_anim_buffer(folder: &str, name: &str, output: &str, mask_color: u32) {
         get_blit_buffer(&image.unwrap(), mask_color).unwrap()
     };
     let anim_buffer = AnimationBlitBuffer::new(blit_buf, info);
-    anim_buffer.save(format!("resources/{}/{}.anim", folder, output)).unwrap();
+    anim_buffer
+        .save(format!("resources/{}/{}.anim", folder, output))
+        .unwrap();
 }
 
 fn parse_folder(folder: &str, mask_color: u32) {
@@ -51,9 +55,19 @@ fn parse_folder(folder: &str, mask_color: u32) {
         println!("cargo:rerun-if-changed={:?}", filepath);
 
         match extension.to_str().unwrap() {
-            "png" => save_blit_buffer_from_image(folder, filename.to_str().unwrap(), filestem.to_str().unwrap(), mask_color),
-            "json" => save_anim_buffer(folder, filename.to_str().unwrap(), filestem.to_str().unwrap(), mask_color),
-            other => panic!("Filetype not recognized: {}", other)
+            "png" => save_blit_buffer_from_image(
+                folder,
+                filename.to_str().unwrap(),
+                filestem.to_str().unwrap(),
+                mask_color,
+            ),
+            "json" => save_anim_buffer(
+                folder,
+                filename.to_str().unwrap(),
+                filestem.to_str().unwrap(),
+                mask_color,
+            ),
+            other => panic!("Filetype not recognized: {}", other),
         }
     }
 }

@@ -1,14 +1,14 @@
-use specs::*;
+use collision::Discrete;
 use rand;
 use rand::distributions::{Distribution, Uniform};
-use collision::Discrete;
+use specs::*;
 
 use super::*;
 
 #[derive(Component, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum IgnoreCollision {
     Enemy,
-    Ally
+    Ally,
 }
 
 #[derive(Component, Debug, Copy, Clone)]
@@ -28,10 +28,12 @@ pub struct Damage(pub f64);
 
 pub struct ArrowSystem;
 impl<'a> System<'a> for ArrowSystem {
-    type SystemData = (ReadStorage<'a, WorldPosition>,
-                       ReadStorage<'a, Velocity>,
-                       WriteStorage<'a, Arrow>,
-                       WriteStorage<'a, Line>);
+    type SystemData = (
+        ReadStorage<'a, WorldPosition>,
+        ReadStorage<'a, Velocity>,
+        WriteStorage<'a, Arrow>,
+        WriteStorage<'a, Line>,
+    );
 
     fn run(&mut self, (pos, vel, mut arrow, mut line): Self::SystemData) {
         for (pos, vel, arrow, line) in (&pos, &vel, &mut arrow, &mut line).join() {
@@ -48,18 +50,23 @@ impl<'a> System<'a> for ArrowSystem {
 
 pub struct ProjectileSystem;
 impl<'a> System<'a> for ProjectileSystem {
-    type SystemData = (Entities<'a>,
-                       Fetch<'a, DeltaTime>,
-                       Fetch<'a, Gravity>,
-                       Fetch<'a, Terrain>,
-                       ReadStorage<'a, Projectile>,
-                       ReadStorage<'a, MaskId>,
-                       WriteStorage<'a, Line>,
-                       WriteStorage<'a, Velocity>,
-                       WriteStorage<'a, WorldPosition>,
-                       Fetch<'a, LazyUpdate>);
+    type SystemData = (
+        Entities<'a>,
+        Fetch<'a, DeltaTime>,
+        Fetch<'a, Gravity>,
+        Fetch<'a, Terrain>,
+        ReadStorage<'a, Projectile>,
+        ReadStorage<'a, MaskId>,
+        WriteStorage<'a, Line>,
+        WriteStorage<'a, Velocity>,
+        WriteStorage<'a, WorldPosition>,
+        Fetch<'a, LazyUpdate>,
+    );
 
-    fn run(&mut self, (entities, dt, grav, terrain, proj, mask, line, mut vel, mut pos, updater): Self::SystemData) {
+    fn run(
+        &mut self,
+        (entities, dt, grav, terrain, proj, mask, line, mut vel, mut pos, updater): Self::SystemData,
+    ) {
         let grav = grav.0;
         let dt = dt.to_seconds();
 
@@ -72,10 +79,13 @@ impl<'a> System<'a> for ProjectileSystem {
                         let _ = entities.delete(entity);
                         continue;
                     }
-                    
+
                     if let Some(mask) = mask.get(entity) {
                         // Create a crater if there is a mask for it
-                        updater.insert(entities.create(), TerrainMask::new(mask.id, point, mask.size));
+                        updater.insert(
+                            entities.create(),
+                            TerrainMask::new(mask.id, point, mask.size),
+                        );
                     }
 
                     if let Some(line) = line.get(entity) {
@@ -97,7 +107,7 @@ impl<'a> System<'a> for ProjectileSystem {
                     }
 
                     let _ = entities.delete(entity);
-                },
+                }
                 None => {
                     pos.0 = next;
                     vel.y += grav * dt;
@@ -109,22 +119,31 @@ impl<'a> System<'a> for ProjectileSystem {
 
 pub struct ProjectileCollisionSystem;
 impl<'a> System<'a> for ProjectileCollisionSystem {
-    type SystemData = (Entities<'a>,
-                       ReadStorage<'a, Projectile>,
-                       ReadStorage<'a, WorldPosition>,
-                       ReadStorage<'a, ProjectileBoundingBox>,
-                       ReadStorage<'a, BoundingBox>,
-                       ReadStorage<'a, Damage>,
-                       ReadStorage<'a, IgnoreCollision>,
-                       ReadStorage<'a, Ally>,
-                       ReadStorage<'a, Enemy>,
-                       WriteStorage<'a, Health>,
-                       Fetch<'a, LazyUpdate>);
+    type SystemData = (
+        Entities<'a>,
+        ReadStorage<'a, Projectile>,
+        ReadStorage<'a, WorldPosition>,
+        ReadStorage<'a, ProjectileBoundingBox>,
+        ReadStorage<'a, BoundingBox>,
+        ReadStorage<'a, Damage>,
+        ReadStorage<'a, IgnoreCollision>,
+        ReadStorage<'a, Ally>,
+        ReadStorage<'a, Enemy>,
+        WriteStorage<'a, Health>,
+        Fetch<'a, LazyUpdate>,
+    );
 
-    fn run(&mut self, (entities, proj, pos, proj_bb, bb, dmg, ignore, ally, enemy, mut health, updater): Self::SystemData) {
-        for (proj, _, proj_pos, proj_bb, proj_dmg) in (&*entities, &proj, &pos, &proj_bb, &dmg).join() {
+    fn run(
+        &mut self,
+        (entities, proj, pos, proj_bb, bb, dmg, ignore, ally, enemy, mut health, updater): Self::SystemData,
+    ) {
+        for (proj, _, proj_pos, proj_bb, proj_dmg) in
+            (&*entities, &proj, &pos, &proj_bb, &dmg).join()
+        {
             let proj_aabb = proj_bb.0 + *proj_pos.0;
-            for (target, target_pos, target_bb, target_health) in (&*entities, &pos, &bb, &mut health).join() {
+            for (target, target_pos, target_bb, target_health) in
+                (&*entities, &pos, &bb, &mut health).join()
+            {
                 let ignore_e: Option<&IgnoreCollision> = ignore.get(proj);
                 if let Some(ignore) = ignore_e {
                     if *ignore == IgnoreCollision::Ally {
@@ -146,11 +165,14 @@ impl<'a> System<'a> for ProjectileCollisionSystem {
                 if proj_aabb.intersects(&*target_aabb) {
                     if reduce_unit_health(&entities, &target, target_health, proj_dmg.0) {
                         // The ally died
-                        updater.insert(entities.create(), FloatingText {
-                            text: "x".to_string(),
-                            pos: target_pos.0,
-                            time_alive: 2.0
-                        });
+                        updater.insert(
+                            entities.create(),
+                            FloatingText {
+                                text: "x".to_string(),
+                                pos: target_pos.0,
+                                time_alive: 2.0,
+                            },
+                        );
                     }
 
                     let _ = entities.delete(proj);
@@ -161,7 +183,10 @@ impl<'a> System<'a> for ProjectileCollisionSystem {
                         let blood = entities.create();
                         updater.insert(blood, PixelParticle::new(0xAC3232, 10.0));
                         updater.insert(blood, *target_pos);
-                        updater.insert(blood, Velocity::new(between.sample(&mut rng), between.sample(&mut rng)));
+                        updater.insert(
+                            blood,
+                            Velocity::new(between.sample(&mut rng), between.sample(&mut rng)),
+                        );
                     }
                 }
             }
@@ -171,9 +196,11 @@ impl<'a> System<'a> for ProjectileCollisionSystem {
 
 pub struct ProjectileRemovalFromMaskSystem;
 impl<'a> System<'a> for ProjectileRemovalFromMaskSystem {
-    type SystemData = (Entities<'a>,
-                       ReadStorage<'a, TerrainMask>,
-                       ReadStorage<'a, Line>);
+    type SystemData = (
+        Entities<'a>,
+        ReadStorage<'a, TerrainMask>,
+        ReadStorage<'a, Line>,
+    );
 
     fn run(&mut self, (entities, mask, line): Self::SystemData) {
         for mask in mask.join() {

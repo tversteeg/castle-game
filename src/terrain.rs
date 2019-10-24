@@ -1,14 +1,14 @@
-use specs::*;
 use line_drawing::Bresenham;
+use specs::*;
 
-use physics::*;
 use geom::*;
+use physics::*;
 
 pub struct Terrain {
     pub buffer: Vec<u32>,
 
     width: usize,
-    height: usize
+    height: usize,
 }
 
 impl Terrain {
@@ -91,7 +91,7 @@ impl Terrain {
 pub struct TerrainMask {
     pub id: usize,
     pub pos: (i32, i32),
-    pub size: (usize, usize)
+    pub size: (usize, usize),
 }
 
 impl TerrainMask {
@@ -105,10 +105,12 @@ pub struct TerrainCollapse(pub BoundingBox);
 
 pub struct TerrainCollapseSystem;
 impl<'a> System<'a> for TerrainCollapseSystem {
-    type SystemData = (Entities<'a>,
-                       Fetch<'a, DeltaTime>,
-                       Fetch<'a, Terrain>,
-                       WriteStorage<'a, TerrainCollapse>);
+    type SystemData = (
+        Entities<'a>,
+        Fetch<'a, DeltaTime>,
+        Fetch<'a, Terrain>,
+        WriteStorage<'a, TerrainCollapse>,
+    );
 
     fn run(&mut self, (entities, dt, _terrain, mut rect): Self::SystemData) {
         let _dt = dt.to_seconds();
