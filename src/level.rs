@@ -2,7 +2,7 @@ use blit::Animation;
 use cgmath::Point2;
 use specs::*;
 
-use ::*;
+use crate::*;
 
 pub fn buy_archer(world: &mut World) {
     let archer_sprite = {

@@ -6,8 +6,8 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::time::Duration;
 
-use geom::*;
-use terrain::*;
+use crate::geom::*;
+use crate::terrain::*;
 
 #[derive(Component, Debug, Copy, Clone)]
 pub struct PixelParticle {

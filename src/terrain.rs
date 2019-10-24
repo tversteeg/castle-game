@@ -1,8 +1,8 @@
 use line_drawing::Bresenham;
 use specs::*;
 
-use geom::*;
-use physics::*;
+use crate::geom::*;
+use crate::physics::*;
 
 pub struct Terrain {
     pub buffer: Vec<u32>,
