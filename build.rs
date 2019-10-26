@@ -6,6 +6,7 @@ extern crate serde_json;
 
 use blit::*;
 use git2::Repository;
+use std::env;
 use std::fs;
 
 fn get_blit_buffer(path: &str, mask_color: u32) -> Option<BlitBuffer> {
@@ -18,7 +19,12 @@ fn save_blit_buffer_from_image(folder: &str, name: &str, output: &str, mask_colo
 
     let blit_buf = get_blit_buffer(&path, mask_color).unwrap();
     blit_buf
-        .save(format!("resources/{}/{}.blit", folder, output))
+        .save(format!(
+            "{}/{}/{}.blit",
+            env::var("OUT_DIR").unwrap(),
+            folder,
+            output
+        ))
         .unwrap();
 }
 
@@ -36,12 +42,17 @@ fn save_anim_buffer(folder: &str, name: &str, output: &str, mask_color: u32) {
     };
     let anim_buffer = AnimationBlitBuffer::new(blit_buf, info);
     anim_buffer
-        .save(format!("resources/{}/{}.anim", folder, output))
+        .save(format!(
+            "{}/{}/{}.anim",
+            env::var("OUT_DIR").unwrap(),
+            folder,
+            output
+        ))
         .unwrap();
 }
 
 fn parse_folder(folder: &str, mask_color: u32) {
-    fs::create_dir_all(format!("resources/{}", folder)).unwrap();
+    fs::create_dir_all(format!("{}/{}", env::var("OUT_DIR").unwrap(), folder)).unwrap();
 
     let asset_paths = fs::read_dir(format!("assets/{}", folder)).unwrap();
 

@@ -45,7 +45,7 @@ const HEIGHT: usize = 540;
 const GRAVITY: f64 = 98.1;
 
 #[derive(RustEmbed)]
-#[folder = "resources/sprites/"]
+#[folder = "$OUT_DIR/sprites/"]
 struct SpriteFolder;
 
 impl SpriteFolder {
@@ -72,7 +72,7 @@ impl SpriteFolder {
 }
 
 #[derive(RustEmbed)]
-#[folder = "resources/masks/"]
+#[folder = "$OUT_DIR/masks/"]
 struct MaskFolder;
 
 impl MaskFolder {
@@ -154,10 +154,10 @@ fn main() {
     world.add_resource(DeltaTime::new(1.0 / 60.0));
     world.add_resource(Images(resources));
 
-    render.draw_background_from_memory(include_bytes!("../resources/sprites/background.blit"));
+    render.draw_background_from_memory(&SpriteFolder::get("background.blit").unwrap());
     render.draw_terrain_from_memory(
         &mut *world.write_resource::<Terrain>(),
-        include_bytes!("../resources/sprites/level.blit"),
+        &SpriteFolder::get("level.blit").unwrap(),
     );
 
     place_turrets(&mut world, 1);

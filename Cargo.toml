@@ -28,7 +28,10 @@ rand = "0.7"
 line_drawing = "0.8"
 cgmath = "0.17"
 collision = "0.20"
-rust-embed = "5.1"
+
+[dependencies.rust-embed]
+version = "5.1"
+features = ["interpolate-folder-path"]
 
 [dependencies.blit]
 version = "0.5"
