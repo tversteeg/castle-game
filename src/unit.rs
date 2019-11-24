@@ -46,8 +46,8 @@ impl Walk {
 pub struct WalkSystem;
 impl<'a> System<'a> for WalkSystem {
     type SystemData = (
-        Fetch<'a, DeltaTime>,
-        Fetch<'a, Terrain>,
+        Read<'a, DeltaTime>,
+        Read<'a, Terrain>,
         ReadStorage<'a, Destination>,
         ReadStorage<'a, Walk>,
         WriteStorage<'a, UnitState>,
@@ -98,8 +98,8 @@ impl<'a> System<'a> for HealthBarSystem {
 pub struct UnitFallSystem;
 impl<'a> System<'a> for UnitFallSystem {
     type SystemData = (
-        Fetch<'a, DeltaTime>,
-        Fetch<'a, Terrain>,
+        Read<'a, DeltaTime>,
+        Read<'a, Terrain>,
         ReadStorage<'a, Walk>,
         WriteStorage<'a, WorldPosition>,
     );
@@ -264,7 +264,7 @@ impl<'a> System<'a> for UnitCollideSystem {
 }
 
 pub fn reduce_unit_health<'a>(
-    entities: &'a EntitiesRes,
+    entities: &'a Entities,
     unit: &'a Entity,
     health: &'a mut Health,
     dmg: f64,

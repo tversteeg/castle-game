@@ -35,7 +35,7 @@ pub struct MeleeSystem;
 impl<'a> System<'a> for MeleeSystem {
     type SystemData = (
         Entities<'a>,
-        Fetch<'a, DeltaTime>,
+        Read<'a, DeltaTime>,
         ReadStorage<'a, Ally>,
         ReadStorage<'a, Enemy>,
         ReadStorage<'a, WorldPosition>,
@@ -43,7 +43,7 @@ impl<'a> System<'a> for MeleeSystem {
         ReadStorage<'a, UnitState>,
         WriteStorage<'a, Melee>,
         WriteStorage<'a, Health>,
-        Fetch<'a, LazyUpdate>,
+        Read<'a, LazyUpdate>,
     );
 
     fn run(

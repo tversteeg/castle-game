@@ -52,15 +52,15 @@ pub struct ProjectileSystem;
 impl<'a> System<'a> for ProjectileSystem {
     type SystemData = (
         Entities<'a>,
-        Fetch<'a, DeltaTime>,
-        Fetch<'a, Gravity>,
-        Fetch<'a, Terrain>,
+        Read<'a, DeltaTime>,
+        Read<'a, Gravity>,
+        Read<'a, Terrain>,
         ReadStorage<'a, Projectile>,
         ReadStorage<'a, MaskId>,
         WriteStorage<'a, Line>,
         WriteStorage<'a, Velocity>,
         WriteStorage<'a, WorldPosition>,
-        Fetch<'a, LazyUpdate>,
+        Read<'a, LazyUpdate>,
     );
 
     fn run(
@@ -130,7 +130,7 @@ impl<'a> System<'a> for ProjectileCollisionSystem {
         ReadStorage<'a, Ally>,
         ReadStorage<'a, Enemy>,
         WriteStorage<'a, Health>,
-        Fetch<'a, LazyUpdate>,
+        Read<'a, LazyUpdate>,
     );
 
     fn run(

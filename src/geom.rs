@@ -1,11 +1,14 @@
 use cgmath::{EuclideanSpace, Point2};
 use collision::Aabb2;
+use specs::{Component, VecStorage};
 use std::ops::{Add, Deref, DerefMut};
 
 #[derive(Component, Debug, Copy, Clone)]
+#[storage(VecStorage)]
 pub struct WorldPosition(pub Point);
 
 #[derive(Component, Debug, Copy, Clone)]
+#[storage(VecStorage)]
 pub struct Point(pub Point2<f64>);
 
 impl Point {
@@ -37,6 +40,7 @@ impl DerefMut for Point {
 }
 
 #[derive(Component, Debug, Copy, Clone)]
+#[storage(VecStorage)]
 pub struct BoundingBox(Aabb2<f64>);
 
 impl BoundingBox {

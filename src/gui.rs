@@ -20,7 +20,7 @@ pub struct FloatingTextSystem;
 impl<'a> System<'a> for FloatingTextSystem {
     type SystemData = (
         Entities<'a>,
-        Fetch<'a, DeltaTime>,
+        Read<'a, DeltaTime>,
         WriteStorage<'a, FloatingText>,
     );
 

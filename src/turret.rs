@@ -66,8 +66,8 @@ pub struct TurretSystem;
 impl<'a> System<'a> for TurretSystem {
     type SystemData = (
         Entities<'a>,
-        Fetch<'a, DeltaTime>,
-        Fetch<'a, Gravity>,
+        Read<'a, DeltaTime>,
+        Read<'a, Gravity>,
         ReadStorage<'a, Ally>,
         ReadStorage<'a, Enemy>,
         ReadStorage<'a, Point>,
@@ -83,7 +83,7 @@ impl<'a> System<'a> for TurretSystem {
         ReadStorage<'a, Walk>,
         ReadStorage<'a, UnitState>,
         WriteStorage<'a, Turret>,
-        Fetch<'a, LazyUpdate>,
+        Read<'a, LazyUpdate>,
     );
 
     fn run(

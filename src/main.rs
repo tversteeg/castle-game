@@ -23,7 +23,7 @@ mod turret;
 mod unit;
 
 use minifb::*;
-use specs::{DispatcherBuilder, Join, World};
+use specs::{DispatcherBuilder, Join, World, WorldExt};
 use std::collections::HashMap;
 use std::thread::sleep;
 use std::time::{Duration, SystemTime};
@@ -149,10 +149,10 @@ fn main() {
     world.register::<FloatingText>();
 
     // Resources to `Fetch`
-    world.add_resource(Terrain::new((WIDTH, HEIGHT)));
-    world.add_resource(Gravity(GRAVITY));
-    world.add_resource(DeltaTime::new(1.0 / 60.0));
-    world.add_resource(Images(resources));
+    world.insert(Terrain::new((WIDTH, HEIGHT)));
+    world.insert(Gravity(GRAVITY));
+    world.insert(DeltaTime::new(1.0 / 60.0));
+    world.insert(Images(resources));
 
     render.draw_background_from_memory(&SpriteFolder::get("background.blit").unwrap());
     render.draw_terrain_from_memory(
@@ -163,31 +163,31 @@ fn main() {
     place_turrets(&mut world, 1);
 
     let mut dispatcher = DispatcherBuilder::new()
-        .add(ProjectileSystem, "projectile", &[])
-        .add(ArrowSystem, "arrow", &["projectile"])
-        .add(
+        .with(ProjectileSystem, "projectile", &[])
+        .with(ArrowSystem, "arrow", &["projectile"])
+        .with(
             ProjectileCollisionSystem,
             "projectile_collision",
             &["projectile"],
         )
-        .add(
+        .with(
             ProjectileRemovalFromMaskSystem,
             "projectile_removal_from_mask",
             &["projectile"],
         )
-        .add(TerrainCollapseSystem, "terrain_collapse", &["projectile"])
-        .add(WalkSystem, "walk", &[])
-        .add(UnitFallSystem, "unit_fall", &["walk"])
-        .add(UnitResumeWalkingSystem, "unit_resume_walking", &["walk"])
-        .add(UnitCollideSystem, "unit_collide", &["walk"])
-        .add(MeleeSystem, "melee", &["walk"])
-        .add(HealthBarSystem, "health_bar", &["walk"])
-        .add(TurretUnitSystem, "turret_unit", &["walk"])
-        .add(TurretSystem, "turret", &["turret_unit"])
-        .add(SpriteSystem, "sprite", &["projectile", "walk"])
-        .add(AnimSystem, "anim", &["projectile", "walk"])
-        .add(ParticleSystem, "particle", &[])
-        .add(FloatingTextSystem, "floating_text", &[])
+        .with(TerrainCollapseSystem, "terrain_collapse", &["projectile"])
+        .with(WalkSystem, "walk", &[])
+        .with(UnitFallSystem, "unit_fall", &["walk"])
+        .with(UnitResumeWalkingSystem, "unit_resume_walking", &["walk"])
+        .with(UnitCollideSystem, "unit_collide", &["walk"])
+        .with(MeleeSystem, "melee", &["walk"])
+        .with(HealthBarSystem, "health_bar", &["walk"])
+        .with(TurretUnitSystem, "turret_unit", &["walk"])
+        .with(TurretSystem, "turret", &["turret_unit"])
+        .with(SpriteSystem, "sprite", &["projectile", "walk"])
+        .with(AnimSystem, "anim", &["projectile", "walk"])
+        .with(ParticleSystem, "particle", &[])
+        .with(FloatingTextSystem, "floating_text", &[])
         .build();
 
     // Setup minifb window related things
@@ -224,7 +224,7 @@ fn main() {
             );
         });
 
-        dispatcher.dispatch(&mut world.res);
+        dispatcher.dispatch(&mut world);
 
         // Add/remove entities added in dispatch through `LazyUpdate`
         world.maintain();
@@ -233,12 +233,12 @@ fn main() {
         {
             render.draw_terrain_and_background(&mut buffer, &*world.write_resource::<Terrain>());
 
-            let mut anims = world.write::<Anim>();
-            let sprites = world.read::<Sprite>();
-            let lines = world.read::<Line>();
-            let pixels = world.read::<PixelParticle>();
-            let terrain_masks = world.read::<TerrainMask>();
-            let health_bars = world.read::<HealthBar>();
+            let mut anims = world.write_storage::<Anim>();
+            let sprites = world.read_storage::<Sprite>();
+            let lines = world.read_storage::<Line>();
+            let pixels = world.read_storage::<PixelParticle>();
+            let terrain_masks = world.read_storage::<TerrainMask>();
+            let health_bars = world.read_storage::<HealthBar>();
             for entity in world.entities().join() {
                 if let Some(anim) = anims.get_mut(entity) {
                     render
@@ -292,7 +292,7 @@ fn main() {
         }
 
         // Render the floating text
-        let floating_texts = world.read::<FloatingText>();
+        let floating_texts = world.read_storage::<FloatingText>();
 
         // Render the gui on the buffer
         gui.render(&mut buffer);

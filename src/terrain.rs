@@ -4,6 +4,7 @@ use specs::*;
 use crate::geom::*;
 use crate::physics::*;
 
+#[derive(Default)]
 pub struct Terrain {
     pub buffer: Vec<u32>,
 
@@ -107,8 +108,8 @@ pub struct TerrainCollapseSystem;
 impl<'a> System<'a> for TerrainCollapseSystem {
     type SystemData = (
         Entities<'a>,
-        Fetch<'a, DeltaTime>,
-        Fetch<'a, Terrain>,
+        Read<'a, DeltaTime>,
+        Read<'a, Terrain>,
         WriteStorage<'a, TerrainCollapse>,
     );
 

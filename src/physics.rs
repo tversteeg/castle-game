@@ -15,6 +15,7 @@ impl Velocity {
     }
 }
 
+#[derive(Default)]
 pub struct DeltaTime(pub Duration);
 
 impl DeltaTime {
@@ -27,15 +28,16 @@ impl DeltaTime {
     }
 }
 
+#[derive(Default)]
 pub struct Gravity(pub f64);
 
 pub struct ParticleSystem;
 impl<'a> System<'a> for ParticleSystem {
     type SystemData = (
         Entities<'a>,
-        Fetch<'a, DeltaTime>,
-        Fetch<'a, Gravity>,
-        FetchMut<'a, Terrain>,
+        Read<'a, DeltaTime>,
+        Read<'a, Gravity>,
+        Write<'a, Terrain>,
         WriteStorage<'a, WorldPosition>,
         WriteStorage<'a, Velocity>,
         WriteStorage<'a, PixelParticle>,
