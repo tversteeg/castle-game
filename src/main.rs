@@ -200,6 +200,7 @@ fn main() {
         title: true,
         resize: false,
         scale: Scale::X2,
+        scale_mode: ScaleMode::AspectRatioStretch,
     };
     let mut window = Window::new(&title, WIDTH, HEIGHT, options).expect("Unable to open window");
 
@@ -303,7 +304,7 @@ fn main() {
         }
 
         // Finally draw the buffer on the window
-        window.update_with_buffer(&buffer).unwrap();
+        window.update_with_buffer(&buffer, WIDTH, HEIGHT).unwrap();
 
         sleep(Duration::from_millis(1));
     }
