@@ -22,10 +22,10 @@ is-it-maintained-issue-resolution = { repository = "tversteeg/castle-game" }
 [dependencies]
 cgmath = "0.17.0"
 collision = "0.20.1"
-direct-gui = "0.1.22"
+direct-gui = "0.1.23"
 line_drawing = "0.8.0"
-minifb = "0.15.0"
-rand = "0.7.2"
+minifb = "0.15.3"
+rand = "0.7.3"
 specs = "0.15.1"
 specs-derive = "0.4.0"
 
@@ -34,13 +34,13 @@ version = "5.2.0"
 features = ["interpolate-folder-path"]
 
 [dependencies.blit]
-version = "0.5.6"
+version = "0.5.7"
 default-features = false
 features = ["aseprite"]
 
 [build-dependencies]
 git2 = "0.11.0"
-blit = "0.5.6"
-image = "0.22.3"
+blit = "0.5.7"
+image = "0.22.4"
 aseprite = "0.1.3"
-serde_json = "1.0.44"
+serde_json = "1.0.46"
