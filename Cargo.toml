@@ -39,7 +39,7 @@ default-features = false
 features = ["aseprite"]
 
 [build-dependencies]
-git2 = "0.11.0"
+git2 = "0.12.0"
 blit = "0.5.7"
 image = "0.23.0"
 aseprite = "0.1.3"
