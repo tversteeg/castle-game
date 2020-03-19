@@ -10,6 +10,9 @@ use std::time::Duration;
 use crate::geom::*;
 use crate::terrain::*;
 
+const GREEN_BAR_COLOR: u32 = 0xFF_6A_BE_30;
+const RED_BAR_COLOR: u32 = 0xFF_AC_32_33;
+
 #[derive(Component, Debug, Copy, Clone)]
 pub struct PixelParticle {
     pub color: u32,
@@ -143,7 +146,7 @@ impl Render {
             .iter_mut()
             .zip(self.background.iter().zip(&terrain.buffer))
         {
-            if (*terrain & 0xFFFFFF) != 0xFF00FF {
+            if (*terrain & 0xFF_FF_FF) != 0xFF_00_FF {
                 // The terrain doesn't needs to be cleared
                 *output = *terrain;
                 continue;
@@ -174,13 +177,13 @@ impl Render {
 
         // Draw the green bar
         for x in pos.x..health {
-            buffer[x + y] = 0xFF6ABE30;
+            buffer[x + y] = GREEN_BAR_COLOR;
         }
 
         // Draw the red bar
         let max = pos.x + width;
         for x in health..max {
-            buffer[x + y] = 0xFFAC3232;
+            buffer[x + y] = RED_BAR_COLOR;
         }
     }
 
@@ -225,9 +228,7 @@ impl Render {
         p2: Point2<usize>,
         color: u32,
     ) {
-        if (p1.x >= self.width || p2.y >= self.height)
-            && (p2.x >= self.width || p2.y >= self.height)
-        {
+        if p2.y >= self.height || p1.x >= self.width && p2.x >= self.width {
             return;
         }
 

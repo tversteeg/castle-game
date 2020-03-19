@@ -1,4 +1,4 @@
-use specs::*;
+use specs::prelude::*;
 use specs_derive::Component;
 use std::time::Duration;
 
@@ -32,41 +32,53 @@ impl DeltaTime {
 #[derive(Default)]
 pub struct Gravity(pub f64);
 
+#[derive(SystemData)]
+pub struct ParticleSystemData<'a> {
+    entities: Entities<'a>,
+    dt: Read<'a, DeltaTime>,
+    grav: Read<'a, Gravity>,
+    terrain: Write<'a, Terrain>,
+    pos: WriteStorage<'a, WorldPosition>,
+    vel: WriteStorage<'a, Velocity>,
+    par: WriteStorage<'a, PixelParticle>,
+}
+
 pub struct ParticleSystem;
 impl<'a> System<'a> for ParticleSystem {
-    type SystemData = (
-        Entities<'a>,
-        Read<'a, DeltaTime>,
-        Read<'a, Gravity>,
-        Write<'a, Terrain>,
-        WriteStorage<'a, WorldPosition>,
-        WriteStorage<'a, Velocity>,
-        WriteStorage<'a, PixelParticle>,
-    );
+    type SystemData = ParticleSystemData<'a>;
 
-    fn run(
-        &mut self,
-        (entities, dt, grav, mut terrain, mut pos, mut vel, mut par): Self::SystemData,
-    ) {
-        let grav = grav.0;
-        let dt = dt.to_seconds();
+    fn run(&mut self, mut system_data: Self::SystemData) {
+        let grav = system_data.grav.0;
+        let dt = system_data.dt.to_seconds();
 
-        for (entity, pos, vel, par) in (&*entities, &mut pos, &mut vel, &mut par).join() {
+        for (entity, pos, vel, par) in (
+            &*system_data.entities,
+            &mut system_data.pos,
+            &mut system_data.vel,
+            &mut system_data.par,
+        )
+            .join()
+        {
             pos.0.x += vel.x * dt;
             pos.0.y += vel.y * dt;
             vel.y += grav * dt;
 
             let old_pos = par.pos;
-            match terrain.line_collides(pos.0.as_i32(), (old_pos.x as i32, old_pos.y as i32)) {
+            match system_data
+                .terrain
+                .line_collides(pos.0.as_i32(), (old_pos.x as i32, old_pos.y as i32))
+            {
                 Some(point) => {
-                    terrain.draw_pixel((point.0 as usize, point.1 as usize), par.color);
-                    let _ = entities.delete(entity);
+                    system_data
+                        .terrain
+                        .draw_pixel((point.0 as usize, point.1 as usize), par.color);
+                    let _ = system_data.entities.delete(entity);
                 }
                 None => {
                     par.pos = pos.0.as_usize();
                     par.life -= dt;
                     if par.life < 0.0 {
-                        let _ = entities.delete(entity);
+                        let _ = system_data.entities.delete(entity);
                     }
                 }
             }

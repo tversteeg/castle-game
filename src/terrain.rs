@@ -16,7 +16,7 @@ pub struct Terrain {
 impl Terrain {
     pub fn new(size: (usize, usize)) -> Self {
         Terrain {
-            buffer: vec![0xFFFF00FF; (size.0 * size.1) as usize],
+            buffer: vec![0xFF_FF_00_FF; (size.0 * size.1) as usize],
 
             width: size.0,
             height: size.1,
@@ -36,7 +36,7 @@ impl Terrain {
             }
 
             let index = pos.0 as usize + pos.1 as usize * width;
-            if (self.buffer[index] & 0xFFFFFF) != 0xFF00FF {
+            if (self.buffer[index] & 0xFF_FF_FF) != 0xFF_00_FF {
                 return Some(pos);
             }
         }
@@ -71,7 +71,7 @@ impl Terrain {
         for y in start.1..end.1 {
             for x in start.0..end.0 {
                 let index = x as usize + y as usize * width;
-                if (self.buffer[index] & 0xFFFFFF) != 0xFF00FF {
+                if (self.buffer[index] & 0xFF_FF_FF) != 0xFF_00_FF {
                     return Some((x, y));
                 }
             }

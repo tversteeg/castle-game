@@ -1,6 +1,6 @@
 use cgmath::Point2;
 use collision::Discrete;
-use specs::*;
+use specs::prelude::*;
 use specs_derive::Component;
 
 use super::*;
@@ -44,28 +44,38 @@ impl Walk {
     }
 }
 
+#[derive(SystemData)]
+pub struct WalkSystemData<'a> {
+    dt: Read<'a, DeltaTime>,
+    terrain: Read<'a, Terrain>,
+    dest: ReadStorage<'a, Destination>,
+    walk: ReadStorage<'a, Walk>,
+    state: WriteStorage<'a, UnitState>,
+    pos: WriteStorage<'a, WorldPosition>,
+}
+
 pub struct WalkSystem;
 impl<'a> System<'a> for WalkSystem {
-    type SystemData = (
-        Read<'a, DeltaTime>,
-        Read<'a, Terrain>,
-        ReadStorage<'a, Destination>,
-        ReadStorage<'a, Walk>,
-        WriteStorage<'a, UnitState>,
-        WriteStorage<'a, WorldPosition>,
-    );
+    type SystemData = WalkSystemData<'a>;
 
-    fn run(&mut self, (dt, terrain, dest, walk, mut state, mut pos): Self::SystemData) {
-        let dt = dt.to_seconds();
+    fn run(&mut self, mut system_data: Self::SystemData) {
+        let dt = system_data.dt.to_seconds();
 
-        for (dest, walk, state, pos) in (&dest, &walk, &mut state, &mut pos).join() {
+        for (dest, walk, state, pos) in (
+            &system_data.dest,
+            &system_data.walk,
+            &mut system_data.state,
+            &mut system_data.pos,
+        )
+            .join()
+        {
             // Don't walk when the unitstate is not saying that it can walk
             if *state != UnitState::Walk {
                 continue;
             }
 
             let hit_box = walk.bounds + *pos.0;
-            if let Some(hit) = terrain.rect_collides(hit_box) {
+            if let Some(hit) = system_data.terrain.rect_collides(hit_box) {
                 if hit.1 == hit_box.min.y as i32 {
                     // Top edge of bounding box is hit, try to climb
                     *state = UnitState::Climb;
@@ -86,12 +96,12 @@ impl<'a> System<'a> for HealthBarSystem {
         WriteStorage<'a, HealthBar>,
     );
 
-    fn run(&mut self, (health, pos, mut bar): Self::SystemData) {
-        for (health, pos, bar) in (&health, &pos, &mut bar).join() {
-            bar.health = health.0;
-            bar.pos = pos.0.as_usize();
-            bar.pos.x = (bar.pos.x as i32 + bar.offset.0) as usize;
-            bar.pos.y = (bar.pos.y as i32 + bar.offset.1) as usize;
+    fn run(&mut self, (health, pos, mut health_bar): Self::SystemData) {
+        for (health, pos, health_bar) in (&health, &pos, &mut health_bar).join() {
+            health_bar.health = health.0;
+            health_bar.pos = pos.0.as_usize();
+            health_bar.pos.x = (health_bar.pos.x as i32 + health_bar.offset.0) as usize;
+            health_bar.pos.y = (health_bar.pos.y as i32 + health_bar.offset.1) as usize;
         }
     }
 }
@@ -181,24 +191,34 @@ impl<'a> System<'a> for UnitResumeWalkingSystem {
     }
 }
 
+#[derive(SystemData)]
+pub struct UnitCollideSystemData<'a> {
+    entities: Entities<'a>,
+    ally: ReadStorage<'a, Ally>,
+    pos: ReadStorage<'a, WorldPosition>,
+    bb: ReadStorage<'a, BoundingBox>,
+    dest: ReadStorage<'a, Destination>,
+    state: WriteStorage<'a, UnitState>,
+}
+
 pub struct UnitCollideSystem;
 impl<'a> System<'a> for UnitCollideSystem {
-    type SystemData = (
-        Entities<'a>,
-        ReadStorage<'a, Ally>,
-        ReadStorage<'a, WorldPosition>,
-        ReadStorage<'a, BoundingBox>,
-        ReadStorage<'a, Destination>,
-        WriteStorage<'a, UnitState>,
-    );
+    type SystemData = UnitCollideSystemData<'a>;
 
-    fn run(&mut self, (entities, ally, pos, bb, dest, mut state): Self::SystemData) {
-        for (e1, pos1, bb1, dest1) in (&*entities, &pos, &bb, &dest).join() {
+    fn run(&mut self, mut system_data: Self::SystemData) {
+        for (e1, pos1, bb1, dest1) in (
+            &*system_data.entities,
+            &system_data.pos,
+            &system_data.bb,
+            &system_data.dest,
+        )
+            .join()
+        {
             // Get the bounding box of entity 1
             let aabb1 = *bb1 + *pos1.0;
 
             // Don't check if this unit is not walking
-            if let Some(state1) = state.get_mut(e1) {
+            if let Some(state1) = system_data.state.get_mut(e1) {
                 // If it's not walking ignore it
                 if *state1 != UnitState::Walk {
                     continue;
@@ -206,14 +226,21 @@ impl<'a> System<'a> for UnitCollideSystem {
             }
 
             // Check for a collision if this unit is walking
-            for (e2, pos2, bb2, dest2) in (&*entities, &pos, &bb, &dest).join() {
+            for (e2, pos2, bb2, dest2) in (
+                &*system_data.entities,
+                &system_data.pos,
+                &system_data.bb,
+                &system_data.dest,
+            )
+                .join()
+            {
                 // Don't collide with itself
                 if e1 == e2 {
                     continue;
                 }
 
                 // Join a melee
-                let is_melee = if let Some(state) = state.get_mut(e2) {
+                let is_melee = if let Some(state) = system_data.state.get_mut(e2) {
                     *state == UnitState::Melee
                 } else {
                     // Unit doesn't have a unit state?
@@ -233,8 +260,8 @@ impl<'a> System<'a> for UnitCollideSystem {
                     continue;
                 }
 
-                let is_ally1 = ally.get(e1).is_some();
-                let is_ally2 = ally.get(e2).is_some();
+                let is_ally1 = system_data.ally.get(e1).is_some();
+                let is_ally2 = system_data.ally.get(e2).is_some();
 
                 if is_ally1 == is_ally2 {
                     // If they are both allies or both enemies let one of them wait
@@ -242,19 +269,19 @@ impl<'a> System<'a> for UnitCollideSystem {
                     let dist2 = (dest2.0 - pos2.0.x).abs();
                     // Let the unit wait which is furthest away from the destination
                     if dist1 > dist2 {
-                        if let Some(state) = state.get_mut(e1) {
+                        if let Some(state) = system_data.state.get_mut(e1) {
                             *state = UnitState::Wait;
                         }
                         break;
-                    } else if let Some(state) = state.get_mut(e2) {
+                    } else if let Some(state) = system_data.state.get_mut(e2) {
                         *state = UnitState::Wait;
                     }
                 } else {
                     // If they are an ally and an enemy let them fight
-                    if let Some(state) = state.get_mut(e1) {
+                    if let Some(state) = system_data.state.get_mut(e1) {
                         *state = UnitState::Melee;
                     }
-                    if let Some(state) = state.get_mut(e2) {
+                    if let Some(state) = system_data.state.get_mut(e2) {
                         *state = UnitState::Melee;
                     }
                     break;
@@ -266,16 +293,16 @@ impl<'a> System<'a> for UnitCollideSystem {
 
 pub fn reduce_unit_health<'a>(
     entities: &'a Entities,
-    unit: &'a Entity,
+    unit: Entity,
     health: &'a mut Health,
     dmg: f64,
 ) -> bool {
     health.0 -= dmg;
     if health.0 <= 0.0 {
-        let _ = entities.delete(*unit);
+        let _ = entities.delete(unit);
 
-        return true;
+        true
+    } else {
+        false
     }
-
-    return false;
 }

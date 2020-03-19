@@ -1,10 +1,12 @@
 use collision::Discrete;
 use rand;
 use rand::distributions::{Distribution, Uniform};
-use specs::*;
+use specs::prelude::*;
 use specs_derive::Component;
 
 use super::*;
+
+const BLOOD_COLOR: u32 = 0xAC_32_33;
 
 #[derive(Component, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum IgnoreCollision {
@@ -49,47 +51,57 @@ impl<'a> System<'a> for ArrowSystem {
     }
 }
 
+#[derive(SystemData)]
+pub struct ProjectileSystemData<'a> {
+    entities: Entities<'a>,
+    dt: Read<'a, DeltaTime>,
+    grav: Read<'a, Gravity>,
+    terrain: Read<'a, Terrain>,
+    proj: ReadStorage<'a, Projectile>,
+    mask: ReadStorage<'a, MaskId>,
+    line: WriteStorage<'a, Line>,
+    vel: WriteStorage<'a, Velocity>,
+    pos: WriteStorage<'a, WorldPosition>,
+    updater: Read<'a, LazyUpdate>,
+}
+
 pub struct ProjectileSystem;
 impl<'a> System<'a> for ProjectileSystem {
-    type SystemData = (
-        Entities<'a>,
-        Read<'a, DeltaTime>,
-        Read<'a, Gravity>,
-        Read<'a, Terrain>,
-        ReadStorage<'a, Projectile>,
-        ReadStorage<'a, MaskId>,
-        WriteStorage<'a, Line>,
-        WriteStorage<'a, Velocity>,
-        WriteStorage<'a, WorldPosition>,
-        Read<'a, LazyUpdate>,
-    );
+    type SystemData = ProjectileSystemData<'a>;
 
-    fn run(
-        &mut self,
-        (entities, dt, grav, terrain, proj, mask, line, mut vel, mut pos, updater): Self::SystemData,
-    ) {
-        let grav = grav.0;
-        let dt = dt.to_seconds();
+    fn run(&mut self, mut system_data: Self::SystemData) {
+        let grav = system_data.grav.0;
+        let dt = system_data.dt.to_seconds();
 
-        for (entity, _, vel, pos) in (&*entities, &proj, &mut vel, &mut pos).join() {
+        for (entity, _, vel, pos) in (
+            &*system_data.entities,
+            &system_data.proj,
+            &mut system_data.vel,
+            &mut system_data.pos,
+        )
+            .join()
+        {
             let next: Point = Point::new(pos.0.x + vel.x * dt, pos.0.y + vel.y * dt);
 
-            match terrain.line_collides(pos.0.as_i32(), next.as_i32()) {
+            match system_data
+                .terrain
+                .line_collides(pos.0.as_i32(), next.as_i32())
+            {
                 Some(point) => {
                     if point.0 < 0 || point.1 < 0 {
-                        let _ = entities.delete(entity);
+                        let _ = system_data.entities.delete(entity);
                         continue;
                     }
 
-                    if let Some(mask) = mask.get(entity) {
+                    if let Some(mask) = system_data.mask.get(entity) {
                         // Create a crater if there is a mask for it
-                        updater.insert(
-                            entities.create(),
+                        system_data.updater.insert(
+                            system_data.entities.create(),
                             TerrainMask::new(mask.id, point, mask.size),
                         );
                     }
 
-                    if let Some(line) = line.get(entity) {
+                    if let Some(line) = system_data.line.get(entity) {
                         // Keep drawing the line if there is one, this makes the arrows stay stuck
                         // in the ground
                         let mut line_copy = *line;
@@ -103,11 +115,13 @@ impl<'a> System<'a> for ProjectileSystem {
                             line_copy.p2.x = (line_copy.p2.x as i32 + dx) as usize;
                             line_copy.p2.y = (line_copy.p2.y as i32 + dy) as usize;
 
-                            updater.insert(entities.create(), line_copy);
+                            system_data
+                                .updater
+                                .insert(system_data.entities.create(), line_copy);
                         }
                     }
 
-                    let _ = entities.delete(entity);
+                    let _ = system_data.entities.delete(entity);
                 }
                 None => {
                     pos.0 = next;
@@ -118,44 +132,55 @@ impl<'a> System<'a> for ProjectileSystem {
     }
 }
 
+#[derive(SystemData)]
+pub struct ProjectileCollisionSystemData<'a> {
+    entities: Entities<'a>,
+    proj: ReadStorage<'a, Projectile>,
+    pos: ReadStorage<'a, WorldPosition>,
+    proj_bb: ReadStorage<'a, ProjectileBoundingBox>,
+    bb: ReadStorage<'a, BoundingBox>,
+    dmg: ReadStorage<'a, Damage>,
+    ignore: ReadStorage<'a, IgnoreCollision>,
+    ally: ReadStorage<'a, Ally>,
+    enemy: ReadStorage<'a, Enemy>,
+    health: WriteStorage<'a, Health>,
+    updater: Read<'a, LazyUpdate>,
+}
+
 pub struct ProjectileCollisionSystem;
 impl<'a> System<'a> for ProjectileCollisionSystem {
-    type SystemData = (
-        Entities<'a>,
-        ReadStorage<'a, Projectile>,
-        ReadStorage<'a, WorldPosition>,
-        ReadStorage<'a, ProjectileBoundingBox>,
-        ReadStorage<'a, BoundingBox>,
-        ReadStorage<'a, Damage>,
-        ReadStorage<'a, IgnoreCollision>,
-        ReadStorage<'a, Ally>,
-        ReadStorage<'a, Enemy>,
-        WriteStorage<'a, Health>,
-        Read<'a, LazyUpdate>,
-    );
+    type SystemData = ProjectileCollisionSystemData<'a>;
 
-    fn run(
-        &mut self,
-        (entities, proj, pos, proj_bb, bb, dmg, ignore, ally, enemy, mut health, updater): Self::SystemData,
-    ) {
-        for (proj, _, proj_pos, proj_bb, proj_dmg) in
-            (&*entities, &proj, &pos, &proj_bb, &dmg).join()
+    fn run(&mut self, mut system_data: Self::SystemData) {
+        for (proj, _, proj_pos, proj_bb, proj_dmg) in (
+            &*system_data.entities,
+            &system_data.proj,
+            &system_data.pos,
+            &system_data.proj_bb,
+            &system_data.dmg,
+        )
+            .join()
         {
             let proj_aabb = proj_bb.0 + *proj_pos.0;
-            for (target, target_pos, target_bb, target_health) in
-                (&*entities, &pos, &bb, &mut health).join()
+            for (target, target_pos, target_bb, target_health) in (
+                &*system_data.entities,
+                &system_data.pos,
+                &system_data.bb,
+                &mut system_data.health,
+            )
+                .join()
             {
-                let ignore_e: Option<&IgnoreCollision> = ignore.get(proj);
+                let ignore_e: Option<&IgnoreCollision> = system_data.ignore.get(proj);
                 if let Some(ignore) = ignore_e {
                     if *ignore == IgnoreCollision::Ally {
-                        let is_ally: Option<&Ally> = ally.get(target);
-                        if let Some(_) = is_ally {
+                        let is_ally: Option<&Ally> = system_data.ally.get(target);
+                        if is_ally.is_some() {
                             continue;
                         }
                     }
                     if *ignore == IgnoreCollision::Enemy {
-                        let is_enemy: Option<&Enemy> = enemy.get(target);
-                        if let Some(_) = is_enemy {
+                        let is_enemy: Option<&Enemy> = system_data.enemy.get(target);
+                        if is_enemy.is_some() {
                             continue;
                         }
                     }
@@ -164,10 +189,11 @@ impl<'a> System<'a> for ProjectileCollisionSystem {
                 // When there is a collision with a unit
                 let target_aabb = *target_bb + *target_pos.0;
                 if proj_aabb.intersects(&*target_aabb) {
-                    if reduce_unit_health(&entities, &target, target_health, proj_dmg.0) {
+                    if reduce_unit_health(&system_data.entities, target, target_health, proj_dmg.0)
+                    {
                         // The ally died
-                        updater.insert(
-                            entities.create(),
+                        system_data.updater.insert(
+                            system_data.entities.create(),
                             FloatingText {
                                 text: "x".to_string(),
                                 pos: target_pos.0,
@@ -176,15 +202,17 @@ impl<'a> System<'a> for ProjectileCollisionSystem {
                         );
                     }
 
-                    let _ = entities.delete(proj);
+                    let _ = system_data.entities.delete(proj);
                     let between = Uniform::new(-20.0, 20.0);
                     let mut rng = rand::thread_rng();
 
                     for _ in 0..4 {
-                        let blood = entities.create();
-                        updater.insert(blood, PixelParticle::new(0xAC3232, 10.0));
-                        updater.insert(blood, *target_pos);
-                        updater.insert(
+                        let blood = system_data.entities.create();
+                        system_data
+                            .updater
+                            .insert(blood, PixelParticle::new(BLOOD_COLOR, 10.0));
+                        system_data.updater.insert(blood, *target_pos);
+                        system_data.updater.insert(
                             blood,
                             Velocity::new(between.sample(&mut rng), between.sample(&mut rng)),
                         );

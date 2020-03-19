@@ -206,14 +206,14 @@ fn main() {
         }
 
         // Handle mouse events
-        window.get_mouse_pos(MouseMode::Discard).map(|mouse| {
+        if let Some(mouse) = window.get_mouse_pos(MouseMode::Discard) {
             gui.handle_mouse(
                 (mouse.0 as i32, mouse.1 as i32),
                 window.get_mouse_down(MouseButton::Left),
             );
-        });
+        };
 
-        dispatcher.dispatch(&mut world);
+        dispatcher.dispatch(&world);
 
         // Add/remove entities added in dispatch through `LazyUpdate`
         world.maintain();
@@ -249,12 +249,12 @@ fn main() {
                     render.draw_foreground_pixel(&mut buffer, pixel.pos, pixel.color);
                 }
 
-                if let Some(bar) = health_bars.get(entity) {
+                if let Some(health_bar) = health_bars.get(entity) {
                     render.draw_healthbar(
                         &mut buffer,
-                        bar.pos,
-                        bar.health / bar.max_health,
-                        bar.width,
+                        health_bar.pos,
+                        health_bar.health / health_bar.max_health,
+                        health_bar.width,
                     );
                 }
 

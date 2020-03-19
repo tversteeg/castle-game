@@ -123,9 +123,10 @@ impl IngameGui {
         result
     }
 
-    pub fn draw_label(&mut self, buffer: &mut Vec<u32>, text: &String, pos: (i32, i32)) {
+    pub fn draw_label(&mut self, buffer: &mut Vec<u32>, text: &str, pos: (i32, i32)) {
         let default_font = self.gui.default_font();
-        self.gui.draw_label(buffer, default_font, text, pos);
+        self.gui
+            .draw_label(buffer, default_font, &text.to_string(), pos);
     }
 
     pub fn render(&mut self, buffer: &mut Vec<u32>) {
