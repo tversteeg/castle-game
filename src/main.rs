@@ -1,16 +1,3 @@
-extern crate blit;
-extern crate cgmath;
-extern crate collision;
-extern crate direct_gui;
-extern crate line_drawing;
-extern crate minifb;
-extern crate rand;
-extern crate specs;
-#[macro_use]
-extern crate specs_derive;
-#[macro_use]
-extern crate rust_embed;
-
 mod ai;
 mod draw;
 mod geom;
@@ -23,6 +10,7 @@ mod turret;
 mod unit;
 
 use minifb::*;
+use rust_embed::RustEmbed;
 use specs::{DispatcherBuilder, Join, World, WorldExt};
 use std::collections::HashMap;
 use std::thread::sleep;

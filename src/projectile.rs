@@ -2,6 +2,7 @@ use collision::Discrete;
 use rand;
 use rand::distributions::{Distribution, Uniform};
 use specs::*;
+use specs_derive::Component;
 
 use super::*;
 

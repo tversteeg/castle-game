@@ -2,6 +2,7 @@ use blit::*;
 use cgmath::Point2;
 use line_drawing::Bresenham;
 use specs::*;
+use specs_derive::Component;
 use std::collections::HashMap;
 use std::error::Error;
 use std::time::Duration;

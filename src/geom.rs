@@ -1,6 +1,7 @@
 use cgmath::{EuclideanSpace, Point2};
 use collision::Aabb2;
 use specs::{Component, VecStorage};
+use specs_derive::Component;
 use std::ops::{Add, Deref, DerefMut};
 
 #[derive(Component, Debug, Copy, Clone)]
