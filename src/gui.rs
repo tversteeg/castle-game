@@ -1,7 +1,9 @@
 use blit::*;
 use direct_gui::controls::*;
 use direct_gui::*;
+use rust_embed::RustEmbed;
 use specs::*;
+use specs_derive::Component;
 
 use super::*;
 

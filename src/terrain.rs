@@ -1,5 +1,6 @@
 use line_drawing::Bresenham;
 use specs::*;
+use specs_derive::Component;
 
 use crate::geom::*;
 use crate::physics::*;

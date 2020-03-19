@@ -1,9 +1,3 @@
-extern crate aseprite;
-extern crate blit;
-extern crate git2;
-extern crate image;
-extern crate serde_json;
-
 use blit::*;
 use git2::Repository;
 use std::env;

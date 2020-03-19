@@ -1,4 +1,5 @@
 use specs::*;
+use specs_derive::Component;
 use std::time::Duration;
 
 use super::*;
