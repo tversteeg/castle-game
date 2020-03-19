@@ -1,7 +1,7 @@
 # [castle-game](https://tversteeg.itch.io/castle-game)
 A free & open source 2D Lemmings-meets-tower defense destructible terrain game.
 
-[![](https://travis-ci.org/tversteeg/castle-game.svg?branch=master)](https://travis-ci.org/tversteeg/castle-game) 
+![CI](https://github.com/tversteeg/castle-game/workflows/CI/badge.svg)
 [![](https://img.shields.io/crates/d/castle-game.svg)](#downloads)
 [![](https://img.shields.io/crates/v/castle-game.svg)](https://crates.io/crates/castle-game)
 [![](https://img.shields.io/github/commits-since/tversteeg/castle-game/latest.svg)]()
