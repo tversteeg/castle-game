@@ -36,7 +36,7 @@ fn save_anim_buffer(folder: &str, name: &str, output: &str, mask_color: u32) {
     let info: aseprite::SpritesheetData = serde_json::from_reader(file).unwrap();
 
     let blit_buf = {
-        let image = info.meta.image.as_ref().clone();
+        let image = info.meta.image.as_ref();
 
         get_blit_buffer(&image.unwrap(), mask_color).unwrap()
     };
