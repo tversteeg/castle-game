@@ -1,6 +1,9 @@
+use crate::audio::Audio;
 use collision::Discrete;
-use rand;
-use rand::distributions::{Distribution, Uniform};
+use rand::{
+    self,
+    distributions::{Distribution, Uniform},
+};
 use specs::prelude::*;
 use specs_derive::Component;
 
@@ -57,6 +60,7 @@ pub struct ProjectileSystemData<'a> {
     dt: Read<'a, DeltaTime>,
     grav: Read<'a, Gravity>,
     terrain: Read<'a, Terrain>,
+    audio: Read<'a, Audio>,
     proj: ReadStorage<'a, Projectile>,
     mask: ReadStorage<'a, MaskId>,
     line: WriteStorage<'a, Line>,
@@ -99,6 +103,9 @@ impl<'a> System<'a> for ProjectileSystem {
                             system_data.entities.create(),
                             TerrainMask::new(mask.id, point, mask.size),
                         );
+
+                        // Play a sound
+                        system_data.audio.play_heavy_projectile();
                     }
 
                     if let Some(line) = system_data.line.get(entity) {
@@ -119,6 +126,9 @@ impl<'a> System<'a> for ProjectileSystem {
                                 .updater
                                 .insert(system_data.entities.create(), line_copy);
                         }
+
+                        // Play a sound
+                        system_data.audio.play_light_projectile();
                     }
 
                     let _ = system_data.entities.delete(entity);
@@ -135,6 +145,8 @@ impl<'a> System<'a> for ProjectileSystem {
 #[derive(SystemData)]
 pub struct ProjectileCollisionSystemData<'a> {
     entities: Entities<'a>,
+    audio: Read<'a, Audio>,
+    updater: Read<'a, LazyUpdate>,
     proj: ReadStorage<'a, Projectile>,
     pos: ReadStorage<'a, WorldPosition>,
     proj_bb: ReadStorage<'a, ProjectileBoundingBox>,
@@ -144,7 +156,6 @@ pub struct ProjectileCollisionSystemData<'a> {
     ally: ReadStorage<'a, Ally>,
     enemy: ReadStorage<'a, Enemy>,
     health: WriteStorage<'a, Health>,
-    updater: Read<'a, LazyUpdate>,
 }
 
 pub struct ProjectileCollisionSystem;
@@ -217,6 +228,9 @@ impl<'a> System<'a> for ProjectileCollisionSystem {
                             Velocity::new(between.sample(&mut rng), between.sample(&mut rng)),
                         );
                     }
+
+                    // Play a sound
+                    system_data.audio.play_unit_hit();
                 }
             }
         }

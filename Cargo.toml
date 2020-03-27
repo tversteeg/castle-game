@@ -22,10 +22,13 @@ is-it-maintained-issue-resolution = { repository = "tversteeg/castle-game" }
 [dependencies]
 cgmath = "0.17.0"
 collision = "0.20.1"
+const-tweaker = "0.2.5"
+cpal = "0.11.0"
 direct-gui = "0.1.24"
 line_drawing = "0.8.0"
 minifb = "0.15.3"
 rand = "0.7.3"
+sfxr = "0.1.4"
 specs = { version = "0.16.1", features = ["shred-derive"] }
 specs-derive = "0.4.1"
 

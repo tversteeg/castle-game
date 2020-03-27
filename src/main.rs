@@ -1,4 +1,5 @@
 mod ai;
+mod audio;
 mod draw;
 mod geom;
 mod gui;
@@ -12,11 +13,14 @@ mod unit;
 use minifb::*;
 use rust_embed::RustEmbed;
 use specs::{DispatcherBuilder, Join, World, WorldExt};
-use std::collections::HashMap;
-use std::thread::sleep;
-use std::time::{Duration, SystemTime};
+use std::{
+    collections::HashMap,
+    thread,
+    time::{Duration, SystemTime},
+};
 
 use ai::*;
+use audio::Audio;
 use draw::*;
 use geom::*;
 use gui::*;
@@ -141,6 +145,7 @@ fn main() {
     world.insert(Gravity(GRAVITY));
     world.insert(DeltaTime::new(1.0 / 60.0));
     world.insert(Images(resources));
+    world.insert(Audio::new());
 
     render.draw_background_from_memory(&SpriteFolder::get("background.blit").unwrap());
     render.draw_terrain_from_memory(
@@ -194,6 +199,15 @@ fn main() {
 
     // Setup the GUI system
     let mut gui = IngameGui::new((WIDTH as i32, HEIGHT as i32));
+
+    {
+        // Start the audio
+        let mut audio = world.write_resource::<Audio>();
+        audio.run();
+    }
+
+    // Add the tweaking gui
+    const_tweaker::run().expect("Could not run server");
 
     // Game loop
     let mut time = SystemTime::now();
@@ -294,6 +308,6 @@ fn main() {
         // Finally draw the buffer on the window
         window.update_with_buffer(&buffer, WIDTH, HEIGHT).unwrap();
 
-        sleep(Duration::from_millis(1));
+        thread::sleep(Duration::from_millis(1));
     }
 }
