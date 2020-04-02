@@ -34,6 +34,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
+      - name: Install dependencies
+        run: sudo apt-get install -y xorg-dev libasound2-dev
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -51,6 +53,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
+      - name: Install dependencies
+        run: sudo apt-get install -y xorg-dev libasound2-dev
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -103,6 +107,10 @@ jobs:
         with:
           dotnet-version: "2.2.402"
 
+      - name: Install dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get install -y xorg-dev libasound2-dev
+
       # Run the ignored tests that expect the above setup
       - name: Run all tests
         uses: actions-rs/cargo@v1
@@ -144,8 +152,8 @@ jobs:
           target: ${{ matrix.target }}
 
       - name: Install dependencies
-        if: matrix.os == 'ubuntu'
-        run: sudo apt-get install -y xorg-dev
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get install -y xorg-dev libasound2-dev
 
       - name: Build target
         uses: actions-rs/cargo@v1
