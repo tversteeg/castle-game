@@ -191,9 +191,9 @@ fn main() {
     let options = WindowOptions {
         borderless: false,
         title: true,
-        resize: false,
         scale: Scale::X2,
         scale_mode: ScaleMode::AspectRatioStretch,
+        ..Default::default()
     };
     let mut window = Window::new(&title, WIDTH, HEIGHT, options).expect("Unable to open window");
 
