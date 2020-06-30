@@ -206,9 +206,6 @@ fn main() {
         audio.run();
     }
 
-    // Add the tweaking gui
-    const_tweaker::run().expect("Could not run server");
-
     // Game loop
     let mut time = SystemTime::now();
     while window.is_open() && !window.is_key_down(Key::Escape) {
