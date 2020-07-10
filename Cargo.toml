@@ -23,7 +23,7 @@ is-it-maintained-issue-resolution = { repository = "tversteeg/castle-game" }
 cgmath = "0.17.0"
 collision = "0.20.1"
 const-tweaker = "0.3.1"
-cpal = "0.11.0"
+cpal = "0.12.0"
 direct-gui = "0.1.25"
 line_drawing = "0.8.0"
 minifb = "0.17.0"
