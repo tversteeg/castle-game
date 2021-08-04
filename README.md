@@ -10,7 +10,7 @@ A free & open source 2D Lemmings-meets-tower defense destructible terrain game.
 
 # Run
 
-## From Github
+## From GitHub
 
 You can download the [latest](https://github.com/tversteeg/castle-game/releases/latest) version from [releases](https://github.com/tversteeg/castle-game/releases). It should work by just running the executable, if not, [create an issue](https://github.com/tversteeg/castle-game/issues/new).
 

@@ -1,5 +1,4 @@
 use cgmath::MetricSpace;
-use rand;
 use rand::distributions::{Distribution, Uniform};
 use specs::prelude::*;
 use specs_derive::Component;
