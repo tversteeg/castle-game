@@ -71,14 +71,14 @@ fn parse_folder(assets_dir: &str, folder: &str, mask_color: u32) {
 
         match extension.to_str().unwrap() {
             "png" => save_blit_buffer_from_image(
-                &assets_dir,
+                assets_dir,
                 folder,
                 filename.to_str().unwrap(),
                 filestem.to_str().unwrap(),
                 mask_color,
             ),
             "json" => save_anim_buffer(
-                &assets_dir,
+                assets_dir,
                 folder,
                 filename.to_str().unwrap(),
                 filestem.to_str().unwrap(),

@@ -135,7 +135,7 @@ impl Audio {
                 let stream_data = match stream_result {
                     Ok(data) => data,
                     Err(err) => {
-                        eprintln!("an error occurred on stream {:?}: {}", stream_id, err);
+                        eprintln!("an error occurred on stream {:?}: {:?}", stream_id, err);
                         return;
                     }
                 };
