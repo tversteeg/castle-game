@@ -1,15 +1,18 @@
+use crate::{
+    physics::{gravity::Gravity, position::Position, velocity::Velocity},
+    projectile::Projectile,
+};
 use bevy::{
-    math::{Vec2, Vec3},
-    prelude::{Color, Commands, Component, Transform},
+    math::Vec2,
+    prelude::{Color, Commands, Component},
     sprite::{Sprite, SpriteBundle},
 };
-use bevy_rapier2d::prelude::*;
 
 #[derive(Component)]
 pub struct Arrow;
 
 /// Shoot a new arrow.
-pub fn spawn(position: Vec2, velocity: Vec2, mut commands: Commands) {
+pub fn spawn(position: Position, velocity: Velocity, commands: &mut Commands) {
     // The average arrow is 64cm long
     let size = Vec2::new(0.64, 0.05);
 
@@ -22,19 +25,9 @@ pub fn spawn(position: Vec2, velocity: Vec2, mut commands: Commands) {
             },
             ..Default::default()
         })
-        .insert_bundle(RigidBodyBundle {
-            position: position.into(),
-            velocity: RigidBodyVelocity {
-                linvel: velocity.into(),
-                angvel: 0.0,
-            }
-            .into(),
-            ..Default::default()
-        })
-        .insert_bundle(ColliderBundle {
-            shape: ColliderShape::cuboid(size.x / 2.0, size.y / 2.0).into(),
-            ..Default::default()
-        })
-        .insert(ColliderPositionSync::Discrete)
+        .insert(Projectile)
+        .insert(position)
+        .insert(velocity)
+        .insert(Gravity::default())
         .insert(Arrow);
 }

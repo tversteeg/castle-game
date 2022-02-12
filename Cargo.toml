@@ -20,7 +20,6 @@ is-it-maintained-issue-resolution = { repository = "tversteeg/castle-game" }
 [dependencies]
 bevy = "0.6"
 bevy_easings = "0.5.1"
-bevy_rapier2d = { version = "0.12.1", features = ["parallel", "wasm-bindgen", "simd-stable"] }
 
 # Always optimize rapier
 [profile.dev.package.bevy_rapier2d]

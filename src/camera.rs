@@ -1,34 +1,28 @@
-use crate::projectile::arrow::Arrow;
-use bevy::prelude::*;
-use bevy_rapier2d::prelude::*;
+use bevy::{
+    math::Vec3,
+    prelude::{App, Commands, OrthographicCameraBundle, Plugin, Transform, UiCameraBundle},
+};
 
-/// Camera object that is controlled by the user.
-#[derive(Component)]
-pub struct MainCamera {
-    /// Speed with which to move to the object.
-    speed_factor: f32,
-}
+/// How far the camera is zoomed in.
+pub const CAMERA_SCALE: f32 = 1.0 / 10.0;
 
-impl Default for MainCamera {
-    fn default() -> Self {
-        Self { speed_factor: 0.2 }
+/// The plugin to handle camera movements.
+pub struct CameraPlugin;
+
+impl Plugin for CameraPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_startup_system(setup);
     }
 }
 
-pub fn move_camera(
-    arrow: Query<&RigidBodyPositionComponent, With<Arrow>>,
-    mut camera: Query<(&mut Transform, &MainCamera)>,
-) {
-    // Get the position of the arrow
-    let position = arrow.single();
-    let arrow_translation = &position.position.translation;
-
-    // Get the transform of the main camera
-    let (mut camera_transform, main_camera): (Mut<Transform>, &MainCamera) = camera.single_mut();
-
-    // Move towards the arrow
-    camera_transform.translation.x +=
-        (arrow_translation.x - camera_transform.translation.x) * main_camera.speed_factor;
-    camera_transform.translation.y +=
-        (arrow_translation.y - camera_transform.translation.y) * main_camera.speed_factor;
+/// Initial setup for the camera.
+fn setup(mut commands: Commands) {
+    // Setup the cameras
+    let mut camera = OrthographicCameraBundle::new_2d();
+    camera.transform = Transform {
+        scale: Vec3::splat(CAMERA_SCALE),
+        ..Default::default()
+    };
+    commands.spawn_bundle(camera);
+    commands.spawn_bundle(UiCameraBundle::default());
 }
