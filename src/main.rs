@@ -1,13 +1,19 @@
 mod camera;
+mod geometry;
 mod map;
 mod physics;
 mod projectile;
 mod ui;
 mod unit;
 
-use crate::{camera::CameraPlugin, physics::PhysicsPlugin, ui::UiPlugin};
+use crate::{
+    camera::CameraPlugin, map::MapPlugin, physics::PhysicsPlugin, projectile::ProjectilePlugin,
+    ui::UiPlugin,
+};
 use bevy::prelude::*;
 use bevy_easings::EasingsPlugin;
+use bevy_inspector_egui::WorldInspectorPlugin;
+use geometry::GeometryPlugin;
 
 fn main() {
     App::new()
@@ -16,10 +22,13 @@ fn main() {
             width: 300.0,
             height: 300.0,
             title: "Castle Game".to_string(),
+            vsync: true,
             ..Default::default()
         })
         // Default, needed for physics
         .add_plugins(DefaultPlugins)
+        // Debug view
+        .add_plugin(WorldInspectorPlugin::new())
         // Transitions
         .add_plugin(EasingsPlugin)
         // The physics engine
@@ -28,20 +37,14 @@ fn main() {
         .add_plugin(CameraPlugin)
         // The UI with the FPS counter
         .add_plugin(UiPlugin)
-        .add_startup_system(map::setup_ground.system())
-        .add_startup_system(setup)
+        // The map
+        .add_plugin(MapPlugin)
+        // The projectiles
+        .add_plugin(ProjectilePlugin)
+        // The geometry
+        .add_plugin(GeometryPlugin)
         // Close when Esc is pressed
         .add_system(bevy::input::system::exit_on_esc_system)
+        .add_startup_system(projectile::rock::setup)
         .run();
-}
-
-/// Setup the basic bundles and objects.
-fn setup(mut commands: Commands) {
-    for x in 0..1000 {
-        projectile::arrow::spawn(
-            [0.0, 5.0 + x as f64].into(),
-            [1.0, 0.0].into(),
-            &mut commands,
-        );
-    }
 }

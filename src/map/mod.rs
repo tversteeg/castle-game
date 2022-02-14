@@ -1,16 +1,15 @@
-use bevy::prelude::*;
+pub mod terrain;
 
-/// Setup the ground physics system.
-pub fn setup_ground(mut commands: Commands) {
-    let size = Vec2::new(100.0, 1.2);
+use self::terrain::Terrain;
+use bevy::prelude::{App, Plugin};
+use bevy_inspector_egui::RegisterInspectable;
 
-    // Create the ground box
-    commands.spawn_bundle(SpriteBundle {
-        sprite: Sprite {
-            custom_size: size.into(),
-            color: Color::rgb(0.0, 0.6, 0.0),
-            ..Default::default()
-        },
-        ..Default::default()
-    });
+/// The plugin to manage the map.
+pub struct MapPlugin;
+
+impl Plugin for MapPlugin {
+    fn build(&self, app: &mut App) {
+        app.register_inspectable::<Terrain>()
+            .add_startup_system(terrain::setup);
+    }
 }

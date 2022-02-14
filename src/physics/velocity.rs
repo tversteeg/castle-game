@@ -1,7 +1,8 @@
-use crate::physics::{position::Position, TIME_STEP};
+use crate::physics::position::Position;
 use bevy::{
+    core::Time,
     math::Vec2,
-    prelude::{Component, Query},
+    prelude::{Component, Query, Res},
 };
 
 /// Offset that gets added to world position every second.
@@ -37,9 +38,9 @@ impl From<[f64; 2]> for Velocity {
 }
 
 /// Add the velocities to the positions.
-pub fn system(mut query: Query<(&mut Position, &Velocity)>) {
+pub fn system(time: Res<Time>, mut query: Query<(&mut Position, &Velocity)>) {
     for (mut pos, vel) in query.iter_mut() {
-        pos.x += vel.x * TIME_STEP;
-        pos.y += vel.y * TIME_STEP;
+        pos.x += vel.x * time.delta_seconds_f64();
+        pos.y += vel.y * time.delta_seconds_f64();
     }
 }

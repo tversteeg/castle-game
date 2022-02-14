@@ -1,6 +1,19 @@
 pub mod arrow;
+pub mod rock;
 
-use bevy::prelude::Component;
+use self::{arrow::Arrow, rock::Rock};
+use bevy::prelude::{App, Component, Plugin};
+use bevy_inspector_egui::RegisterInspectable;
 
 #[derive(Component)]
 pub struct Projectile;
+
+/// The plugin to register projectiles.
+pub struct ProjectilePlugin;
+
+impl Plugin for ProjectilePlugin {
+    fn build(&self, app: &mut App) {
+        app.register_inspectable::<Rock>()
+            .register_inspectable::<Arrow>();
+    }
+}

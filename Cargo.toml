@@ -19,8 +19,10 @@ is-it-maintained-issue-resolution = { repository = "tversteeg/castle-game" }
 
 [dependencies]
 bevy = "0.6"
+bevy-inspector-egui = "0.8.1"
 bevy_easings = "0.5.1"
-
-# Always optimize rapier
-[profile.dev.package.bevy_rapier2d]
-opt-level = 3
+earcutr = "0.2.0"
+geo = "0.18.0"
+geo-booleanop = "0.3.2"
+heron = { version = "1.1.0", features = ["debug-2d"] }
+rand = "0.8.5"

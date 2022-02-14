@@ -7,8 +7,9 @@ use bevy::{
     prelude::{Color, Commands, Component},
     sprite::{Sprite, SpriteBundle},
 };
+use bevy_inspector_egui::Inspectable;
 
-#[derive(Component)]
+#[derive(Component, Inspectable)]
 pub struct Arrow;
 
 /// Shoot a new arrow.
