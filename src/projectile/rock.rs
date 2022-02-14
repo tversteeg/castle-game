@@ -1,4 +1,4 @@
-use crate::geometry::polygon::PolygonBundle;
+use crate::geometry::{breakable::Breakable, polygon::PolygonBundle};
 use bevy::{
     core::Name,
     math::Vec2,
@@ -71,7 +71,8 @@ pub fn setup(
                 &mut meshes,
                 &mut materials,
             ))
-            .insert(Name::new("Rock"))
-            .insert(RigidBody::Dynamic);
+            .insert(RigidBody::Dynamic)
+            .insert(Breakable)
+            .insert(Name::new("Rock"));
     });
 }

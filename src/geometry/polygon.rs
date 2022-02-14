@@ -101,7 +101,7 @@ impl ToCollisionShape for Polygon<f32> {
 }
 
 /// Wrapping the polygon with a component for the bundle.
-#[derive(Component, Inspectable)]
+#[derive(Debug, Component, Inspectable)]
 pub struct PolygonComponent(#[inspectable(ignore)] Polygon<f32>);
 
 /// The polygon component.
