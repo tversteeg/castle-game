@@ -40,8 +40,8 @@ impl Rock {
 
                 // Generate the X & Y coordinates by taking the offset from the center and randomly
                 // moving it a distance
-                let x = angle.sin() * rng.gen_range::<f32, _>(0.5..1.0);
-                let y = angle.cos() * rng.gen_range::<f32, _>(0.5..1.0);
+                let x = angle.sin() * rng.gen_range::<f32, _>(0.8..1.0);
+                let y = angle.cos() * rng.gen_range::<f32, _>(0.8..1.0);
 
                 (x, y)
             })
@@ -67,7 +67,7 @@ pub fn setup(
             .spawn_bundle(PolygonBundle::new(
                 rock.shape,
                 Color::GRAY,
-                Vec2::new(0.0, 10.0 + y as f32),
+                Vec2::new(0.0, 20.0 + y as f32),
                 &mut meshes,
                 &mut materials,
             ))

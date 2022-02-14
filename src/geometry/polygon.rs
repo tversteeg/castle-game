@@ -5,8 +5,11 @@ use bevy::{
     sprite::{ColorMaterial, MaterialMesh2dBundle},
 };
 use bevy_inspector_egui::Inspectable;
-use geo::Polygon;
-use heron::CollisionShape;
+use geo::{prelude::IsConvex, Polygon};
+use heron::{
+    rapier_plugin::rapier2d::{math::Point, prelude::ColliderBuilder},
+    CollisionShape, CustomCollisionShape,
+};
 
 /// Convert a geo polygon to a mesh.
 pub trait ToMesh {
@@ -68,16 +71,31 @@ pub trait ToCollisionShape {
 
 impl ToCollisionShape for Polygon<f32> {
     fn to_collision_shape(&self) -> CollisionShape {
-        // Convert the polygon points to coordinates
-        let points = self
-            .exterior()
-            .points_iter()
-            .map(|point| Vec3::new(point.x(), point.y(), 0.0))
-            .collect::<Vec<_>>();
+        // If the polygon is convex just create a convex hull for it, which is better performance-wise
+        if self.exterior().is_convex() {
+            // Convert the polygon points to coordinates
+            let points = self
+                .exterior()
+                .points_iter()
+                .map(|point| Vec3::new(point.x(), point.y(), 0.0))
+                .collect::<Vec<_>>();
 
-        CollisionShape::ConvexHull {
-            points,
-            border_radius: None,
+            CollisionShape::ConvexHull {
+                points,
+                border_radius: None,
+            }
+        } else {
+            // Convert the polygon points to coordinates
+            let points = self
+                .exterior()
+                .points_iter()
+                .map(|point| Point::new(point.x(), point.y()))
+                .collect::<Vec<_>>();
+
+            // Create a custom collider for a concave hull
+            let shape = CustomCollisionShape::new(ColliderBuilder::polyline(points, None));
+
+            CollisionShape::Custom { shape }
         }
     }
 }

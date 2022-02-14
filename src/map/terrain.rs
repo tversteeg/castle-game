@@ -30,7 +30,7 @@ impl Terrain {
             .map(|index| {
                 let x = -50.0 + (index as f32 / points as f32) * 100.0;
                 // Generate a random height
-                let y = rng.gen_range::<f32, _>(5.0..17.0);
+                let y = rng.gen_range::<f32, _>(5.0..10.0);
 
                 (x, y)
             })
