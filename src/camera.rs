@@ -4,7 +4,7 @@ use bevy::{
 };
 
 /// How far the camera is zoomed in.
-pub const CAMERA_SCALE: f32 = 1.0 / 7.0;
+pub const CAMERA_SCALE: f32 = 1.0 / 10.0;
 
 /// The plugin to handle camera movements.
 pub struct CameraPlugin;

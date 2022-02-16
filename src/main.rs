@@ -1,5 +1,6 @@
 mod camera;
 mod geometry;
+mod log;
 mod map;
 mod physics;
 mod projectile;
@@ -10,23 +11,40 @@ use crate::{
     camera::CameraPlugin, map::MapPlugin, physics::PhysicsPlugin, projectile::ProjectilePlugin,
     ui::UiPlugin,
 };
-use bevy::prelude::*;
+use bevy::{
+    log::{Level, LogPlugin, LogSettings},
+    prelude::*,
+};
 use bevy_easings::EasingsPlugin;
 use bevy_inspector_egui::WorldInspectorPlugin;
 use geometry::GeometryPlugin;
+use log::CustomLogPlugin;
 
 fn main() {
+    // Print pretty errors in wasm https://github.com/rustwasm/console_error_panic_hook
+    #[cfg(target_arch = "wasm32")]
+    console_error_panic_hook::set_once();
+
     App::new()
         // Setup the window
         .insert_resource(WindowDescriptor {
-            width: 300.0,
-            height: 300.0,
+            width: 800.0,
+            height: 600.0,
             title: "Castle Game".to_string(),
-            vsync: true,
+            // The canvas ID when running in WASM
+            #[cfg(target_arch = "wasm32")]
+            canvas: Some("#bevy_canvas".to_string()),
             ..Default::default()
         })
-        // Default, needed for physics
-        .add_plugins(DefaultPlugins)
+        // More verbose logging
+        .insert_resource(LogSettings {
+            level: Level::DEBUG,
+            filter: "wgpu=error,bevy_render=info,winit=info,bevy_app=info,naga=info".to_string(),
+        })
+        // Default, needed for physics, but use our own log plugin
+        .add_plugins_with(DefaultPlugins, |group| group.disable::<LogPlugin>())
+        // Our custom log plugin for tracing
+        .add_plugin(CustomLogPlugin)
         // Debug view
         .add_plugin(WorldInspectorPlugin::new())
         // Transitions

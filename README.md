@@ -37,6 +37,19 @@ To build the project you need to have [Rust](https://www.rustup.rs/) installed.
 
 You need to install [CMake](https://cmake.org/) and make sure it's in your path.
 
+### WASM
+
+```sh
+rustup target add wasm32-unknown-unknown
+cargo install wasm-bindgen-cli
+
+cargo build --release --target wasm32-unknown-unknown
+wasm-bindgen --out-name castle-game --out-dir web --target web target/wasm32-unknown-unknown/release/castle-game.wasm
+
+cargo install basic-http-server
+(cd web && basic-http-server)
+```
+
 ## Run
 
 Check out the repository with git and build:

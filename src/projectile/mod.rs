@@ -14,6 +14,7 @@ pub struct ProjectilePlugin;
 impl Plugin for ProjectilePlugin {
     fn build(&self, app: &mut App) {
         app.register_inspectable::<Rock>()
-            .register_inspectable::<Arrow>();
+            .register_inspectable::<Arrow>()
+            .add_system(rock::break_event_listener);
     }
 }

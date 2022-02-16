@@ -1,18 +1,25 @@
-use crate::geometry::{breakable::Breakable, polygon::PolygonBundle};
+use crate::geometry::{
+    breakable::{BreakEvent, Breakable},
+    polygon::PolygonBundle,
+    split::Split,
+};
 use bevy::{
     core::Name,
-    math::Vec2,
-    prelude::{Assets, Color, Commands, Component, Mesh, ResMut},
+    math::{Vec2, Vec3},
+    prelude::{
+        Assets, Color, Commands, Component, DespawnRecursiveExt, Entity, EventReader, Mesh, Query,
+        ResMut, Transform,
+    },
     sprite::ColorMaterial,
 };
 use bevy_inspector_egui::Inspectable;
-use geo::{LineString, Polygon};
-use heron::RigidBody;
+use geo::{prelude::BoundingRect, Coordinate, LineString, Polygon, Rect};
+use heron::{RigidBody, Velocity};
 use rand::Rng;
 use std::f32::consts::TAU;
 
 /// A rock projectile that can split into smaller rocks on impact.
-#[derive(Component, Inspectable)]
+#[derive(Debug, Component, Inspectable)]
 pub struct Rock {
     /// The rock's shape.
     #[inspectable(ignore)]
@@ -52,6 +59,51 @@ impl Rock {
 
         Self { shape }
     }
+
+    /// Spawn the rock.
+    pub fn spawn(
+        self,
+        position: Vec2,
+        velocity: Velocity,
+        breakable: bool,
+        commands: &mut Commands,
+        meshes: &mut Assets<Mesh>,
+        materials: &mut Assets<ColorMaterial>,
+    ) {
+        if breakable {
+            commands
+                .spawn_bundle(PolygonBundle::new(
+                    &self.shape,
+                    Color::GRAY,
+                    position,
+                    meshes,
+                    materials,
+                ))
+                .insert(self)
+                .insert(velocity)
+                .insert(RigidBody::Dynamic)
+                .insert(Breakable::default())
+                .insert(Name::new("Rock"));
+        } else {
+            commands
+                .spawn_bundle(PolygonBundle::new(
+                    &self.shape,
+                    Color::GRAY,
+                    position,
+                    meshes,
+                    materials,
+                ))
+                .insert(self)
+                .insert(velocity)
+                .insert(RigidBody::Dynamic)
+                .insert(Name::new("Broken Rock"));
+        }
+    }
+
+    /// Fracture the rock.
+    pub fn split(&self) -> Vec<Self> {
+        self.shape.split().map(|shape| Self { shape }).collect()
+    }
 }
 
 /// Load the rocks.
@@ -62,17 +114,46 @@ pub fn setup(
 ) {
     (0..20).into_iter().for_each(|y| {
         let rock = Rock::new();
-
-        commands
-            .spawn_bundle(PolygonBundle::new(
-                rock.shape,
-                Color::GRAY,
-                Vec2::new(0.0, 20.0 + y as f32),
-                &mut meshes,
-                &mut materials,
-            ))
-            .insert(RigidBody::Dynamic)
-            .insert(Breakable)
-            .insert(Name::new("Rock"));
+        rock.spawn(
+            Vec2::new(y as f32 * 2.0, 30.0 + y as f32 * 10.0),
+            Velocity::from_linear(Vec3::default()),
+            true,
+            &mut commands,
+            &mut meshes,
+            &mut materials,
+        );
     });
+}
+
+/// The system for breaking on hard impacts.
+pub fn break_event_listener(
+    mut events: EventReader<BreakEvent>,
+    query: Query<(Entity, &Rock, &Transform, &Velocity)>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    events
+        .iter()
+        .filter_map(|break_event| query.get(break_event.entity).ok())
+        .for_each(|(entity, rock, transform, velocity)| {
+            // Get the XY position of the previous rock
+            let pos = transform.translation.truncate();
+
+            // Remove the old rock
+            commands.entity(entity).despawn_recursive();
+
+            // Fracture the rock
+            rock.split().into_iter().for_each(|new_rock| {
+                // Only allow the rocks to split once
+                new_rock.spawn(
+                    pos,
+                    *velocity,
+                    false,
+                    &mut commands,
+                    &mut meshes,
+                    &mut materials,
+                );
+            });
+        });
 }

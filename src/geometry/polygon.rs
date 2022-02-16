@@ -3,12 +3,13 @@ use bevy::{
     prelude::{Assets, Bundle, Color, Component, Mesh, Transform},
     render::{mesh::Indices, render_resource::PrimitiveTopology},
     sprite::{ColorMaterial, MaterialMesh2dBundle},
+    utils::tracing,
 };
 use bevy_inspector_egui::Inspectable;
 use geo::{prelude::IsConvex, Polygon};
 use heron::{
     rapier_plugin::rapier2d::{math::Point, prelude::ColliderBuilder},
-    CollisionShape, CustomCollisionShape,
+    CollisionShape, CustomCollisionShape, Velocity,
 };
 
 /// Convert a geo polygon to a mesh.
@@ -18,19 +19,10 @@ pub trait ToMesh {
 }
 
 impl ToMesh for Polygon<f32> {
+    #[tracing::instrument(name = "converting polygon to mesh")]
     fn to_mesh(&self) -> Mesh {
-        // Convert the polygon points to coordinates
-        let coordinates = self
-            .exterior()
-            .points_iter()
-            .map(|point| vec![point.x(), point.y()])
-            .collect::<Vec<Vec<_>>>();
-
-        // Convert the coordinates to indices and holes
-        let (vertices, hole_indices, dimensions) = earcutr::flatten(&vec![coordinates]);
-
-        // Triangulate the polygon
-        let indices = earcutr::earcut(&vertices, &hole_indices, dimensions);
+        // Convert the polygon to triangles
+        let (vertices, indices) = self.triangulate();
 
         // Create a new mesh.
         let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
@@ -70,9 +62,10 @@ pub trait ToCollisionShape {
 }
 
 impl ToCollisionShape for Polygon<f32> {
+    #[tracing::instrument(name = "converting polygon to collision shape")]
     fn to_collision_shape(&self) -> CollisionShape {
         // If the polygon is convex just create a convex hull for it, which is better performance-wise
-        if self.exterior().is_convex() {
+        if self.exterior().is_convex() || true {
             // Convert the polygon points to coordinates
             let points = self
                 .exterior()
@@ -100,14 +93,42 @@ impl ToCollisionShape for Polygon<f32> {
     }
 }
 
-/// Wrapping the polygon with a component for the bundle.
+/// Triangulate a polygon.
+trait Triangulate {
+    /// Triangulate using earcutr.
+    ///
+    /// Returns vertices and indices.
+    fn triangulate(&self) -> (Vec<f32>, Vec<usize>);
+}
+
+impl Triangulate for Polygon<f32> {
+    #[tracing::instrument(name = "triangulating polygon")]
+    fn triangulate(&self) -> (Vec<f32>, Vec<usize>) {
+        // Convert the polygon points to coordinates
+        let coordinates = self
+            .exterior()
+            .points_iter()
+            .map(|point| vec![point.x(), point.y()])
+            .collect::<Vec<Vec<_>>>();
+
+        // Convert the coordinates to indices and holes
+        let (vertices, hole_indices, dimensions) = earcutr::flatten(&vec![coordinates]);
+
+        // Triangulate the polygon
+        let indices = earcutr::earcut(&vertices, &hole_indices, dimensions);
+
+        (vertices, indices)
+    }
+}
+
+/// Mark the entity as a polygon.
 #[derive(Debug, Component, Inspectable)]
-pub struct PolygonComponent(#[inspectable(ignore)] Polygon<f32>);
+pub struct PolygonComponent;
 
 /// The polygon component.
 #[derive(Bundle, Inspectable)]
 pub struct PolygonBundle {
-    /// The polygon shape.
+    /// Marking it as a polygon.
     shape: PolygonComponent,
     /// The mesh and the material.
     #[bundle]
@@ -116,12 +137,15 @@ pub struct PolygonBundle {
     /// The collision shape.
     #[inspectable(ignore)]
     collision_shape: CollisionShape,
+    /// The velocity.
+    #[inspectable(ignore)]
+    velocity: Velocity,
 }
 
 impl PolygonBundle {
     /// Construct a new polygon with a single color and position.
     pub fn new(
-        polygon: Polygon<f32>,
+        polygon: &Polygon<f32>,
         color: Color,
         position: Vec2,
         meshes: &mut Assets<Mesh>,
@@ -140,12 +164,15 @@ impl PolygonBundle {
             ..Default::default()
         };
 
-        let shape = PolygonComponent(polygon);
+        let shape = PolygonComponent;
+
+        let velocity = Velocity::default();
 
         Self {
             shape,
             material_mesh,
             collision_shape,
+            velocity,
         }
     }
 }

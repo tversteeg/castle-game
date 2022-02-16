@@ -54,7 +54,7 @@ pub fn setup(
 
     commands
         .spawn_bundle(PolygonBundle::new(
-            terrain.shape,
+            &terrain.shape,
             Color::GRAY,
             Vec2::new(0.0, 0.0),
             &mut meshes,
