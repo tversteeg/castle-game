@@ -1,7 +1,4 @@
-use crate::{
-    physics::{gravity::Gravity, position::Position, velocity::Velocity},
-    projectile::Projectile,
-};
+use crate::projectile::Projectile;
 use bevy::{
     math::Vec2,
     prelude::{Color, Commands, Component},
@@ -13,7 +10,7 @@ use bevy_inspector_egui::Inspectable;
 pub struct Arrow;
 
 /// Shoot a new arrow.
-pub fn spawn(position: Position, velocity: Velocity, commands: &mut Commands) {
+pub fn spawn(commands: &mut Commands) {
     // The average arrow is 64cm long
     let size = Vec2::new(0.64, 0.05);
 
@@ -27,8 +24,5 @@ pub fn spawn(position: Position, velocity: Velocity, commands: &mut Commands) {
             ..Default::default()
         })
         .insert(Projectile)
-        .insert(position)
-        .insert(velocity)
-        .insert(Gravity::default())
         .insert(Arrow);
 }

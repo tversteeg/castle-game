@@ -1,13 +1,16 @@
-use crate::geometry::polygon::PolygonBundle;
+use crate::geometry::polygon::{PolygonBundle, ToColliderShape};
 use bevy::{
     core::Name,
     math::Vec2,
-    prelude::{Assets, Color, Commands, Component, GlobalTransform, Mesh, ResMut},
+    prelude::{Assets, Color, Commands, Component, Mesh, ResMut},
     sprite::ColorMaterial,
 };
 use bevy_inspector_egui::Inspectable;
+use bevy_rapier2d::{
+    physics::{ColliderBundle, RigidBodyBundle},
+    prelude::{ActiveEvents, RigidBodyType},
+};
 use geo::{LineString, Polygon};
-use heron::RigidBody;
 use rand::Rng;
 
 /// The destructible ground.
@@ -30,7 +33,7 @@ impl Terrain {
             .map(|index| {
                 let x = -50.0 + (index as f32 / points as f32) * 100.0;
                 // Generate a random height
-                let y = rng.gen_range::<f32, _>(5.0..10.0);
+                let y = x / 5.0 + rng.gen_range::<f32, _>(9.8..10.0);
 
                 (x, y)
             })
@@ -50,16 +53,28 @@ pub fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    let terrain = Terrain::new(20);
+    let terrain = Terrain::new(2);
 
     commands
         .spawn_bundle(PolygonBundle::new(
             &terrain.shape,
             Color::GRAY,
-            Vec2::new(0.0, 0.0),
+            Vec2::ZERO,
             &mut meshes,
             &mut materials,
         ))
-        .insert(Name::new("Terrain"))
-        .insert(RigidBody::Static);
+        .insert_bundle(RigidBodyBundle {
+            body_type: RigidBodyType::Static.into(),
+            ..Default::default()
+        })
+        .insert_bundle(ColliderBundle {
+            shape: terrain.shape.to_collider_shape().into(),
+            // Register to collision events
+            flags: (ActiveEvents::INTERSECTION_EVENTS | ActiveEvents::CONTACT_EVENTS).into(),
+            // TODO
+            // restitution: 0.2,
+            // friction: 0.4,
+            ..Default::default()
+        })
+        .insert(Name::new("Terrain"));
 }

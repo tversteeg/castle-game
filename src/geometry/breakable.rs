@@ -1,7 +1,9 @@
-use super::polygon::PolygonComponent;
-use bevy::prelude::{Component, Entity, EventReader, EventWriter, Query, With};
+use bevy::prelude::{Component, Entity, EventReader, EventWriter, Query};
 use bevy_inspector_egui::Inspectable;
-use heron::{CollisionEvent, CollisionShape, Velocity};
+use bevy_rapier2d::{
+    physics::IntoEntity,
+    prelude::{ContactEvent, RigidBodyVelocityComponent},
+};
 
 /// Allow a polygon to break into multiple pieces when force is applied.
 #[derive(Component, Inspectable)]
@@ -13,7 +15,7 @@ pub struct Breakable {
 impl Default for Breakable {
     fn default() -> Self {
         Self {
-            impact_velocity: 5.0,
+            impact_velocity: 3.0,
         }
     }
 }
@@ -28,17 +30,20 @@ pub struct BreakEvent {
 
 /// Check collision events for when enough force is applied.
 pub fn system(
-    mut events: EventReader<CollisionEvent>,
-    query: Query<(Entity, &Velocity, &Breakable)>,
+    mut events: EventReader<ContactEvent>,
+    query: Query<(Entity, &RigidBodyVelocityComponent, &Breakable)>,
     mut event_writer: EventWriter<BreakEvent>,
 ) {
     for event in events.iter() {
-        if let CollisionEvent::Started(collision_object, _) = event {
-            let entity = collision_object.rigid_body_entity();
-            if let Ok((entity, velocity, breakable)) = query.get(entity) {
+        if let ContactEvent::Started(collision_object_1, collision_object_2) = event {
+            // Try to get the breakable entity from both sides of the collision
+            if let Ok((entity, velocity, breakable)) = query
+                .get(collision_object_1.entity())
+                .or(query.get(collision_object_2.entity()))
+            {
                 // "Calculate" the impact velocity
                 // TODO: use better velocity calculation
-                let impact_velocity = velocity.linear.length();
+                let impact_velocity = -velocity.0.linvel.y;
 
                 // Check the velocity to see if we need to split it
                 if impact_velocity >= breakable.impact_velocity {

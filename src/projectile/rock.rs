@@ -1,11 +1,11 @@
 use crate::geometry::{
     breakable::{BreakEvent, Breakable},
-    polygon::PolygonBundle,
+    polygon::{PolygonBundle, ToColliderShape},
     split::Split,
 };
 use bevy::{
     core::Name,
-    math::{Vec2, Vec3},
+    math::Vec2,
     prelude::{
         Assets, Color, Commands, Component, DespawnRecursiveExt, Entity, EventReader, Mesh, Query,
         ResMut, Transform,
@@ -13,8 +13,15 @@ use bevy::{
     sprite::ColorMaterial,
 };
 use bevy_inspector_egui::Inspectable;
-use geo::{prelude::BoundingRect, Coordinate, LineString, Polygon, Rect};
-use heron::{RigidBody, Velocity};
+use bevy_rapier2d::{
+    physics::{ColliderBundle, RigidBodyBundle, RigidBodyPositionSync},
+    prelude::{
+        ActiveEvents, ColliderMassProps, RigidBodyCcd, RigidBodyType, RigidBodyVelocity,
+        RigidBodyVelocityComponent,
+    },
+};
+use geo::{prelude::Area, LineString, Polygon};
+use itertools::Itertools;
 use rand::Rng;
 use std::f32::consts::TAU;
 
@@ -28,7 +35,7 @@ pub struct Rock {
 
 impl Rock {
     /// Generate a new rock.
-    pub fn new() -> Self {
+    pub fn new(size: f32) -> Self {
         // Setup the random generator
         let mut rng = rand::thread_rng();
 
@@ -47,8 +54,8 @@ impl Rock {
 
                 // Generate the X & Y coordinates by taking the offset from the center and randomly
                 // moving it a distance
-                let x = angle.sin() * rng.gen_range::<f32, _>(0.8..1.0);
-                let y = angle.cos() * rng.gen_range::<f32, _>(0.8..1.0);
+                let x = angle.sin() * size * rng.gen_range::<f32, _>(0.6..1.0);
+                let y = angle.cos() * size * rng.gen_range::<f32, _>(0.6..1.0);
 
                 (x, y)
             })
@@ -64,39 +71,72 @@ impl Rock {
     pub fn spawn(
         self,
         position: Vec2,
-        velocity: Velocity,
-        breakable: bool,
+        rotation: f32,
+        velocity: RigidBodyVelocity,
         commands: &mut Commands,
         meshes: &mut Assets<Mesh>,
         materials: &mut Assets<ColorMaterial>,
     ) {
-        if breakable {
+        // Get the area of the new rock
+        let area = self.shape.unsigned_area();
+
+        if area < 0.3 {
+            // Don't spawn very small pieces
+            return;
+        }
+
+        // Setup the rendering shape
+        let polygon_bundle =
+            PolygonBundle::new(&self.shape, Color::GRAY, position, meshes, materials);
+
+        // Setup the physics
+        let mut rigid_body_bundle = RigidBodyBundle {
+            position: (position, rotation).into(),
+            velocity: velocity.into(),
+            ccd: RigidBodyCcd {
+                ccd_enabled: true,
+                ..Default::default()
+            }
+            .into(),
+            body_type: RigidBodyType::Dynamic.into(),
+            ..Default::default()
+        };
+        let collider_bundle = ColliderBundle {
+            shape: self.shape.to_collider_shape().into(),
+            mass_properties: ColliderMassProps::Density(2.0).into(),
+            // Register to collision events
+            flags: ActiveEvents::CONTACT_EVENTS.into(),
+            // TODO
+            // restitution: 0.1,
+            // friction: 0.3,
+            ..Default::default()
+        };
+
+        // If we are big chunk break even further
+        if area > 2.0 {
             commands
-                .spawn_bundle(PolygonBundle::new(
-                    &self.shape,
-                    Color::GRAY,
-                    position,
-                    meshes,
-                    materials,
-                ))
+                .spawn()
                 .insert(self)
-                .insert(velocity)
-                .insert(RigidBody::Dynamic)
+                .insert_bundle(polygon_bundle)
+                .insert_bundle(rigid_body_bundle)
+                .insert_bundle(collider_bundle)
+                // Sync with bevy transform
+                .insert(RigidBodyPositionSync::Discrete)
                 .insert(Breakable::default())
                 .insert(Name::new("Rock"));
         } else {
+            // Disable CCD for parts that can't break further
+            rigid_body_bundle.ccd.0.ccd_enabled = false;
+
             commands
-                .spawn_bundle(PolygonBundle::new(
-                    &self.shape,
-                    Color::GRAY,
-                    position,
-                    meshes,
-                    materials,
-                ))
+                .spawn()
                 .insert(self)
-                .insert(velocity)
-                .insert(RigidBody::Dynamic)
-                .insert(Name::new("Broken Rock"));
+                .insert_bundle(polygon_bundle)
+                .insert_bundle(rigid_body_bundle)
+                .insert_bundle(collider_bundle)
+                // Sync with bevy transform
+                .insert(RigidBodyPositionSync::Discrete)
+                .insert(Name::new("Rock Fragment"));
         }
     }
 
@@ -113,11 +153,11 @@ pub fn setup(
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     (0..20).into_iter().for_each(|y| {
-        let rock = Rock::new();
+        let rock = Rock::new(1.0 + y as f32 / 50.0);
         rock.spawn(
-            Vec2::new(y as f32 * 2.0, 30.0 + y as f32 * 10.0),
-            Velocity::from_linear(Vec3::default()),
-            true,
+            Vec2::new(y as f32 * 2.0, 15.0 + y as f32 * 3.0),
+            0.0,
+            RigidBodyVelocity::default(),
             &mut commands,
             &mut meshes,
             &mut materials,
@@ -128,17 +168,21 @@ pub fn setup(
 /// The system for breaking on hard impacts.
 pub fn break_event_listener(
     mut events: EventReader<BreakEvent>,
-    query: Query<(Entity, &Rock, &Transform, &Velocity)>,
+    query: Query<(Entity, &Rock, &Transform, &RigidBodyVelocityComponent)>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     events
         .iter()
+        // Remove duplicate entities
+        // TODO: find if there's a better way of not throwing duplicate events in the first place
+        .dedup_by(|event1, event2| event1.entity.id() == event2.entity.id())
+        // Get the entities
         .filter_map(|break_event| query.get(break_event.entity).ok())
         .for_each(|(entity, rock, transform, velocity)| {
             // Get the XY position of the previous rock
-            let pos = transform.translation.truncate();
+            let position = transform.translation.truncate();
 
             // Remove the old rock
             commands.entity(entity).despawn_recursive();
@@ -147,9 +191,10 @@ pub fn break_event_listener(
             rock.split().into_iter().for_each(|new_rock| {
                 // Only allow the rocks to split once
                 new_rock.spawn(
-                    pos,
-                    *velocity,
-                    false,
+                    position,
+                    // TODO: fix rotation
+                    transform.rotation.to_axis_angle().1,
+                    velocity.0,
                     &mut commands,
                     &mut meshes,
                     &mut materials,

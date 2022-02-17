@@ -12,6 +12,7 @@ use crate::{
     ui::UiPlugin,
 };
 use bevy::{
+    ecs::schedule::ReportExecutionOrderAmbiguities,
     log::{Level, LogPlugin, LogSettings},
     prelude::*,
 };
@@ -41,6 +42,8 @@ fn main() {
             level: Level::DEBUG,
             filter: "wgpu=error,bevy_render=info,winit=info,bevy_app=info,naga=info".to_string(),
         })
+        // Tell us when some execution orders are ambiguous
+        .insert_resource(ReportExecutionOrderAmbiguities)
         // Default, needed for physics, but use our own log plugin
         .add_plugins_with(DefaultPlugins, |group| group.disable::<LogPlugin>())
         // Our custom log plugin for tracing

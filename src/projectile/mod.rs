@@ -1,8 +1,10 @@
 pub mod arrow;
 pub mod rock;
 
+use crate::geometry::GeometrySystem;
+
 use self::{arrow::Arrow, rock::Rock};
-use bevy::prelude::{App, Component, Plugin};
+use bevy::prelude::{App, Component, ParallelSystemDescriptorCoercion, Plugin};
 use bevy_inspector_egui::RegisterInspectable;
 
 #[derive(Component)]
@@ -15,6 +17,6 @@ impl Plugin for ProjectilePlugin {
     fn build(&self, app: &mut App) {
         app.register_inspectable::<Rock>()
             .register_inspectable::<Arrow>()
-            .add_system(rock::break_event_listener);
+            .add_system(rock::break_event_listener.after(GeometrySystem::BreakEvent));
     }
 }

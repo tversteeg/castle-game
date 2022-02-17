@@ -1,5 +1,5 @@
 use bevy::utils::tracing;
-use geo::prelude::BoundingRect;
+use geo::{prelude::BoundingRect, LineString};
 use geo_booleanop::boolean::BooleanOp;
 use geo_types::{Coordinate, Polygon, Rect};
 use rand::Rng;
@@ -32,18 +32,23 @@ impl Split<Polygon<f32>> for Polygon<f32> {
                 Rect::new(Coordinate { x: 0.0, y: 0.0 }, Coordinate { x: 1.0, y: 1.0 })
             });
 
-        // Convert the bounding box to a polygon so we can play with the coordinates
-        let mut random_shape = bounding_rect.to_polygon();
-
         // Add a new point to the at a random point
         let min = bounding_rect.min();
         let max = bounding_rect.max();
-        random_shape.exterior_mut(|exterior| {
-            exterior.0[1] = Coordinate {
-                x: rng.gen_range::<f32, _>(min.x..max.x),
-                y: rng.gen_range::<f32, _>(min.y..max.y),
-            };
-        });
+
+        // Create the random polygon
+        let random_shape = Polygon::new(
+            LineString::from(vec![
+                (
+                    rng.gen_range::<f32, _>(min.x..max.x),
+                    rng.gen_range::<f32, _>(min.y..max.y),
+                ),
+                (max.x, min.y),
+                (max.x, max.y),
+                (min.x, max.y),
+            ]),
+            vec![],
+        );
 
         // Get both sides of the object through boolean operations
         let side1 = self.intersection(&random_shape);

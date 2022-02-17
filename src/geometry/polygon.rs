@@ -1,16 +1,13 @@
 use bevy::{
-    math::{Vec2, Vec3},
+    math::Vec2,
     prelude::{Assets, Bundle, Color, Component, Mesh, Transform},
     render::{mesh::Indices, render_resource::PrimitiveTopology},
     sprite::{ColorMaterial, MaterialMesh2dBundle},
     utils::tracing,
 };
 use bevy_inspector_egui::Inspectable;
+use bevy_rapier2d::prelude::{ColliderShape, ColliderShapeComponent, RigidBodyVelocityComponent};
 use geo::{prelude::IsConvex, Polygon};
-use heron::{
-    rapier_plugin::rapier2d::{math::Point, prelude::ColliderBuilder},
-    CollisionShape, CustomCollisionShape, Velocity,
-};
 
 /// Convert a geo polygon to a mesh.
 pub trait ToMesh {
@@ -56,39 +53,29 @@ impl ToMesh for Polygon<f32> {
 }
 
 /// Convert a geo polygon to a collision shape.
-pub trait ToCollisionShape {
+pub trait ToColliderShape {
     /// Convert the polygon to a collision shape by taking the outline.
-    fn to_collision_shape(&self) -> CollisionShape;
+    fn to_collider_shape(&self) -> ColliderShape;
 }
 
-impl ToCollisionShape for Polygon<f32> {
+impl ToColliderShape for Polygon<f32> {
     #[tracing::instrument(name = "converting polygon to collision shape")]
-    fn to_collision_shape(&self) -> CollisionShape {
+    fn to_collider_shape(&self) -> ColliderShape {
+        // Convert the polygon points to coordinates
+        let points = self
+            .exterior()
+            .points_iter()
+            .map(|point| nalgebra::point![point.x(), point.y()])
+            .collect::<Vec<_>>();
+
         // If the polygon is convex just create a convex hull for it, which is better performance-wise
-        if self.exterior().is_convex() || true {
-            // Convert the polygon points to coordinates
-            let points = self
-                .exterior()
-                .points_iter()
-                .map(|point| Vec3::new(point.x(), point.y(), 0.0))
-                .collect::<Vec<_>>();
-
-            CollisionShape::ConvexHull {
-                points,
-                border_radius: None,
-            }
+        if self.exterior().is_convex() {
+            // TODO: handle error
+            ColliderShape::convex_hull(&points).unwrap()
         } else {
-            // Convert the polygon points to coordinates
-            let points = self
-                .exterior()
-                .points_iter()
-                .map(|point| Point::new(point.x(), point.y()))
-                .collect::<Vec<_>>();
-
-            // Create a custom collider for a concave hull
-            let shape = CustomCollisionShape::new(ColliderBuilder::polyline(points, None));
-
-            CollisionShape::Custom { shape }
+            // TODO: fix
+            // ColliderShape::polyline(points, None)
+            ColliderShape::convex_hull(&points).unwrap()
         }
     }
 }
@@ -136,10 +123,10 @@ pub struct PolygonBundle {
     material_mesh: MaterialMesh2dBundle<ColorMaterial>,
     /// The collision shape.
     #[inspectable(ignore)]
-    collision_shape: CollisionShape,
+    collider_shape: ColliderShapeComponent,
     /// The velocity.
     #[inspectable(ignore)]
-    velocity: Velocity,
+    velocity: RigidBodyVelocityComponent,
 }
 
 impl PolygonBundle {
@@ -152,7 +139,7 @@ impl PolygonBundle {
         materials: &mut Assets<ColorMaterial>,
     ) -> Self {
         // Create the collision shape
-        let collision_shape = polygon.to_collision_shape();
+        let collider_shape = ColliderShapeComponent(polygon.to_collider_shape());
 
         let material_mesh = MaterialMesh2dBundle {
             // Create the mesh and add it to the global list of meshes
@@ -166,12 +153,12 @@ impl PolygonBundle {
 
         let shape = PolygonComponent;
 
-        let velocity = Velocity::default();
+        let velocity = RigidBodyVelocityComponent::default();
 
         Self {
             shape,
             material_mesh,
-            collision_shape,
+            collider_shape,
             velocity,
         }
     }
