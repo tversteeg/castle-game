@@ -64,7 +64,7 @@ impl ToColliderShape for Polygon<f32> {
         // Convert the polygon points to coordinates
         let points = self
             .exterior()
-            .points_iter()
+            .points()
             .map(|point| nalgebra::point![point.x(), point.y()])
             .collect::<Vec<_>>();
 
@@ -94,7 +94,7 @@ impl Triangulate for Polygon<f32> {
         // Convert the polygon points to coordinates
         let coordinates = self
             .exterior()
-            .points_iter()
+            .points()
             .map(|point| vec![point.x(), point.y()])
             .collect::<Vec<Vec<_>>>();
 
