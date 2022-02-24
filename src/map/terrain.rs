@@ -33,7 +33,7 @@ impl Terrain {
             .map(|index| {
                 let x = -50.0 + (index as f32 / points as f32) * 100.0;
                 // Generate a random height
-                let y = x / 5.0 + rng.gen_range::<f32, _>(9.8..10.0);
+                let y = rng.gen_range::<f32, _>(9.0..10.0);
 
                 (x, y)
             })
@@ -53,7 +53,7 @@ pub fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    let terrain = Terrain::new(2);
+    let terrain = Terrain::new(20);
 
     commands
         .spawn_bundle(PolygonBundle::new(

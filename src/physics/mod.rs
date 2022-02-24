@@ -1,3 +1,5 @@
+pub mod resting;
+
 use bevy::prelude::{App, Plugin, ResMut};
 use bevy_rapier2d::{
     na::Vector2,
@@ -12,7 +14,8 @@ impl Plugin for PhysicsPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
             .add_plugin(RapierRenderPlugin)
-            .add_startup_system(setup);
+            .add_startup_system(setup)
+            .add_system(resting::system);
     }
 }
 

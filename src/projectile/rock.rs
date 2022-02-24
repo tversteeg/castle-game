@@ -1,7 +1,10 @@
-use crate::geometry::{
-    breakable::{BreakEvent, Breakable},
-    polygon::{PolygonBundle, ToColliderShape},
-    split::Split,
+use crate::{
+    geometry::{
+        breakable::{BreakEvent, Breakable},
+        polygon::{PolygonBundle, ToColliderShape},
+        split::Split,
+    },
+    physics::resting::RemoveAfterRestingFor,
 };
 use bevy::{
     core::Name,
@@ -123,6 +126,8 @@ impl Rock {
                 // Sync with bevy transform
                 .insert(RigidBodyPositionSync::Discrete)
                 .insert(Breakable::default())
+                // Remove after a longer while
+                .insert(RemoveAfterRestingFor::from_secs(3.0))
                 .insert(Name::new("Rock"));
         } else {
             // Disable CCD for parts that can't break further
@@ -136,6 +141,8 @@ impl Rock {
                 .insert_bundle(collider_bundle)
                 // Sync with bevy transform
                 .insert(RigidBodyPositionSync::Discrete)
+                // Remove after a short while
+                .insert(RemoveAfterRestingFor::from_secs(1.0))
                 .insert(Name::new("Rock Fragment"));
         }
     }
