@@ -1,10 +1,9 @@
+use crate::map::terrain::Terrain;
 use bevy::{
     core::Time,
     prelude::{Component, Query, Res, Transform},
 };
 use bevy_inspector_egui::Inspectable;
-
-use crate::map::terrain::Terrain;
 
 /// Allow a unit to walk across the map.
 #[derive(Debug, Component, Inspectable)]

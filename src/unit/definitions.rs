@@ -1,3 +1,4 @@
+use super::{health::Health, walk::Walk};
 use crate::{geometry::polygon::PolygonBundle, map::terrain::Terrain, unit::faction::Faction};
 use bevy::{
     core::Name,
@@ -6,8 +7,6 @@ use bevy::{
     sprite::ColorMaterial,
 };
 use geo::{Coordinate, Polygon, Rect};
-
-use super::walk::Walk;
 
 /// The starting position x coordinate for ally units.
 pub const ALLY_STARTING_POSITION: f32 = 5.0;
@@ -41,6 +40,7 @@ pub fn spawn_melee_soldier(
     commands
         .spawn_bundle(polygon)
         .insert(Walk::new(1.0))
+        .insert(Health::new(100.0))
         .insert(Name::new(match faction {
             Faction::Ally => "Allied Melee Soldier",
             Faction::Enemy => "Enemy Melee Soldier",

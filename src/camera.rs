@@ -36,7 +36,7 @@ fn setup(mut commands: Commands) {
         ..Default::default()
     };
 
-    camera.orthographic_projection.window_origin = WindowOrigin::Center;
+    camera.orthographic_projection.window_origin = WindowOrigin::BottomLeft;
 
     commands
         .spawn_bundle(camera)
@@ -57,12 +57,14 @@ pub fn system(
         // The camera should always be in the query
         let mut transform = query.iter_mut().next().unwrap();
 
-        let window_size = windows.get(event.id).unwrap();
+        // TODO: make maximum camera pan the window size
+        let _window_size = windows.get(event.id).unwrap();
 
         // Position the camera at the mouse
         transform.translation = Vec3::new(
-            50.0 + (-window_size.width() / 2.0 + event.position.x) / 10.0,
-            (-window_size.height() / 2.0 + event.position.y) / 10.0,
+            event.position.x / 10.0,
+            //(-window_size.height() / 2.0 + event.position.y) / 10.0,
+            0.0,
             0.0,
         );
     });

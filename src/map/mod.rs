@@ -10,7 +10,7 @@ pub struct MapPlugin;
 impl Plugin for MapPlugin {
     fn build(&self, app: &mut App) {
         app.register_inspectable::<Terrain>()
-            .insert_resource(Terrain::new(20))
+            .insert_resource(Terrain::new(100))
             .add_startup_system(terrain::setup);
     }
 }

@@ -162,7 +162,7 @@ pub fn setup(
     (0..20).into_iter().for_each(|y| {
         let rock = Rock::new(1.0 + y as f32 / 50.0);
         rock.spawn(
-            Vec2::new(y as f32 * 2.0, 15.0 + y as f32 * 3.0),
+            Vec2::new(10.0 + y as f32 * 2.0, 15.0 + y as f32 * 3.0),
             0.0,
             RigidBodyVelocity::default(),
             &mut commands,

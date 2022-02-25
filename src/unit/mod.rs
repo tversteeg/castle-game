@@ -4,7 +4,7 @@ pub mod health;
 pub mod human;
 pub mod walk;
 
-use self::{faction::Faction, human::Human, walk::Walk};
+use self::{faction::Faction, health::Health, human::Human, walk::Walk};
 use bevy::prelude::{App, Plugin};
 use bevy_inspector_egui::RegisterInspectable;
 
@@ -16,6 +16,7 @@ impl Plugin for UnitPlugin {
         app.register_inspectable::<Walk>()
             .register_inspectable::<Faction>()
             .register_inspectable::<Human>()
+            .register_inspectable::<Health>()
             .add_system(walk::system);
     }
 }

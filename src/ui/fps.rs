@@ -32,7 +32,7 @@ pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                         style: TextStyle {
                             font: asset_server.load("fonts/Pixerif.ttf"),
                             font_size: 12.0,
-                            color: Color::WHITE,
+                            color: Color::ORANGE_RED,
                         },
                     },
                     TextSection {
