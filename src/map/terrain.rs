@@ -2,7 +2,7 @@ use crate::geometry::polygon::{PolygonBundle, ToColliderShape};
 use bevy::{
     core::Name,
     math::Vec2,
-    prelude::{Assets, Color, Commands, Component, Mesh, ResMut},
+    prelude::{Assets, Color, Commands, Mesh, Res, ResMut},
     sprite::ColorMaterial,
 };
 use bevy_inspector_egui::Inspectable;
@@ -10,15 +10,21 @@ use bevy_rapier2d::{
     physics::{ColliderBundle, RigidBodyBundle},
     prelude::{ActiveEvents, RigidBodyType},
 };
-use geo::{LineString, Polygon};
+use geo::{prelude::BoundingRect, Coordinate, LineString, Polygon, Rect};
 use rand::Rng;
 
 /// The destructible ground.
-#[derive(Component, Inspectable)]
+#[derive(Inspectable)]
 pub struct Terrain {
     /// The vector mesh.
     #[inspectable(ignore)]
     shape: Polygon<f32>,
+    /// The heights of the top for detecting collisions.
+    #[inspectable(ignore)]
+    top_coordinates: LineString<f32>,
+    /// The bounding box for the top, to improve collision detection speed.
+    #[inspectable(ignore)]
+    top_coordinates_bounding_box: Rect<f32>,
 }
 
 impl Terrain {
@@ -27,34 +33,85 @@ impl Terrain {
         // Setup the random generator
         let mut rng = rand::thread_rng();
 
-        // Generate the shape
-        let vertices = (0..=points)
+        // Generate the top shape
+        let top_coordinates = (0..=points)
             .into_iter()
             .map(|index| {
-                let x = -50.0 + (index as f32 / points as f32) * 100.0;
+                let x = (index as f32 / points as f32) * 100.0;
                 // Generate a random height
                 let y = rng.gen_range::<f32, _>(9.0..10.0);
 
                 (x, y)
             })
-            // Add the required edges to create a square
-            .chain([(50.0, -5.0), (-50.0, -5.0)].into_iter())
             .collect::<Vec<_>>();
 
+        // Add the required edges to create a square
+        let vertices = top_coordinates
+            .iter()
+            .map(|coord| *coord)
+            .chain([(100.0, -5.0), (0.0, -5.0)].into_iter())
+            .collect::<Vec<_>>();
+
+        // Create the polygon
         let shape = Polygon::new(LineString::from(vertices), vec![]);
 
-        Self { shape }
+        // Create the top shape
+        let top_coordinates =
+            LineString(top_coordinates.into_iter().map(Coordinate::from).collect());
+
+        // Get the bounding box for quick calculations
+        let top_coordinates_bounding_box = top_coordinates
+            .bounding_rect()
+            .expect("Could not create bounding box for top coordinates of terrain");
+
+        Self {
+            shape,
+            top_coordinates,
+            top_coordinates_bounding_box,
+        }
+    }
+
+    /// Get the terrain height at the horizontal position.
+    pub fn height_at_x(&self, x: f32) -> f32 {
+        if x < self.top_coordinates_bounding_box.min().x
+            || x > self.top_coordinates_bounding_box.max().x
+        {
+            // The base terrain height out of bounds is always 0
+            0.0
+        } else {
+            // Find the line matching our x coordinate
+            let line = self
+                .top_coordinates
+                .lines()
+                .find(|line| x > line.start.x && x <= line.end.x)
+                .expect("Could not find line within bounding box for collision");
+
+            // Return the line height at that point
+            line.start.y + line.slope() * (x - line.start.x)
+        }
+    }
+
+    /// Check whether a point collides with the ground.
+    pub fn collides(&self, x: f32, y: f32) -> bool {
+        if y < self.top_coordinates_bounding_box.min().y {
+            // No collision when it's too high or outside of the horizontal bounds
+            false
+        } else if y > self.top_coordinates_bounding_box.max().y {
+            // Always collide when in horizontal bounds and lower than the ground's collision box
+            true
+        } else {
+            y >= self.height_at_x(x)
+        }
     }
 }
 
 /// Load the sprite.
 pub fn setup(
+    terrain: Res<Terrain>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    let terrain = Terrain::new(20);
-
     commands
         .spawn_bundle(PolygonBundle::new(
             &terrain.shape,
@@ -63,7 +120,10 @@ pub fn setup(
             &mut meshes,
             &mut materials,
         ))
-        .insert_bundle(RigidBodyBundle {
+        .insert(Name::new("Terrain Polygon"));
+
+    commands
+        .spawn_bundle(RigidBodyBundle {
             body_type: RigidBodyType::Static.into(),
             ..Default::default()
         })
@@ -76,5 +136,5 @@ pub fn setup(
             // friction: 0.4,
             ..Default::default()
         })
-        .insert(Name::new("Terrain"));
+        .insert(Name::new("Terrain Rigid Body"));
 }

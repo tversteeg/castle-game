@@ -1,4 +1,5 @@
 use bevy::{
+    core::Name,
     diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
     math::Rect,
     prelude::{AssetServer, Color, Commands, Component, Query, Res, TextBundle, With},
@@ -47,7 +48,8 @@ pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             },
             ..Default::default()
         })
-        .insert(FpsText);
+        .insert(FpsText)
+        .insert(Name::new("FPS Text"));
 }
 
 /// The sytem for updating the FPS.

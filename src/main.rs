@@ -9,7 +9,7 @@ mod unit;
 
 use crate::{
     camera::CameraPlugin, map::MapPlugin, physics::PhysicsPlugin, projectile::ProjectilePlugin,
-    ui::UiPlugin,
+    ui::UiPlugin, unit::UnitPlugin,
 };
 use bevy::{
     ecs::schedule::ReportExecutionOrderAmbiguities,
@@ -27,6 +27,8 @@ fn main() {
     console_error_panic_hook::set_once();
 
     App::new()
+        // The background color
+        .insert_resource(ClearColor(Color::WHITE))
         // Setup the window
         .insert_resource(WindowDescriptor {
             width: 800.0,
@@ -54,6 +56,8 @@ fn main() {
         .add_plugin(EasingsPlugin)
         // The physics engine
         .add_plugin(PhysicsPlugin)
+        // The units
+        .add_plugin(UnitPlugin)
         // The camera movements
         .add_plugin(CameraPlugin)
         // The UI with the FPS counter
@@ -67,5 +71,6 @@ fn main() {
         // Close when Esc is pressed
         .add_system(bevy::input::system::exit_on_esc_system)
         .add_startup_system(projectile::rock::setup)
+        .add_startup_system(unit::definitions::setup)
         .run();
 }

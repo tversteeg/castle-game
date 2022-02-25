@@ -39,9 +39,10 @@ console_error_panic_hook = "0.1.7"
 default = ["bevy_dynamic"]
 bevy_dynamic = ["bevy/dynamic"]
 
-# Always run release versions of slow crates
-[profile.dev.package.bevy_rapier2d]
-opt-level = 3
+# Don't make debug builds painfully slow
+[profile.dev]
+opt-level = 1
 
-[profile.dev.package.bevy]
+# Always run release versions of slow crates
+[profile.dev.package."*"]
 opt-level = 3

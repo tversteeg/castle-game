@@ -1,9 +1,11 @@
 use bevy::{
+    core::Name,
     math::Vec3,
     prelude::{
         App, Commands, Component, EventReader, GlobalTransform, OrthographicCameraBundle, Plugin,
         Query, Res, Transform, UiCameraBundle, With,
     },
+    render::camera::WindowOrigin,
     window::{CursorMoved, Windows},
 };
 
@@ -28,12 +30,21 @@ pub struct Camera;
 fn setup(mut commands: Commands) {
     // Setup the cameras
     let mut camera = OrthographicCameraBundle::new_2d();
+
     camera.transform = Transform {
         scale: Vec3::splat(CAMERA_SCALE),
         ..Default::default()
     };
-    commands.spawn_bundle(camera).insert(Camera);
-    commands.spawn_bundle(UiCameraBundle::default());
+
+    camera.orthographic_projection.window_origin = WindowOrigin::Center;
+
+    commands
+        .spawn_bundle(camera)
+        .insert(Camera)
+        .insert(Name::new("Camera"));
+    commands
+        .spawn_bundle(UiCameraBundle::default())
+        .insert(Name::new("UI Camera"));
 }
 
 /// The system for following the mouse with the camera.
@@ -50,7 +61,7 @@ pub fn system(
 
         // Position the camera at the mouse
         transform.translation = Vec3::new(
-            (-window_size.width() / 2.0 + event.position.x) / 10.0,
+            50.0 + (-window_size.width() / 2.0 + event.position.x) / 10.0,
             (-window_size.height() / 2.0 + event.position.y) / 10.0,
             0.0,
         );
