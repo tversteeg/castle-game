@@ -1,7 +1,7 @@
 use crate::{
     geometry::{
         breakable::{BreakEvent, Breakable},
-        polygon::{PolygonBundle, ToColliderShape},
+        polygon::{Polygon, PolygonShapeBundle, ToColliderShape},
         split::Split,
     },
     physics::resting::RemoveAfterRestingFor,
@@ -19,11 +19,11 @@ use bevy_inspector_egui::Inspectable;
 use bevy_rapier2d::{
     physics::{ColliderBundle, RigidBodyBundle, RigidBodyPositionSync},
     prelude::{
-        ActiveEvents, ColliderMassProps, RigidBodyCcd, RigidBodyType, RigidBodyVelocity,
-        RigidBodyVelocityComponent,
+        ActiveEvents, ColliderMassProps, ColliderShapeComponent, RigidBodyCcd, RigidBodyType,
+        RigidBodyVelocity, RigidBodyVelocityComponent,
     },
 };
-use geo::{prelude::Area, LineString, Polygon};
+use geo::{prelude::Area, LineString};
 use itertools::Itertools;
 use rand::Rng;
 use std::f32::consts::TAU;
@@ -32,8 +32,7 @@ use std::f32::consts::TAU;
 #[derive(Debug, Component, Inspectable)]
 pub struct Rock {
     /// The rock's shape.
-    #[inspectable(ignore)]
-    shape: Polygon<f32>,
+    shape: Polygon,
 }
 
 impl Rock {
@@ -90,7 +89,7 @@ impl Rock {
 
         // Setup the rendering shape
         let polygon_bundle =
-            PolygonBundle::new(&self.shape, Color::GRAY, position, meshes, materials);
+            PolygonShapeBundle::new(self.shape.clone(), Color::GRAY, position, meshes, materials);
 
         // Setup the physics
         let mut rigid_body_bundle = RigidBodyBundle {
@@ -105,7 +104,7 @@ impl Rock {
             ..Default::default()
         };
         let collider_bundle = ColliderBundle {
-            shape: self.shape.to_collider_shape().into(),
+            shape: ColliderShapeComponent(self.shape.to_collider_shape()),
             mass_properties: ColliderMassProps::Density(2.0).into(),
             // Register to collision events
             flags: ActiveEvents::CONTACT_EVENTS.into(),
@@ -149,7 +148,12 @@ impl Rock {
 
     /// Fracture the rock.
     pub fn split(&self) -> Vec<Self> {
-        self.shape.split().map(|shape| Self { shape }).collect()
+        self.shape
+            .split()
+            .map(|shape| Self {
+                shape: shape.into(),
+            })
+            .collect()
     }
 }
 

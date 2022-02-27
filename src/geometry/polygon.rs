@@ -5,9 +5,16 @@ use bevy::{
     sprite::{ColorMaterial, MaterialMesh2dBundle},
     utils::tracing,
 };
-use bevy_inspector_egui::Inspectable;
+use bevy_inspector_egui::{
+    egui::{
+        plot::{Legend, Line, Plot, Value, Values},
+        Grid, Ui,
+    },
+    Context, Inspectable,
+};
 use bevy_rapier2d::prelude::{ColliderShape, ColliderShapeComponent, RigidBodyVelocityComponent};
-use geo::{prelude::IsConvex, Polygon};
+use geo::{prelude::IsConvex, LineString, Polygon as GeoPolygon};
+use std::ops::{Deref, DerefMut};
 
 /// Convert a geo polygon to a mesh.
 pub trait ToMesh {
@@ -15,7 +22,52 @@ pub trait ToMesh {
     fn to_mesh(&self) -> Mesh;
 }
 
-impl ToMesh for Polygon<f32> {
+/// Convert a geo polygon to a collision shape.
+pub trait ToColliderShape {
+    /// Convert the polygon to a collision shape by taking the outline.
+    fn to_collider_shape(&self) -> ColliderShape;
+}
+
+/// Triangulate a polygon.
+trait Triangulate {
+    /// Triangulate using earcutr.
+    ///
+    /// Returns vertices and indices.
+    fn triangulate(&self) -> (Vec<f32>, Vec<usize>);
+}
+
+/// Mark the entity as a polygon.
+#[derive(Debug, Clone, Component)]
+pub struct Polygon(GeoPolygon<f32>);
+
+impl Polygon {
+    /// Construct a new polygon.
+    pub fn new(exterior: LineString<f32>, interiors: Vec<LineString<f32>>) -> Self {
+        Self(GeoPolygon::new(exterior, interiors))
+    }
+}
+
+impl From<GeoPolygon<f32>> for Polygon {
+    fn from(polygon: GeoPolygon<f32>) -> Self {
+        Self(polygon)
+    }
+}
+
+impl Deref for Polygon {
+    type Target = GeoPolygon<f32>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Polygon {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl ToMesh for Polygon {
     #[tracing::instrument(name = "converting polygon to mesh")]
     fn to_mesh(&self) -> Mesh {
         // Convert the polygon to triangles
@@ -52,13 +104,7 @@ impl ToMesh for Polygon<f32> {
     }
 }
 
-/// Convert a geo polygon to a collision shape.
-pub trait ToColliderShape {
-    /// Convert the polygon to a collision shape by taking the outline.
-    fn to_collider_shape(&self) -> ColliderShape;
-}
-
-impl ToColliderShape for Polygon<f32> {
+impl ToColliderShape for Polygon {
     #[tracing::instrument(name = "converting polygon to collision shape")]
     fn to_collider_shape(&self) -> ColliderShape {
         // Convert the polygon points to coordinates
@@ -80,15 +126,7 @@ impl ToColliderShape for Polygon<f32> {
     }
 }
 
-/// Triangulate a polygon.
-trait Triangulate {
-    /// Triangulate using earcutr.
-    ///
-    /// Returns vertices and indices.
-    fn triangulate(&self) -> (Vec<f32>, Vec<usize>);
-}
-
-impl Triangulate for Polygon<f32> {
+impl Triangulate for Polygon {
     #[tracing::instrument(name = "triangulating polygon")]
     fn triangulate(&self) -> (Vec<f32>, Vec<usize>) {
         // Convert the polygon points to coordinates
@@ -108,39 +146,56 @@ impl Triangulate for Polygon<f32> {
     }
 }
 
-/// Mark the entity as a polygon.
-#[derive(Debug, Component, Inspectable)]
-pub struct PolygonComponent;
+impl Inspectable for Polygon {
+    type Attributes = ();
 
-/// The polygon component.
+    fn ui(&mut self, ui: &mut Ui, _: Self::Attributes, context: &mut Context) -> bool {
+        Grid::new(context.id()).show(ui, |ui| {
+            // Plot the polygon
+            ui.label("Plot");
+            let plot = Plot::new("polygon")
+                .legend(Legend::default())
+                .data_aspect(0.8)
+                .min_size(bevy_inspector_egui::egui::Vec2::new(250.0, 250.0))
+                .show_x(true)
+                .show_y(true);
+            plot.show(ui, |plot_ui| {
+                // TODO: plot interior
+                plot_ui.line(
+                    Line::new(Values::from_values_iter(
+                        self.exterior()
+                            .coords()
+                            .map(|coord| Value::new(coord.x, coord.y)),
+                    ))
+                    .name("exterior"),
+                )
+            });
+        });
+
+        false
+    }
+}
+
+/// The polygon component filled with a single color.
 #[derive(Bundle, Inspectable)]
-pub struct PolygonBundle {
-    /// Marking it as a polygon.
-    shape: PolygonComponent,
+pub struct PolygonShapeBundle {
+    /// The polygon.
+    polygon: Polygon,
     /// The mesh and the material.
     #[bundle]
     #[inspectable(ignore)]
     material_mesh: MaterialMesh2dBundle<ColorMaterial>,
-    /// The collision shape.
-    #[inspectable(ignore)]
-    collider_shape: ColliderShapeComponent,
-    /// The velocity.
-    #[inspectable(ignore)]
-    velocity: RigidBodyVelocityComponent,
 }
 
-impl PolygonBundle {
+impl PolygonShapeBundle {
     /// Construct a new polygon with a single color and position.
     pub fn new(
-        polygon: &Polygon<f32>,
+        polygon: Polygon,
         color: Color,
         position: Vec2,
         meshes: &mut Assets<Mesh>,
         materials: &mut Assets<ColorMaterial>,
     ) -> Self {
-        // Create the collision shape
-        let collider_shape = ColliderShapeComponent(polygon.to_collider_shape());
-
         let material_mesh = MaterialMesh2dBundle {
             // Create the mesh and add it to the global list of meshes
             mesh: meshes.add(polygon.to_mesh()).into(),
@@ -151,15 +206,9 @@ impl PolygonBundle {
             ..Default::default()
         };
 
-        let shape = PolygonComponent;
-
-        let velocity = RigidBodyVelocityComponent::default();
-
         Self {
-            shape,
             material_mesh,
-            collider_shape,
-            velocity,
+            polygon,
         }
     }
 }

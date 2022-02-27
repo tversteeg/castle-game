@@ -1,9 +1,8 @@
 pub mod arrow;
 pub mod rock;
 
-use crate::geometry::GeometrySystem;
-
 use self::{arrow::Arrow, rock::Rock};
+use crate::geometry::GeometrySystem;
 use bevy::prelude::{App, Component, ParallelSystemDescriptorCoercion, Plugin};
 use bevy_inspector_egui::RegisterInspectable;
 

@@ -1,4 +1,4 @@
-use crate::geometry::polygon::{PolygonBundle, ToColliderShape};
+use crate::geometry::polygon::{Polygon, PolygonShapeBundle, ToColliderShape};
 use bevy::{
     core::Name,
     math::Vec2,
@@ -10,7 +10,7 @@ use bevy_rapier2d::{
     physics::{ColliderBundle, RigidBodyBundle},
     prelude::{ActiveEvents, RigidBodyType},
 };
-use geo::{prelude::BoundingRect, Coordinate, LineString, Polygon, Rect};
+use geo::{prelude::BoundingRect, Coordinate, LineString, Rect};
 use rand::Rng;
 
 /// Total width of the terrain.
@@ -20,8 +20,7 @@ pub const TERRAIN_WIDTH: f32 = 1000.0;
 #[derive(Inspectable)]
 pub struct Terrain {
     /// The vector mesh.
-    #[inspectable(ignore)]
-    shape: Polygon<f32>,
+    shape: Polygon,
     /// The heights of the top for detecting collisions.
     #[inspectable(ignore)]
     top_coordinates: LineString<f32>,
@@ -116,8 +115,8 @@ pub fn setup(
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     commands
-        .spawn_bundle(PolygonBundle::new(
-            &terrain.shape,
+        .spawn_bundle(PolygonShapeBundle::new(
+            terrain.shape.clone(),
             Color::GRAY,
             Vec2::ZERO,
             &mut meshes,

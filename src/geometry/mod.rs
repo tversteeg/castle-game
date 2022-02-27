@@ -4,7 +4,7 @@ pub mod split;
 
 use self::{
     breakable::{BreakEvent, Breakable},
-    polygon::{PolygonBundle, PolygonComponent},
+    polygon::{Polygon, PolygonShapeBundle},
 };
 use bevy::prelude::{App, ParallelSystemDescriptorCoercion, Plugin, SystemLabel};
 use bevy_inspector_egui::RegisterInspectable;
@@ -20,8 +20,8 @@ pub struct GeometryPlugin;
 
 impl Plugin for GeometryPlugin {
     fn build(&self, app: &mut App) {
-        app.register_inspectable::<PolygonComponent>()
-            .register_inspectable::<PolygonBundle>()
+        app.register_inspectable::<Polygon>()
+            .register_inspectable::<PolygonShapeBundle>()
             .register_inspectable::<Breakable>()
             .add_event::<BreakEvent>()
             .add_system(breakable::system.label(GeometrySystem::BreakEvent));

@@ -1,12 +1,16 @@
 use super::{health::Health, walk::Walk};
-use crate::{geometry::polygon::PolygonBundle, map::terrain::Terrain, unit::faction::Faction};
+use crate::{
+    geometry::polygon::{Polygon, PolygonShapeBundle},
+    map::terrain::Terrain,
+    unit::faction::Faction,
+};
 use bevy::{
     core::Name,
     math::Vec2,
-    prelude::{Assets, Color, Commands, Mesh, Res, ResMut},
-    sprite::ColorMaterial,
+    prelude::{AssetServer, Assets, Color, Commands, Handle, Image, Mesh, Res, ResMut},
+    sprite::{ColorMaterial, Sprite, SpriteBundle},
 };
-use geo::{Coordinate, Polygon, Rect};
+use geo::{Coordinate, Rect};
 
 /// The starting position x coordinate for ally units.
 pub const ALLY_STARTING_POSITION: f32 = 5.0;
@@ -20,6 +24,7 @@ pub fn spawn_melee_soldier(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<ColorMaterial>,
+    asset_server: &AssetServer,
 ) {
     // The starting position
     let x = match faction {
@@ -31,14 +36,20 @@ pub fn spawn_melee_soldier(
     let y = terrain.height_at_x(x);
 
     // Use a simple square for the drawing and collision shape
-    let shape: Polygon<f32> =
-        Rect::new(Coordinate::zero(), Coordinate { x: 0.5, y: 1.8 }).to_polygon();
-
-    // Create the polygon bundle with a collider
-    let polygon = PolygonBundle::new(&shape, Color::BLACK, Vec2::new(x, y), meshes, materials);
+    let polygon: Polygon = Rect::new(Coordinate::zero(), Coordinate { x: 0.5, y: 1.8 })
+        .to_polygon()
+        .into();
 
     commands
-        .spawn_bundle(polygon)
+        .spawn()
+        .insert(polygon)
+        .insert(Sprite {
+            // Scale the sprite down
+            custom_size: Some(Vec2::new(0.1, 0.1)),
+            ..Default::default()
+        })
+        // Load the asset handle for the sprite
+        .insert(asset_server.load::<Image, &'static str>("units/ally/melee.png"))
         .insert(Walk::new(1.0))
         .insert(Health::new(100.0))
         .insert(Name::new(match faction {
@@ -55,6 +66,7 @@ pub fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    asset_server: Res<AssetServer>,
 ) {
     spawn_melee_soldier(
         Faction::Ally,
@@ -62,5 +74,6 @@ pub fn setup(
         &mut commands,
         &mut meshes,
         &mut materials,
+        &asset_server,
     );
 }
