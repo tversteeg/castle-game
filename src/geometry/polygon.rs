@@ -12,7 +12,7 @@ use bevy_inspector_egui::{
     },
     Context, Inspectable,
 };
-use bevy_rapier2d::prelude::{ColliderShape, ColliderShapeComponent, RigidBodyVelocityComponent};
+use bevy_rapier2d::prelude::ColliderShape;
 use geo::{prelude::IsConvex, LineString, Polygon as GeoPolygon};
 use std::ops::{Deref, DerefMut};
 

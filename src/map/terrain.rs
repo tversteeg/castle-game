@@ -1,9 +1,13 @@
-use crate::geometry::polygon::{Polygon, PolygonShapeBundle, ToColliderShape};
+use crate::{
+    color::Palette,
+    geometry::polygon::{Polygon, PolygonShapeBundle, ToColliderShape},
+};
 use bevy::{
     core::Name,
     math::Vec2,
-    prelude::{Assets, Color, Commands, Mesh, Res, ResMut},
+    prelude::{Assets, Commands, Mesh, Res, ResMut},
     sprite::ColorMaterial,
+    utils::tracing,
 };
 use bevy_inspector_egui::Inspectable;
 use bevy_rapier2d::{
@@ -31,6 +35,7 @@ pub struct Terrain {
 
 impl Terrain {
     /// Create a new randomly generated terrain.
+    #[tracing::instrument(name = "generating terrain")]
     pub fn new(points: usize) -> Self {
         // Setup the random generator
         let mut rng = rand::thread_rng();
@@ -75,7 +80,7 @@ impl Terrain {
 
     /// Get the terrain height at the horizontal position.
     pub fn height_at_x(&self, x: f32) -> f32 {
-        if x < self.top_coordinates_bounding_box.min().x
+        if x <= self.top_coordinates_bounding_box.min().x
             || x > self.top_coordinates_bounding_box.max().x
         {
             // The base terrain height out of bounds is always 0
@@ -85,7 +90,7 @@ impl Terrain {
             let line = self
                 .top_coordinates
                 .lines()
-                .find(|line| x > line.start.x && x <= line.end.x)
+                .find(|line| x >= line.start.x && x < line.end.x)
                 .expect("Could not find line within bounding box for collision");
 
             // Return the line height at that point
@@ -95,7 +100,7 @@ impl Terrain {
 
     /// Check whether a point collides with the ground.
     pub fn collides(&self, x: f32, y: f32) -> bool {
-        if y < self.top_coordinates_bounding_box.min().y {
+        if y <= self.top_coordinates_bounding_box.min().y {
             // No collision when it's too high or outside of the horizontal bounds
             false
         } else if y > self.top_coordinates_bounding_box.max().y {
@@ -117,7 +122,7 @@ pub fn setup(
     commands
         .spawn_bundle(PolygonShapeBundle::new(
             terrain.shape.clone(),
-            Color::GRAY,
+            Palette::C11.into(),
             Vec2::ZERO,
             &mut meshes,
             &mut materials,

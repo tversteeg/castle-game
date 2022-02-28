@@ -1,15 +1,11 @@
 use super::{health::Health, walk::Walk};
-use crate::{
-    geometry::polygon::{Polygon, PolygonShapeBundle},
-    map::terrain::Terrain,
-    unit::faction::Faction,
-};
+use crate::{geometry::polygon::Polygon, map::terrain::Terrain, unit::faction::Faction};
 use bevy::{
     core::Name,
-    math::Vec2,
-    prelude::{AssetServer, Assets, Color, Commands, Handle, Image, Mesh, Res, ResMut},
-    sprite::{ColorMaterial, Sprite, SpriteBundle},
+    prelude::{AssetServer, Assets, Commands, Mesh, Res, ResMut},
+    sprite::{ColorMaterial},
 };
+use bevy_svg::prelude::{Origin, Svg2dBundle};
 use geo::{Coordinate, Rect};
 
 /// The starting position x coordinate for ally units.
@@ -22,8 +18,8 @@ pub fn spawn_melee_soldier(
     faction: Faction,
     terrain: &Terrain,
     commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<ColorMaterial>,
+    _meshes: &mut Assets<Mesh>,
+    _materials: &mut Assets<ColorMaterial>,
     asset_server: &AssetServer,
 ) {
     // The starting position
@@ -33,23 +29,25 @@ pub fn spawn_melee_soldier(
     };
 
     // Get the starting height
-    let y = terrain.height_at_x(x);
+    let _y = terrain.height_at_x(x);
 
     // Use a simple square for the drawing and collision shape
     let polygon: Polygon = Rect::new(Coordinate::zero(), Coordinate { x: 0.5, y: 1.8 })
         .to_polygon()
         .into();
 
+    // Load the unit vector graphics
+    let svg = asset_server.load("units/allies/character.svg");
+
     commands
-        .spawn()
-        .insert(polygon)
-        .insert(Sprite {
-            // Scale the sprite down
-            custom_size: Some(Vec2::new(0.1, 0.1)),
+        .spawn_bundle(Svg2dBundle {
+            svg,
+            origin: Origin::TopLeft,
             ..Default::default()
         })
+        .insert(polygon)
         // Load the asset handle for the sprite
-        .insert(asset_server.load::<Image, &'static str>("units/ally/melee.png"))
+        //.insert(asset_server.load::<Image, &'static str>("units/ally/melee.png"))
         .insert(Walk::new(1.0))
         .insert(Health::new(100.0))
         .insert(Name::new(match faction {

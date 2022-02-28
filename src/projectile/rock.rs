@@ -1,4 +1,5 @@
 use crate::{
+    color::Palette,
     geometry::{
         breakable::{BreakEvent, Breakable},
         polygon::{Polygon, PolygonShapeBundle, ToColliderShape},
@@ -10,8 +11,8 @@ use bevy::{
     core::Name,
     math::Vec2,
     prelude::{
-        Assets, Color, Commands, Component, DespawnRecursiveExt, Entity, EventReader, Mesh, Query,
-        ResMut, Transform,
+        Assets, Commands, Component, DespawnRecursiveExt, Entity, EventReader, Mesh, Query, ResMut,
+        Transform,
     },
     sprite::ColorMaterial,
 };
@@ -88,8 +89,13 @@ impl Rock {
         }
 
         // Setup the rendering shape
-        let polygon_bundle =
-            PolygonShapeBundle::new(self.shape.clone(), Color::GRAY, position, meshes, materials);
+        let polygon_bundle = PolygonShapeBundle::new(
+            self.shape.clone(),
+            Palette::C24.into(),
+            position,
+            meshes,
+            materials,
+        );
 
         // Setup the physics
         let mut rigid_body_bundle = RigidBodyBundle {
