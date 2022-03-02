@@ -18,7 +18,7 @@ use geo::{prelude::BoundingRect, Coordinate, LineString, Rect};
 use rand::Rng;
 
 /// Total width of the terrain.
-pub const TERRAIN_WIDTH: f32 = 1000.0;
+pub const TERRAIN_WIDTH: f32 = 500.0;
 
 /// The destructible ground.
 #[derive(Inspectable)]
@@ -46,7 +46,7 @@ impl Terrain {
             .map(|index| {
                 let x = (index as f32 / points as f32) * TERRAIN_WIDTH;
                 // Generate a random height
-                let y = rng.gen_range::<f32, _>(9.0..10.0);
+                let y = rng.gen_range::<f32, _>(6.0..10.0);
 
                 (x, y)
             })
@@ -135,6 +135,7 @@ pub fn setup(
             ..Default::default()
         })
         .insert_bundle(ColliderBundle {
+            // TODO: use heightmap collider
             shape: terrain.shape.to_collider_shape().into(),
             // Register to collision events
             flags: (ActiveEvents::INTERSECTION_EVENTS | ActiveEvents::CONTACT_EVENTS).into(),

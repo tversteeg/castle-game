@@ -107,21 +107,36 @@ impl ToMesh for Polygon {
 impl ToColliderShape for Polygon {
     #[tracing::instrument(name = "converting polygon to collision shape")]
     fn to_collider_shape(&self) -> ColliderShape {
-        // Convert the polygon points to coordinates
-        let points = self
-            .exterior()
-            .points()
-            .map(|point| nalgebra::point![point.x(), point.y()])
-            .collect::<Vec<_>>();
-
         // If the polygon is convex just create a convex hull for it, which is better performance-wise
         if self.exterior().is_convex() {
+            // Convert the polygon points to coordinates
+            let points = self
+                .exterior()
+                .points()
+                .map(|point| nalgebra::point![point.x(), point.y()])
+                .collect::<Vec<_>>();
+
             // TODO: handle error
             ColliderShape::convex_hull(&points).unwrap()
         } else {
-            // TODO: fix
-            // ColliderShape::polyline(points, None)
-            ColliderShape::convex_hull(&points).unwrap()
+            // Triangulate the polygon first
+            let (vertices, indices) = self.triangulate();
+
+            // Convert the vertices to rapier vertices
+            assert!(vertices.len() % 2 == 0);
+            let vertices = vertices
+                .chunks_exact(2)
+                .map(|xy| bevy_rapier2d::prelude::point![xy[0], xy[1]])
+                .collect::<Vec<_>>();
+
+            // Convert the indices to rapier indices
+            assert!(indices.len() % 3 == 0);
+            let indices = indices
+                .chunks_exact(3)
+                .map(|indices| [indices[0] as u32, indices[1] as u32, indices[2] as u32])
+                .collect::<Vec<_>>();
+
+            ColliderShape::trimesh(vertices, indices)
         }
     }
 }

@@ -1,7 +1,9 @@
+use super::recruit_button::RecruitEvent;
 use crate::color::Palette;
+use crate::ui::recruit_button::RecruitButton;
 use bevy::{
     diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
-    prelude::{Res, ResMut},
+    prelude::{EventWriter, Query, Res, ResMut},
 };
 use bevy_egui::{
     egui::{epaint::Shadow, Align2, Frame, Window},
@@ -9,7 +11,12 @@ use bevy_egui::{
 };
 
 /// Render the bar.
-pub fn system(mut egui_context: ResMut<EguiContext>, diagnostics: Res<Diagnostics>) {
+pub fn system(
+    mut egui_context: ResMut<EguiContext>,
+    diagnostics: Res<Diagnostics>,
+    mut query: Query<&mut RecruitButton>,
+    mut event_writer: EventWriter<RecruitEvent>,
+) {
     Window::new("Spawn Bar")
         .resizable(false)
         // Change the size to the contents
@@ -43,8 +50,12 @@ pub fn system(mut egui_context: ResMut<EguiContext>, diagnostics: Res<Diagnostic
                     ui.vertical(|ui| {
                         ui.label("Recruit");
                         ui.horizontal(|ui| {
-                            if ui.button("Soldier").clicked() {}
-                            if ui.button("Archer").clicked() {}
+                            for mut recruit_button in query.iter_mut() {
+                                if let Some(event) = recruit_button.draw(ui) {
+                                    // A unit should be recruited, throw the event
+                                    event_writer.send(event);
+                                }
+                            }
                         });
                     });
                 });

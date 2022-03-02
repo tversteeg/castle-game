@@ -73,6 +73,5 @@ fn main() {
         // Close when Esc is pressed
         .add_system(bevy::input::system::exit_on_esc_system)
         .add_startup_system(projectile::rock::setup)
-        .add_startup_system(unit::definitions::setup)
         .run();
 }

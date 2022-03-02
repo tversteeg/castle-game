@@ -1,9 +1,12 @@
-use super::{health::Health, walk::Walk};
-use crate::{geometry::polygon::Polygon, map::terrain::Terrain, unit::faction::Faction};
+use super::{health::Health, unit_type::UnitType, walk::Walk};
+use crate::{
+    geometry::polygon::Polygon, map::terrain::Terrain, ui::recruit_button::RecruitEvent,
+    unit::faction::Faction,
+};
 use bevy::{
     core::Name,
-    prelude::{AssetServer, Assets, Commands, Mesh, Res, ResMut},
-    sprite::{ColorMaterial},
+    prelude::{AssetServer, Assets, Commands, EventReader, Mesh, Res, ResMut},
+    sprite::ColorMaterial,
 };
 use bevy_svg::prelude::{Origin, Svg2dBundle};
 use geo::{Coordinate, Rect};
@@ -28,9 +31,6 @@ pub fn spawn_melee_soldier(
         Faction::Enemy => ENEMY_STARTING_POSITION,
     };
 
-    // Get the starting height
-    let _y = terrain.height_at_x(x);
-
     // Use a simple square for the drawing and collision shape
     let polygon: Polygon = Rect::new(Coordinate::zero(), Coordinate { x: 0.5, y: 1.8 })
         .to_polygon()
@@ -46,8 +46,6 @@ pub fn spawn_melee_soldier(
             ..Default::default()
         })
         .insert(polygon)
-        // Load the asset handle for the sprite
-        //.insert(asset_server.load::<Image, &'static str>("units/ally/melee.png"))
         .insert(Walk::new(1.0))
         .insert(Health::new(100.0))
         .insert(Name::new(match faction {
@@ -56,22 +54,27 @@ pub fn spawn_melee_soldier(
         }));
 }
 
-/// Temp setup.
-///
-/// TOOD: remove
-pub fn setup(
+/// The system for recruiting new allied units.
+pub fn recruit_event_listener(
+    mut events: EventReader<RecruitEvent>,
     terrain: Res<Terrain>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
-    spawn_melee_soldier(
-        Faction::Ally,
-        &terrain,
-        &mut commands,
-        &mut meshes,
-        &mut materials,
-        &asset_server,
-    );
+    events
+        .iter()
+        // Spawn units based on what unit types have been send by the recruit button
+        .for_each(|recruit_event| match recruit_event.0 {
+            UnitType::Soldier => spawn_melee_soldier(
+                Faction::Ally,
+                &terrain,
+                &mut commands,
+                &mut meshes,
+                &mut materials,
+                &asset_server,
+            ),
+            UnitType::Archer => todo!(),
+        });
 }
