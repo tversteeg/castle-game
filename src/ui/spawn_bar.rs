@@ -43,6 +43,20 @@ pub fn system(
             ui.visuals_mut().widgets.inactive.bg_fill = Palette::C24.into();
             ui.visuals_mut().widgets.hovered.bg_fill = Palette::C25.into();
             ui.visuals_mut().widgets.active.bg_fill = Palette::C23.into();
+            ui.visuals_mut().widgets.noninteractive.bg_fill = Palette::C24.into();
+            ui.visuals_mut().widgets.open.bg_fill = Palette::C24.into();
+
+            ui.visuals_mut().widgets.inactive.fg_stroke.color = Palette::C2.into();
+            ui.visuals_mut().widgets.hovered.fg_stroke.color = Palette::C2.into();
+            ui.visuals_mut().widgets.active.fg_stroke.color = Palette::C2.into();
+            ui.visuals_mut().widgets.noninteractive.fg_stroke.color = Palette::C2.into();
+            ui.visuals_mut().widgets.open.fg_stroke.color = Palette::C24.into();
+
+            ui.visuals_mut().widgets.inactive.bg_stroke.color = Palette::C2.into();
+            ui.visuals_mut().widgets.hovered.bg_stroke.color = Palette::C2.into();
+            ui.visuals_mut().widgets.active.bg_stroke.color = Palette::C2.into();
+            ui.visuals_mut().widgets.noninteractive.bg_stroke.color = Palette::C2.into();
+            ui.visuals_mut().widgets.open.bg_stroke.color = Palette::C24.into();
 
             ui.horizontal_top(|ui| {
                 // The buy section

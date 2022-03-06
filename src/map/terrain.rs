@@ -23,7 +23,7 @@ pub const TERRAIN_WIDTH: f32 = 300.0;
 /// Minimum height of the terrain.
 pub const TERRAIN_MIN_HEIGHT: f32 = 6.0;
 /// Maximum height of the terrain.
-pub const TERRAIN_MAX_HEIGHT: f32 = 10.0;
+pub const TERRAIN_MAX_HEIGHT: f32 = 14.0;
 /// The scale of the noise, will influence which X points will be get as sample.
 pub const NOISE_SCALE: f64 = 0.01;
 

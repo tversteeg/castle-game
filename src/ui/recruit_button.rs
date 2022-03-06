@@ -97,7 +97,7 @@ pub fn setup(mut commands: Commands) {
         .spawn()
         .insert(RecruitButton::new(
             UnitType::Soldier,
-            Duration::from_secs(1),
+            Duration::from_secs(2),
         ))
         .insert(Name::new("Soldier Recruit Button"));
 
