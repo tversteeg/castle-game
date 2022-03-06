@@ -125,8 +125,8 @@ impl SpecializedPipeline for ColoredMeshPipeline {
                 self.mesh2d_pipeline.mesh_layout.clone(),
             ]),
             primitive: PrimitiveState {
-                front_face: FrontFace::Ccw,
-                cull_mode: Some(Face::Back),
+                front_face: FrontFace::Cw,
+                cull_mode: None,
                 unclipped_depth: false,
                 polygon_mode: PolygonMode::Fill,
                 conservative: false,

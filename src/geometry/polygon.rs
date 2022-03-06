@@ -94,7 +94,7 @@ impl ToMesh for Polygon {
 
         // Set the colors
         let mut colors = Vec::new();
-        colors.resize(vertices.len() / 2, color.as_rgba_f32());
+        colors.resize(vertices.len() / 2, color.as_linear_rgba_f32());
         mesh.set_attribute(Mesh::ATTRIBUTE_COLOR, colors);
 
         mesh

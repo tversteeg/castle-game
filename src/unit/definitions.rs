@@ -1,19 +1,11 @@
 use super::{health::Health, unit_type::UnitType, walk::Walk};
 use crate::{
-    draw::{
-        colored_mesh::{ColoredMeshBundle},
-        svg::AlliedCharacterSvg,
-    },
-    geometry::polygon::Polygon,
-    map::terrain::Terrain,
-    ui::recruit_button::RecruitEvent,
-    unit::faction::Faction,
+    draw::colored_mesh::ColoredMeshBundle, geometry::polygon::Polygon, map::terrain::Terrain,
+    ui::recruit_button::RecruitEvent, unit::faction::Faction,
 };
 use bevy::{
     core::Name,
-    prelude::{
-        Commands, EventReader, Handle, Mesh, Res,
-    },
+    prelude::{AssetServer, Commands, EventReader, Handle, Mesh, Res},
 };
 use geo::{Coordinate, Rect};
 
@@ -42,7 +34,6 @@ pub fn spawn_melee_soldier(
         .into();
 
     commands
-        //.spawn_bundle(svg.bundle(x, y))
         .spawn_bundle(ColoredMeshBundle::new([x, y].into(), mesh))
         .insert(polygon)
         .insert(Walk::new(1.0))
@@ -57,8 +48,8 @@ pub fn spawn_melee_soldier(
 pub fn recruit_event_listener(
     mut events: EventReader<RecruitEvent>,
     terrain: Res<Terrain>,
-    allied_character: Res<AlliedCharacterSvg>,
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
 ) {
     events
         .iter()
@@ -68,7 +59,7 @@ pub fn recruit_event_listener(
                 Faction::Ally,
                 &terrain,
                 &mut commands,
-                allied_character.0.clone(),
+                asset_server.load("units/allies/character.svg"),
             ),
             UnitType::Archer => todo!(),
         });
