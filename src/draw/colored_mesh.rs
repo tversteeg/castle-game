@@ -1,16 +1,21 @@
 use bevy::{
     core::FloatOrd,
     core_pipeline::Transparent2d,
-    prelude::*,
+    math::Vec2,
+    prelude::{
+        App, Assets, Bundle, Commands, Component, ComputedVisibility, Entity, FromWorld,
+        GlobalTransform, Handle, HandleUntyped, Local, Mesh, Msaa, Plugin, Query, Res, ResMut,
+        Shader, Transform, Visibility, With, World,
+    },
     reflect::TypeUuid,
     render::{
         render_asset::RenderAssets,
         render_phase::{AddRenderCommand, DrawFunctions, RenderPhase, SetItemPipeline},
         render_resource::{
-            BlendState, ColorTargetState, ColorWrites, Face, FragmentState, FrontFace,
-            MultisampleState, PolygonMode, PrimitiveState, RenderPipelineCache,
-            RenderPipelineDescriptor, SpecializedPipeline, SpecializedPipelines, TextureFormat,
-            VertexAttribute, VertexBufferLayout, VertexFormat, VertexState, VertexStepMode,
+            BlendState, ColorTargetState, ColorWrites, FragmentState, FrontFace, MultisampleState,
+            PolygonMode, PrimitiveState, RenderPipelineCache, RenderPipelineDescriptor,
+            SpecializedPipeline, SpecializedPipelines, TextureFormat, VertexAttribute,
+            VertexBufferLayout, VertexFormat, VertexState, VertexStepMode,
         },
         texture::BevyDefault,
         view::VisibleEntities,

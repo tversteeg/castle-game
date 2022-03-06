@@ -9,8 +9,12 @@ use bevy::{
     window::{CursorMoved, Windows},
 };
 
+use crate::map::terrain::TERRAIN_WIDTH;
+
 /// How far the camera is zoomed in.
 pub const CAMERA_SCALE: f32 = 1.0 / 10.0;
+/// Camera border on the each on which it won't move.
+pub const CAMERA_BORDER_SIZE: f32 = 0.2;
 
 /// The plugin to handle camera movements.
 pub struct CameraPlugin;
@@ -57,15 +61,19 @@ pub fn system(
         // The camera should always be in the query
         let mut transform = query.iter_mut().next().unwrap();
 
-        // TODO: make maximum camera pan the window size
-        let _window_size = windows.get(event.id).unwrap();
+        // Get the window size so we can calculate the max camera position
+        let window_size = windows.get(event.id).unwrap();
+
+        // The maximum position of the camera to the right
+        let max_position = TERRAIN_WIDTH - window_size.width() * CAMERA_SCALE;
+
+        // The position of the mouse as a fraction
+        // Keep a zone on the edges in which moving the mouse won't move the camera
+        let mouse_x = ((event.position.x / window_size.width()) * (1.0 + CAMERA_BORDER_SIZE * 2.0)
+            - CAMERA_BORDER_SIZE)
+            .clamp(0.0, 1.0);
 
         // Position the camera at the mouse
-        transform.translation = Vec3::new(
-            event.position.x / 10.0,
-            //(-window_size.height() / 2.0 + event.position.y) / 10.0,
-            0.0,
-            0.0,
-        );
+        transform.translation = Vec3::new(mouse_x * max_position, 0.0, 0.0);
     });
 }

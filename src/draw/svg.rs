@@ -5,7 +5,7 @@ use bevy::{
     render::{mesh::Indices, render_resource::PrimitiveTopology},
     utils::tracing,
 };
-use lyon_tessellation::geom::euclid::default::Transform2D;
+
 use lyon_tessellation::{
     math::Point, path::PathEvent, BuffersBuilder, FillOptions, FillTessellator, FillVertex,
     FillVertexConstructor, LineCap, LineJoin, StrokeOptions, StrokeTessellator, StrokeVertex,

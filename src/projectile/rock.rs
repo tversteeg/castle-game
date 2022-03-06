@@ -14,7 +14,6 @@ use bevy::{
         Assets, Commands, Component, DespawnRecursiveExt, Entity, EventReader, Mesh, Query, ResMut,
         Transform,
     },
-    sprite::ColorMaterial,
 };
 use bevy_inspector_egui::Inspectable;
 use bevy_rapier2d::{

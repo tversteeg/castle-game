@@ -14,12 +14,12 @@ use bevy_rapier2d::{
     prelude::{ActiveEvents, RigidBodyType},
 };
 use geo::{prelude::BoundingRect, Coordinate, LineString, Rect};
-use noise::{Fbm, NoiseFn, Perlin, Seedable};
+use noise::{Fbm, NoiseFn, Seedable};
 
 /// How many height points should be calculated for the terrain.
 pub const HEIGHT_POINTS: usize = 100;
 /// Total width of the terrain.
-pub const TERRAIN_WIDTH: f32 = 500.0;
+pub const TERRAIN_WIDTH: f32 = 300.0;
 /// Minimum height of the terrain.
 pub const TERRAIN_MIN_HEIGHT: f32 = 6.0;
 /// Maximum height of the terrain.

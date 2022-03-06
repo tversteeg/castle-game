@@ -1,8 +1,7 @@
 use bevy::{
     math::Vec2,
-    prelude::{Assets, Bundle, Color, Component, Mesh, Transform},
+    prelude::{Assets, Bundle, Color, Component, Mesh},
     render::{mesh::Indices, render_resource::PrimitiveTopology},
-    sprite::{ColorMaterial, MaterialMesh2dBundle},
     utils::tracing,
 };
 use bevy_inspector_egui::{
