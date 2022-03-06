@@ -43,7 +43,7 @@ fn main() {
         })
         // More verbose logging
         .insert_resource(LogSettings {
-            level: Level::INFO,
+            level: Level::DEBUG,
             filter: "wgpu=error".to_string(),
         })
         // Default, needed for physics, but use our own log plugin
@@ -54,6 +54,8 @@ fn main() {
         .add_plugin(WorldInspectorPlugin::new())
         // Transitions
         .add_plugin(EasingsPlugin)
+        // Rendering
+        .add_plugin(DrawPlugin)
         // The physics engine
         .add_plugin(PhysicsPlugin)
         // The units
@@ -68,8 +70,6 @@ fn main() {
         .add_plugin(ProjectilePlugin)
         // The geometry
         .add_plugin(GeometryPlugin)
-        // Rendering
-        .add_plugin(DrawPlugin)
         // Close when Esc is pressed
         .add_system(bevy::input::system::exit_on_esc_system)
         .add_startup_system(projectile::rock::setup)

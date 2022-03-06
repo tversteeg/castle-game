@@ -1,14 +1,16 @@
 use super::{health::Health, unit_type::UnitType, walk::Walk};
 use crate::{
-    geometry::polygon::Polygon, map::terrain::Terrain, ui::recruit_button::RecruitEvent,
-    unit::faction::Faction,
+    draw::svg::AlliedCharacterSvg, geometry::polygon::Polygon, map::terrain::Terrain,
+    ui::recruit_button::RecruitEvent, unit::faction::Faction,
 };
 use bevy::{
     core::Name,
-    prelude::{AssetServer, Assets, Commands, EventReader, Mesh, Res, ResMut},
-    sprite::ColorMaterial,
+    prelude::{
+        Assets, Commands, ComputedVisibility, EventReader, GlobalTransform, Handle, Mesh, Res,
+        ResMut, Transform, Visibility,
+    },
+    sprite::{ColorMaterial, MaterialMesh2dBundle, Mesh2dHandle},
 };
-use bevy_svg::prelude::{Origin, Svg2dBundle};
 use geo::{Coordinate, Rect};
 
 /// The starting position x coordinate for ally units.
@@ -21,33 +23,31 @@ pub fn spawn_melee_soldier(
     faction: Faction,
     terrain: &Terrain,
     commands: &mut Commands,
-    _meshes: &mut Assets<Mesh>,
-    _materials: &mut Assets<ColorMaterial>,
-    asset_server: &AssetServer,
+    mesh: Handle<Mesh>,
 ) {
     // The starting position
     let x = match faction {
         Faction::Ally => ALLY_STARTING_POSITION,
         Faction::Enemy => ENEMY_STARTING_POSITION,
     };
+    let y = terrain.height_at_x(x);
 
     // Use a simple square for the drawing and collision shape
     let polygon: Polygon = Rect::new(Coordinate::zero(), Coordinate { x: 0.5, y: 1.8 })
         .to_polygon()
         .into();
 
-    // Load the unit vector graphics
-    let svg = asset_server.load("units/allies/character.svg");
-
     commands
-        .spawn_bundle(Svg2dBundle {
-            svg,
-            origin: Origin::TopLeft,
-            ..Default::default()
-        })
+        //.spawn_bundle(svg.bundle(x, y))
+        .spawn()
         .insert(polygon)
         .insert(Walk::new(1.0))
         .insert(Health::new(100.0))
+        .insert(Mesh2dHandle(mesh))
+        .insert(Transform::from_xyz(x, y, 0.0))
+        .insert(GlobalTransform::default())
+        .insert(Visibility::default())
+        .insert(ComputedVisibility::default())
         .insert(Name::new(match faction {
             Faction::Ally => "Allied Melee Soldier",
             Faction::Enemy => "Enemy Melee Soldier",
@@ -58,10 +58,8 @@ pub fn spawn_melee_soldier(
 pub fn recruit_event_listener(
     mut events: EventReader<RecruitEvent>,
     terrain: Res<Terrain>,
+    allied_character: Res<AlliedCharacterSvg>,
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    asset_server: Res<AssetServer>,
 ) {
     events
         .iter()
@@ -71,9 +69,7 @@ pub fn recruit_event_listener(
                 Faction::Ally,
                 &terrain,
                 &mut commands,
-                &mut meshes,
-                &mut materials,
-                &asset_server,
+                allied_character.0.clone(),
             ),
             UnitType::Archer => todo!(),
         });

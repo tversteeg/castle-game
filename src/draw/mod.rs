@@ -1,5 +1,8 @@
-use bevy::prelude::{App, Msaa, Plugin};
-use bevy_svg::prelude::SvgPlugin;
+pub mod mesh;
+pub mod svg;
+
+use self::svg::SvgAssetLoader;
+use bevy::prelude::{AddAsset, App, Msaa, Plugin};
 
 /// The plugin to manage rendering.
 pub struct DrawPlugin;
@@ -8,6 +11,7 @@ impl Plugin for DrawPlugin {
     fn build(&self, app: &mut App) {
         // Smooth anti aliasing
         app.insert_resource(Msaa { samples: 4 })
-            .add_plugin(SvgPlugin);
+            .init_asset_loader::<SvgAssetLoader>()
+            .add_startup_system(svg::setup);
     }
 }

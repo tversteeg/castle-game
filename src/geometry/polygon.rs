@@ -16,6 +16,7 @@ use bevy_rapier2d::prelude::ColliderShape;
 use geo::{prelude::IsConvex, LineString, Polygon as GeoPolygon};
 use std::ops::{Deref, DerefMut};
 
+
 /// Convert a geo polygon to a mesh.
 pub trait ToMesh {
     /// Convert the polygon to a mesh by applying the earcut algorithm.
@@ -73,7 +74,7 @@ impl ToMesh for Polygon {
         // Convert the polygon to triangles
         let (vertices, indices) = self.triangulate();
 
-        // Create a new mesh.
+        // Create a new mesh
         let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
 
         // Set the indices
