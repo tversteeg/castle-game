@@ -6,7 +6,6 @@ use bevy::{
     core::Name,
     math::Vec2,
     prelude::{Assets, Commands, Mesh, Res, ResMut},
-    sprite::ColorMaterial,
     utils::tracing,
 };
 use bevy_inspector_egui::Inspectable;
@@ -15,10 +14,18 @@ use bevy_rapier2d::{
     prelude::{ActiveEvents, RigidBodyType},
 };
 use geo::{prelude::BoundingRect, Coordinate, LineString, Rect};
-use rand::Rng;
+use noise::{Fbm, NoiseFn, Perlin, Seedable};
 
+/// How many height points should be calculated for the terrain.
+pub const HEIGHT_POINTS: usize = 100;
 /// Total width of the terrain.
 pub const TERRAIN_WIDTH: f32 = 500.0;
+/// Minimum height of the terrain.
+pub const TERRAIN_MIN_HEIGHT: f32 = 6.0;
+/// Maximum height of the terrain.
+pub const TERRAIN_MAX_HEIGHT: f32 = 10.0;
+/// The scale of the noise, will influence which X points will be get as sample.
+pub const NOISE_SCALE: f64 = 0.01;
 
 /// The destructible ground.
 #[derive(Inspectable)]
@@ -36,17 +43,20 @@ pub struct Terrain {
 impl Terrain {
     /// Create a new randomly generated terrain.
     #[tracing::instrument(name = "generating terrain")]
-    pub fn new(points: usize) -> Self {
-        // Setup the random generator
-        let mut rng = rand::thread_rng();
+    pub fn new() -> Self {
+        // Setup the noise generator
+        let noise = Fbm::new().set_seed(fastrand::u32(..));
 
         // Generate the top shape
-        let top_coordinates = (0..=points)
+        let top_coordinates = (0..=HEIGHT_POINTS)
             .into_iter()
             .map(|index| {
-                let x = (index as f32 / points as f32) * TERRAIN_WIDTH;
+                let x = (index as f32 / HEIGHT_POINTS as f32) * TERRAIN_WIDTH;
+
                 // Generate a random height
-                let y = rng.gen_range::<f32, _>(6.0..10.0);
+                let y = noise.get([x as f64 * NOISE_SCALE, 0.0]) as f32
+                    * (TERRAIN_MAX_HEIGHT - TERRAIN_MIN_HEIGHT)
+                    + TERRAIN_MIN_HEIGHT;
 
                 (x, y)
             })

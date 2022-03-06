@@ -24,7 +24,7 @@ pub fn system(
         .collapsible(false)
         .title_bar(false)
         // Always dock the window to the center of bottom of the screen
-        .anchor(Align2::CENTER_BOTTOM, [0.0, -5.0])
+        .anchor(Align2::CENTER_TOP, [0.0, 5.0])
         .frame(Frame {
             // Rounded edges
             corner_radius: 3.0,
