@@ -78,7 +78,6 @@ impl Rock {
         velocity: RigidBodyVelocity,
         commands: &mut Commands,
         meshes: &mut Assets<Mesh>,
-        materials: &mut Assets<ColorMaterial>,
     ) {
         // Get the area of the new rock
         let area = self.shape.unsigned_area();
@@ -89,13 +88,8 @@ impl Rock {
         }
 
         // Setup the rendering shape
-        let polygon_bundle = PolygonShapeBundle::new(
-            self.shape.clone(),
-            Palette::C24.into(),
-            position,
-            meshes,
-            materials,
-        );
+        let polygon_bundle =
+            PolygonShapeBundle::new(self.shape.clone(), Palette::C24.into(), position, meshes);
 
         // Setup the physics
         let mut rigid_body_bundle = RigidBodyBundle {
@@ -164,11 +158,7 @@ impl Rock {
 }
 
 /// Load the rocks.
-pub fn setup(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-) {
+pub fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
     (0..20).into_iter().for_each(|y| {
         let rock = Rock::new(1.0 + y as f32 / 50.0);
         rock.spawn(
@@ -177,7 +167,6 @@ pub fn setup(
             RigidBodyVelocity::default(),
             &mut commands,
             &mut meshes,
-            &mut materials,
         );
     });
 }
@@ -188,7 +177,6 @@ pub fn break_event_listener(
     query: Query<(Entity, &Rock, &Transform, &RigidBodyVelocityComponent)>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     events
         .iter()
@@ -214,7 +202,6 @@ pub fn break_event_listener(
                     velocity.0,
                     &mut commands,
                     &mut meshes,
-                    &mut materials,
                 );
             });
         });

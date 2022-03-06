@@ -1,15 +1,19 @@
 use super::{health::Health, unit_type::UnitType, walk::Walk};
 use crate::{
-    draw::svg::AlliedCharacterSvg, geometry::polygon::Polygon, map::terrain::Terrain,
-    ui::recruit_button::RecruitEvent, unit::faction::Faction,
+    draw::{
+        colored_mesh::{ColoredMeshBundle},
+        svg::AlliedCharacterSvg,
+    },
+    geometry::polygon::Polygon,
+    map::terrain::Terrain,
+    ui::recruit_button::RecruitEvent,
+    unit::faction::Faction,
 };
 use bevy::{
     core::Name,
     prelude::{
-        Assets, Commands, ComputedVisibility, EventReader, GlobalTransform, Handle, Mesh, Res,
-        ResMut, Transform, Visibility,
+        Commands, EventReader, Handle, Mesh, Res,
     },
-    sprite::{ColorMaterial, MaterialMesh2dBundle, Mesh2dHandle},
 };
 use geo::{Coordinate, Rect};
 
@@ -39,15 +43,10 @@ pub fn spawn_melee_soldier(
 
     commands
         //.spawn_bundle(svg.bundle(x, y))
-        .spawn()
+        .spawn_bundle(ColoredMeshBundle::new([x, y].into(), mesh))
         .insert(polygon)
         .insert(Walk::new(1.0))
         .insert(Health::new(100.0))
-        .insert(Mesh2dHandle(mesh))
-        .insert(Transform::from_xyz(x, y, 0.0))
-        .insert(GlobalTransform::default())
-        .insert(Visibility::default())
-        .insert(ComputedVisibility::default())
         .insert(Name::new(match faction {
             Faction::Ally => "Allied Melee Soldier",
             Faction::Enemy => "Enemy Melee Soldier",

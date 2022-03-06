@@ -185,7 +185,7 @@ fn convert_buffers_into_mesh(
     mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, vertices);
 
     // Set the colors
-    //mesh.set_attribute(Mesh::ATTRIBUTE_COLOR, colors);
+    mesh.set_attribute(Mesh::ATTRIBUTE_COLOR, colors);
 
     mesh
 }
@@ -304,7 +304,7 @@ impl<'l> Iterator for PathConvIter<'l> {
 /// Convert an SVG color to a Bevy color.
 fn svg_color_to_bevy(paint: &Paint, opacity: u8) -> [f32; 4] {
     return match paint {
-        Paint::Color(color) => dbg!(Color::rgba_u8(color.red, color.green, color.blue, opacity)),
+        Paint::Color(color) => Color::rgba_u8(color.red, color.green, color.blue, opacity),
         // We only support plain colors
         _ => Color::default(),
     }

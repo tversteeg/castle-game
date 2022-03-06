@@ -16,11 +16,12 @@ use bevy_rapier2d::prelude::ColliderShape;
 use geo::{prelude::IsConvex, LineString, Polygon as GeoPolygon};
 use std::ops::{Deref, DerefMut};
 
+use crate::draw::colored_mesh::ColoredMeshBundle;
 
 /// Convert a geo polygon to a mesh.
 pub trait ToMesh {
     /// Convert the polygon to a mesh by applying the earcut algorithm.
-    fn to_mesh(&self) -> Mesh;
+    fn to_mesh(&self, color: Color) -> Mesh;
 }
 
 /// Convert a geo polygon to a collision shape.
@@ -70,7 +71,7 @@ impl DerefMut for Polygon {
 
 impl ToMesh for Polygon {
     #[tracing::instrument(name = "converting polygon to mesh")]
-    fn to_mesh(&self) -> Mesh {
+    fn to_mesh(&self, color: Color) -> Mesh {
         // Convert the polygon to triangles
         let (vertices, indices) = self.triangulate();
 
@@ -91,15 +92,10 @@ impl ToMesh for Polygon {
                 .collect::<Vec<_>>(),
         );
 
-        // Set the normals
-        let mut normals = Vec::new();
-        normals.resize(vertices.len() / 2, [0.0, 0.0, 1.0]);
-        mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
-
-        // Set the UVs
-        let mut uvs = Vec::new();
-        uvs.resize(vertices.len() / 2, [0.0, 0.0]);
-        mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+        // Set the colors
+        let mut colors = Vec::new();
+        colors.resize(vertices.len() / 2, color.as_rgba_f32());
+        mesh.set_attribute(Mesh::ATTRIBUTE_COLOR, colors);
 
         mesh
     }
@@ -200,31 +196,14 @@ pub struct PolygonShapeBundle {
     /// The mesh and the material.
     #[bundle]
     #[inspectable(ignore)]
-    material_mesh: MaterialMesh2dBundle<ColorMaterial>,
+    mesh: ColoredMeshBundle,
 }
 
 impl PolygonShapeBundle {
     /// Construct a new polygon with a single color and position.
-    pub fn new(
-        polygon: Polygon,
-        color: Color,
-        position: Vec2,
-        meshes: &mut Assets<Mesh>,
-        materials: &mut Assets<ColorMaterial>,
-    ) -> Self {
-        let material_mesh = MaterialMesh2dBundle {
-            // Create the mesh and add it to the global list of meshes
-            mesh: meshes.add(polygon.to_mesh()).into(),
-            // Set the position
-            transform: Transform::from_xyz(position.x, position.y, 0.0),
-            // Create the material from a single color and add it to the global list of materials
-            material: materials.add(ColorMaterial::from(color)),
-            ..Default::default()
-        };
+    pub fn new(polygon: Polygon, color: Color, position: Vec2, meshes: &mut Assets<Mesh>) -> Self {
+        let mesh = ColoredMeshBundle::new(position, meshes.add(polygon.to_mesh(color)).into());
 
-        Self {
-            material_mesh,
-            polygon,
-        }
+        Self { mesh, polygon }
     }
 }

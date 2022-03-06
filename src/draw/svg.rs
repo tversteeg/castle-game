@@ -1,10 +1,10 @@
 use anyhow::{Context, Error};
 use bevy::{
     asset::{AssetLoader, BoxedFuture, LoadContext, LoadedAsset},
-    prelude::{AssetServer, Color, Commands, Handle, Mesh, Res},
+    prelude::{AssetServer, Commands, Handle, Mesh, Res},
 };
 use bevy_inspector_egui::Inspectable;
-use usvg::{Options, Paint, Tree};
+use usvg::{Options, Tree};
 
 #[derive(Debug, Clone, Inspectable)]
 pub struct AlliedCharacterSvg(#[inspectable(ignore)] pub Handle<Mesh>);

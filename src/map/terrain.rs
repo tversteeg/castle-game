@@ -113,19 +113,13 @@ impl Terrain {
 }
 
 /// Load the sprite.
-pub fn setup(
-    terrain: Res<Terrain>,
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-) {
+pub fn setup(terrain: Res<Terrain>, mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
     commands
         .spawn_bundle(PolygonShapeBundle::new(
             terrain.shape.clone(),
             Palette::C11.into(),
             Vec2::ZERO,
             &mut meshes,
-            &mut materials,
         ))
         .insert(Name::new("Terrain Polygon"));
 
