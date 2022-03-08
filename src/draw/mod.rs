@@ -1,4 +1,5 @@
 pub mod colored_mesh;
+pub mod mesh;
 pub mod svg;
 
 use self::colored_mesh::ColoredMeshPlugin;

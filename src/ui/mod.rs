@@ -1,5 +1,6 @@
 pub mod recruit_button;
 pub mod spawn_bar;
+pub mod theme;
 
 use self::recruit_button::{RecruitButton, RecruitEvent};
 use bevy::{

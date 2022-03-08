@@ -87,8 +87,13 @@ impl Rock {
         }
 
         // Setup the rendering shape
-        let polygon_bundle =
-            PolygonShapeBundle::new(self.shape.clone(), Palette::C24.into(), position, meshes);
+        let polygon_bundle = PolygonShapeBundle::new(
+            self.shape.clone(),
+            Some(Palette::C24.into()),
+            Some((Palette::C25.into(), 0.2)),
+            position,
+            meshes,
+        );
 
         // Setup the physics
         let mut rigid_body_bundle = RigidBodyBundle {
@@ -125,7 +130,7 @@ impl Rock {
                 .insert(RigidBodyPositionSync::Discrete)
                 .insert(Breakable::default())
                 // Remove after a longer while
-                .insert(RemoveAfterRestingFor::from_secs(3.0))
+                .insert(RemoveAfterRestingFor::from_secs(5.0))
                 .insert(Name::new("Rock"));
         } else {
             // Disable CCD for parts that can't break further
@@ -140,7 +145,7 @@ impl Rock {
                 // Sync with bevy transform
                 .insert(RigidBodyPositionSync::Discrete)
                 // Remove after a short while
-                .insert(RemoveAfterRestingFor::from_secs(1.0))
+                .insert(RemoveAfterRestingFor::from_secs(3.0))
                 .insert(Name::new("Rock Fragment"));
         }
     }

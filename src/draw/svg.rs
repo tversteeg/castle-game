@@ -1,21 +1,17 @@
 use anyhow::{Context, Error};
 use bevy::asset::{AssetLoader, BoxedFuture, LoadContext, LoadedAsset};
-use bevy::{
-    prelude::{Color, Mesh},
-    render::{mesh::Indices, render_resource::PrimitiveTopology},
-    utils::tracing,
-};
+use bevy::prelude::{Color, Mesh};
 
+use lyon_tessellation::geom::euclid::default::Transform2D;
 use lyon_tessellation::{
-    math::Point, path::PathEvent, BuffersBuilder, FillOptions, FillTessellator, FillVertex,
-    FillVertexConstructor, LineCap, LineJoin, StrokeOptions, StrokeTessellator, StrokeVertex,
-    StrokeVertexConstructor, VertexBuffers,
+    math::Point, path::PathEvent, FillVertex, FillVertexConstructor, LineCap, LineJoin,
+    StrokeOptions, StrokeVertex, StrokeVertexConstructor,
 };
 use std::slice::Iter;
 use usvg::{NodeKind, Options, Paint, Path, PathSegment, Transform, Tree};
 
-/// Lyon tolerance for generating a mesh from the stroke.
-pub const STROKE_TOLERANCE: f32 = 0.01;
+use crate::draw::mesh::{MeshBuffers, ToMesh};
+use crate::geometry::polygon::STROKE_TOLERANCE;
 
 /// Bevy SVG asset loader.
 #[derive(Debug, Default)]
@@ -194,9 +190,7 @@ fn svg_to_mesh(svg: &Tree) -> Mesh {
     bevy::log::trace!("Converting SVG paths to mesh");
 
     // The resulting vertex and index buffers
-    let mut vertices = Vec::new();
-    let mut indices = Vec::new();
-    let mut colors = Vec::new();
+    let mut buffers = MeshBuffers::new();
 
     for node in svg.root().descendants() {
         if let NodeKind::Path(ref path) = *node.borrow() {
@@ -204,14 +198,9 @@ fn svg_to_mesh(svg: &Tree) -> Mesh {
 
             // Convert the fill to a polygon
             if let Some(ref fill) = path.fill {
-                let mut buffers = svg_path_fill_to_vertex_buffers(&path, vertices.len() as u32);
-
-                // Merge the buffers
-                vertices.append(&mut buffers.vertices);
-                indices.append(&mut buffers.indices);
-                // Fill the buffer with the same size as the vertices with colors
-                colors.resize(
-                    vertices.len(),
+                buffers.append_fill(
+                    PathConvIter::from_svg_path(&path),
+                    svg_transform_to_lyon(&path.transform),
                     svg_color_to_bevy(&fill.paint, fill.opacity.to_u8()),
                 );
             }
@@ -235,132 +224,17 @@ fn svg_to_mesh(svg: &Tree) -> Mesh {
                     .with_line_cap(linecap)
                     .with_line_join(linejoin);
 
-                let mut buffers = svg_path_stroke_to_vertex_buffers(
-                    &path,
-                    vertices.len() as u32,
+                buffers.append_stroke(
+                    PathConvIter::from_svg_path(&path),
                     &stroke_options,
-                );
-
-                // Merge the buffers
-                vertices.append(&mut buffers.vertices);
-                indices.append(&mut buffers.indices);
-                // Fill the buffer with the same size as the vertices with colors
-                colors.resize(
-                    vertices.len(),
+                    svg_transform_to_lyon(&path.transform),
                     svg_color_to_bevy(&stroke.paint, stroke.opacity.to_u8()),
                 );
             }
         }
     }
 
-    convert_buffers_into_mesh(vertices, indices, colors)
-}
-
-/// Convert a SVG path fill to a mesh.
-#[tracing::instrument(name = "converting SVG path fill to vertex buffers")]
-fn svg_path_fill_to_vertex_buffers(
-    path: &Path,
-    indices_offset: u32,
-) -> VertexBuffers<[f32; 3], u32> {
-    bevy::log::trace!("Converting SVG path fill to vertex buffers");
-
-    // The resulting vertex and index buffers
-    let mut buffers: VertexBuffers<[f32; 3], u32> = VertexBuffers::new();
-
-    // Use our custom vertex constructor to create a bevy vertex buffer
-    let mut vertex_builder = BuffersBuilder::new(
-        &mut buffers,
-        BevyVertexConstructor {
-            transform: path.transform,
-        },
-    );
-
-    // Tesselate the fill
-    let mut tessellator = FillTessellator::new();
-    let result = tessellator.tessellate(
-        PathConvIter::from_svg_path(&path),
-        &FillOptions::default(),
-        &mut vertex_builder,
-    );
-    assert!(result.is_ok());
-
-    // Add the offset so multiple items can be merged
-    if indices_offset != 0 {
-        buffers
-            .indices
-            .iter_mut()
-            .for_each(|index| *index += indices_offset);
-    }
-
-    buffers
-}
-
-/// Convert a SVG path stroke to a mesh.
-#[tracing::instrument(name = "converting SVG path stroke to vertex buffers")]
-fn svg_path_stroke_to_vertex_buffers(
-    path: &Path,
-    indices_offset: u32,
-    stroke_options: &StrokeOptions,
-) -> VertexBuffers<[f32; 3], u32> {
-    bevy::log::trace!("Converting SVG path stroke to vertex buffers");
-
-    // The resulting vertex and index buffers
-    let mut buffers: VertexBuffers<[f32; 3], u32> = VertexBuffers::new();
-
-    // Use our custom vertex constructor to create a bevy vertex buffer
-    let mut vertex_builder = BuffersBuilder::new(
-        &mut buffers,
-        BevyVertexConstructor {
-            transform: path.transform,
-        },
-    );
-
-    // Tesselate the fill
-    let mut tessellator = StrokeTessellator::new();
-    let result = tessellator.tessellate(
-        PathConvIter::from_svg_path(&path),
-        stroke_options,
-        &mut vertex_builder,
-    );
-    assert!(result.is_ok());
-
-    // Add the offset so multiple items can be merged
-    if indices_offset != 0 {
-        buffers
-            .indices
-            .iter_mut()
-            .for_each(|index| *index += indices_offset);
-    }
-
-    buffers
-}
-
-/// Convert the vertex buffers to a mesh.
-#[tracing::instrument(name = "converting vertex and index buffers into mesh")]
-fn convert_buffers_into_mesh(
-    vertices: Vec<[f32; 3]>,
-    indices: Vec<u32>,
-    colors: Vec<[f32; 4]>,
-) -> Mesh {
-    bevy::log::trace!("Creating mesh");
-
-    let triangles = indices.len() / 3;
-
-    // Create the mesh
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
-
-    // Set the indices
-    mesh.set_indices(Some(Indices::U32(indices)));
-
-    // Set the vertices
-    mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, vertices);
-
-    // Set the colors
-    mesh.set_attribute(Mesh::ATTRIBUTE_COLOR, colors);
-
-    bevy::log::debug!("Mesh created with {triangles} triangles");
-
-    mesh
+    buffers.to_mesh()
 }
 
 /// Convert an SVG color to a Bevy color.
@@ -371,4 +245,16 @@ fn svg_color_to_bevy(paint: &Paint, opacity: u8) -> [f32; 4] {
         _ => Color::default(),
     }
     .as_linear_rgba_f32();
+}
+
+/// Convert an SVG transform to a Lyon transform.
+fn svg_transform_to_lyon(transform: &Transform) -> Transform2D<f32> {
+    Transform2D::new(
+        transform.a as f32,
+        transform.b as f32,
+        transform.c as f32,
+        transform.d as f32,
+        transform.e as f32,
+        transform.f as f32,
+    )
 }

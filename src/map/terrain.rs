@@ -127,7 +127,8 @@ pub fn setup(terrain: Res<Terrain>, mut commands: Commands, mut meshes: ResMut<A
     commands
         .spawn_bundle(PolygonShapeBundle::new(
             terrain.shape.clone(),
-            Palette::C11.into(),
+            Some(Palette::C11.into()),
+            Some((Palette::C12.into(), 0.3)),
             Vec2::ZERO,
             &mut meshes,
         ))

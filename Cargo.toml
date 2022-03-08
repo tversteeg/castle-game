@@ -18,7 +18,7 @@ travis-ci = {repository = "tversteeg/castle-game"}
 is-it-maintained-issue-resolution = { repository = "tversteeg/castle-game" }
 
 [dependencies]
-anyhow = "1.0.55"
+anyhow = "1.0.56"
 bevy = { version = "0.6.1", default-features = false, features = ["trace"] }
 bevy-inspector-egui = "0.8.2"
 bevy_easings = "0.6.0"
@@ -30,6 +30,7 @@ geo = "0.19.0"
 geo-booleanop = { git = "https://github.com/21re/rust-geo-booleanop.git" }
 geo-types = "0.7.3"
 itertools = "0.10.3"
+lyon_path = "0.17.7"
 lyon_tessellation = "0.17.10"
 nalgebra = "0.30.1"
 noise = { version = "0.7.0", default-features = false }
