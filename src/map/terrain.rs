@@ -64,8 +64,7 @@ impl Terrain {
 
         // Add the required edges to create a square
         let vertices = top_coordinates
-            .iter()
-            .map(|coord| *coord)
+            .iter().copied()
             .chain([(TERRAIN_WIDTH, -5.0), (0.0, -5.0)].into_iter())
             .collect::<Vec<_>>();
 

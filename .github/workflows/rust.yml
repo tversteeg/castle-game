@@ -11,112 +11,67 @@ on:
 
 jobs:
   # Run the `rustfmt` code formatter
-  rustfmt:
-    name: Rustfmt [Formatter]
+  rust:
+    name: cargo fmt & cargo clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          components: rustfmt
-          override: true
-      - run: rustup component add rustfmt
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+      - uses: actions/checkout@v2
 
-  # Run the `clippy` linting tool
-  clippy:
-    name: Clippy [Linter]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v1
-      - name: Install dependencies
-        run: sudo apt-get install -y xorg-dev libasound2-dev
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          components: clippy
-          override: true
-      - uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-targets --all-features -- -D clippy::all
+      - name: install dependencies
+        # run: sudo apt-get install -y libasound2-dev libwayland-cursor0 libxkbcommon-dev libwayland-dev
+        run: sudo apt-get install -y libwayland-cursor0 libxkbcommon-dev libwayland-dev
 
-  # Ensure that the project could be successfully compiled
-  cargo_check:
-    name: Compile
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v1
-      - name: Install dependencies
-        run: sudo apt-get install -y xorg-dev libasound2-dev
-      - uses: actions-rs/toolchain@v1
+      - name: install rust
+        uses: actions-rs/toolchain@v1
         with:
-          profile: minimal
-          toolchain: stable
+          profile: default
+          toolchain: nightly
           override: true
-      - uses: actions-rs/cargo@v1
+
+      - name: cargo check
+        uses: actions-rs/cargo@v1
         with:
           command: check
           args: --all
 
-  # Run tests on Linux, macOS, and Windows
-  # On both Rust stable and Rust nightly
-  test:
-    name: Test Suite
-    needs: [cargo_check]
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macOS-latest, windows-latest]
-        rust: [stable, nightly]
-    steps:
-      # Checkout the branch being tested
-      - uses: actions/checkout@v1
-
-      # Install all the required dependencies for testing
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-
-      # Install Node.js at a fixed version
-      - uses: actions/setup-node@v1
-        with:
-          node-version: "12.0"
-
-      # Install Ruby at a fixed version
-      - uses: actions/setup-ruby@v1
-        with:
-          ruby-version: "2.6"
-
-      # Install Python at a fixed version
-      - uses: actions/setup-python@v1
-        with:
-          python-version: "3.7"
-
-      # Install dotnet at a fixed version
-      - uses: actions/setup-dotnet@v1
-        with:
-          dotnet-version: "2.2.402"
-
-      - name: Install dependencies
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get install -y xorg-dev libasound2-dev
-
-      # Run the ignored tests that expect the above setup
-      - name: Run all tests
+      - name: cargo fmt
         uses: actions-rs/cargo@v1
         with:
-          command: test
-          args: -- -Z unstable-options --include-ignored
+          command: fmt
+          args: --all -- --check
+
+  wasm:
+    name: wasm compile & deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: install rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          override: true
+          target: wasm32-unknown-unknown
+
+      - name: cargo build --release
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target wasm32-unknown-unknown
+
+      - name: create www dir
+        run: |
+          mkdir www
+          cp target/wasm32-unknown-unknown/release/*.wasm www
+          cp *.html www
+      - name: deploy to github pages
+        uses: s0/git-publish-subdir-action@master
+        env:
+          REPO: self
+          BRANCH: gh-pages
+          FOLDER: www
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # Build sources for every OS
   github_build:
@@ -132,13 +87,13 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            name: castle-game-x86_64-unknown-linux-gnu.tar.gz
+            name: castle_game-x86_64-unknown-linux-gnu
           - target: x86_64-apple-darwin
             os: macOS-latest
-            name: castle-game-x86_64-apple-darwin.tar.gz
+            name: castle_game-x86_64-apple-darwin
           - target: x86_64-pc-windows-msvc
             os: windows-latest
-            name: castle-game-x86_64-pc-windows-msvc.zip
+            name: castle_game-x86_64-pc-windows-msvc.exe
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v1
@@ -147,13 +102,13 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: nightly
           override: true
           target: ${{ matrix.target }}
 
       - name: Install dependencies
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get install -y xorg-dev libasound2-dev
+        run: sudo apt-get install -y libx11-dev libxi-dev libgl1-mesa-dev gcc-mingw-w64
 
       - name: Build target
         uses: actions-rs/cargo@v1
@@ -165,18 +120,16 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           cd target/${{ matrix.target }}/release
-          strip castle-game.exe
-          7z a ../../../${{ matrix.name }} castle-game.exe
+          strip castle_game.exe
+          mv castle_game.exe ../../../${{ matrix.name }}
           cd -
-
       - name: Prepare build artifacts [-nix]
         if: matrix.os != 'windows-latest'
         run: |
           cd target/${{ matrix.target }}/release
-          strip castle-game
-          tar czvf ../../../${{ matrix.name }} castle-game
+          strip castle_game
+          mv castle_game ../../../${{ matrix.name }}
           cd -
-
       - name: Upload build artifact
         uses: actions/upload-artifact@v1
         with:
@@ -196,26 +149,26 @@ jobs:
       - name: Download releases from github_build
         uses: actions/download-artifact@v1
         with:
-          name: castle-game-x86_64-unknown-linux-gnu.tar.gz
+          name: castle_game-x86_64-unknown-linux-gnu
           path: .
       - name: Download releases from github_build
         uses: actions/download-artifact@v1
         with:
-          name: castle-game-x86_64-apple-darwin.tar.gz
+          name: castle_game-x86_64-apple-darwin
           path: .
       - name: Download releases from github_build
         uses: actions/download-artifact@v1
         with:
-          name: castle-game-x86_64-pc-windows-msvc.zip
+          name: castle_game-x86_64-pc-windows-msvc.exe
           path: .
 
       - name: Generate checksums
-        run: for file in castle-game-*; do openssl dgst -sha256 -r "$file" | awk '{print $1}' > "${file}.sha256"; done
+        run: for file in castle_game-*; do openssl dgst -sha256 -r "$file" | awk '{print $1}' > "${file}.sha256"; done
 
       - name: Create GitHub release ${{ matrix.target }}
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            castle-game-*
+            castle_game-*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

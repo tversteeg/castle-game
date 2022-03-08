@@ -238,7 +238,7 @@ impl PolygonShapeBundle {
         polygon.fill = fill;
         polygon.stroke = stroke;
 
-        let mesh = ColoredMeshBundle::new(position, meshes.add(polygon.to_mesh()).into());
+        let mesh = ColoredMeshBundle::new(position, meshes.add(polygon.to_mesh()));
 
         Self { mesh, polygon }
     }

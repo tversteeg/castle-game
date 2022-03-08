@@ -27,7 +27,7 @@ impl AssetLoader for SvgAssetLoader {
             bevy::log::debug!("Loading SVG {:?}", load_context.path());
 
             // Parse and simplify the SVG file
-            let svg_tree = Tree::from_data(&bytes, &Options::default().to_ref())
+            let svg_tree = Tree::from_data(bytes, &Options::default().to_ref())
                 .with_context(|| format!("Could not parse SVG file {:?}", load_context.path()))?;
 
             // Generate the mesh
@@ -199,7 +199,7 @@ fn svg_to_mesh(svg: &Tree) -> Mesh {
             // Convert the fill to a polygon
             if let Some(ref fill) = path.fill {
                 buffers.append_fill(
-                    PathConvIter::from_svg_path(&path),
+                    PathConvIter::from_svg_path(path),
                     svg_transform_to_lyon(&path.transform),
                     svg_color_to_bevy(&fill.paint, fill.opacity.to_u8()),
                 );
@@ -225,7 +225,7 @@ fn svg_to_mesh(svg: &Tree) -> Mesh {
                     .with_line_join(linejoin);
 
                 buffers.append_stroke(
-                    PathConvIter::from_svg_path(&path),
+                    PathConvIter::from_svg_path(path),
                     &stroke_options,
                     svg_transform_to_lyon(&path.transform),
                     svg_color_to_bevy(&stroke.paint, stroke.opacity.to_u8()),
@@ -239,12 +239,12 @@ fn svg_to_mesh(svg: &Tree) -> Mesh {
 
 /// Convert an SVG color to a Bevy color.
 fn svg_color_to_bevy(paint: &Paint, opacity: u8) -> [f32; 4] {
-    return match paint {
+    match paint {
         Paint::Color(color) => Color::rgba_u8(color.red, color.green, color.blue, opacity),
         // We only support plain colors
         _ => Color::default(),
     }
-    .as_linear_rgba_f32();
+    .as_linear_rgba_f32()
 }
 
 /// Convert an SVG transform to a Lyon transform.

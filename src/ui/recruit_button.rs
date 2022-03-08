@@ -52,7 +52,7 @@ impl RecruitButton {
                     self.elapsed = Duration::default();
 
                     // Throw the event for recruiting
-                    event = Some(RecruitEvent(self.unit_type.clone()))
+                    event = Some(RecruitEvent(self.unit_type))
                 }
             } else {
                 // The progress bar

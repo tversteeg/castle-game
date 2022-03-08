@@ -1,6 +1,6 @@
 use bevy::{
     core::{Time, Timer},
-    prelude::{AssetServer, Commands, Component, Handle, Mesh, Query, Res, ResMut},
+    prelude::{AssetServer, Commands, Component, Handle, Mesh, Query, Res},
 };
 use bevy_inspector_egui::Inspectable;
 

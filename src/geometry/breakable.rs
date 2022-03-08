@@ -39,7 +39,7 @@ pub fn system(
             // Try to get the breakable entity from both sides of the collision
             if let Ok((entity, velocity, breakable)) = query
                 .get(collision_object_1.entity())
-                .or(query.get(collision_object_2.entity()))
+                .or_else(|_| query.get(collision_object_2.entity()))
             {
                 // "Calculate" the impact velocity
                 // TODO: use better velocity calculation
