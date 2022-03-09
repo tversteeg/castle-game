@@ -1,7 +1,6 @@
 use bevy::{
     core::FloatOrd,
     core_pipeline::Transparent2d,
-    math::Vec2,
     prelude::{
         App, Assets, Bundle, Commands, Component, ComputedVisibility, Entity, FromWorld,
         GlobalTransform, Handle, HandleUntyped, Local, Mesh, Msaa, Plugin, Query, Res, ResMut,
@@ -28,6 +27,8 @@ use bevy::{
 };
 use bevy_inspector_egui::Inspectable;
 
+use crate::geometry::transform::TransformBuilder;
+
 /// Handle to the custom shader with a unique random ID.
 pub const COLORED_MESH_SHADER_HANDLE: HandleUntyped =
     HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 13518715925425351754);
@@ -39,22 +40,28 @@ pub struct ColoredMesh;
 /// Bundle for easy construction of colored meshes.
 #[derive(Default, Bundle)]
 pub struct ColoredMeshBundle {
-    colored_mesh: ColoredMesh,
-    handle: Mesh2dHandle,
-    transform: Transform,
-    global_transform: GlobalTransform,
-    visibility: Visibility,
-    computed_visibility: ComputedVisibility,
+    pub colored_mesh: ColoredMesh,
+    pub handle: Mesh2dHandle,
+    pub transform: Transform,
+    pub global_transform: GlobalTransform,
+    pub visibility: Visibility,
+    pub computed_visibility: ComputedVisibility,
 }
 
 impl ColoredMeshBundle {
     /// Create a new bundle.
-    pub fn new(position: Vec2, mesh: Handle<Mesh>) -> Self {
+    pub fn new(mesh: Handle<Mesh>) -> Self {
         Self {
             handle: Mesh2dHandle(mesh),
-            transform: Transform::from_xyz(position.x, position.y, 0.0),
+            transform: Transform::from_xyz(0.0, 0.0, 0.0),
             ..Default::default()
         }
+    }
+}
+
+impl TransformBuilder for ColoredMeshBundle {
+    fn transform_mut_ref(&'_ mut self) -> &'_ mut Transform {
+        &mut self.transform
     }
 }
 

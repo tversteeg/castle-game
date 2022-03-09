@@ -1,14 +1,15 @@
 use super::{health::Health, unit_type::UnitType, walk::Walk};
 use crate::{
     draw::colored_mesh::ColoredMeshBundle,
-    geometry::polygon::Polygon,
+    geometry::{polygon::Polygon, transform::TransformBuilder},
     map::terrain::{Terrain, TERRAIN_WIDTH},
     ui::recruit_button::RecruitEvent,
     unit::faction::Faction,
+    weapon::{bow::BowBundle, spear::SpearBundle},
 };
 use bevy::{
     core::Name,
-    prelude::{AssetServer, Commands, EventReader, Handle, Mesh, Res},
+    prelude::{AssetServer, BuildChildren, Commands, EventReader, Handle, Mesh, Res},
 };
 use geo::{Coordinate, Rect};
 
@@ -22,7 +23,7 @@ pub fn spawn_melee_soldier(
     faction: Faction,
     terrain: &Terrain,
     commands: &mut Commands,
-    mesh: Handle<Mesh>,
+    asset_server: &AssetServer,
 ) {
     // The starting position
     let x = match faction {
@@ -37,7 +38,14 @@ pub fn spawn_melee_soldier(
         .into();
 
     commands
-        .spawn_bundle(ColoredMeshBundle::new([x, y].into(), mesh))
+        .spawn_bundle(
+            ColoredMeshBundle::new(match faction {
+                Faction::Ally => asset_server.load("units/allies/character.svg"),
+                Faction::Enemy => asset_server.load("units/enemies/character.svg"),
+            })
+            .with_position(x, y)
+            .with_z_index(1.0),
+        )
         .insert(polygon)
         .insert(Health::new(100.0))
         .insert(Walk::new(match faction {
@@ -47,7 +55,16 @@ pub fn spawn_melee_soldier(
         .insert(Name::new(match faction {
             Faction::Ally => "Allied Melee Soldier",
             Faction::Enemy => "Enemy Melee Soldier",
-        }));
+        }))
+        .with_children(|parent| {
+            parent
+                .spawn_bundle(
+                    SpearBundle::new(asset_server.load("weapons/spear.svg"))
+                        .with_rotation(-20.0)
+                        .with_position(0.5, 1.0),
+                )
+                .insert(Name::new("Spear"));
+        });
 }
 
 /// Spawn an archer, a unit which fires arrows from it's bow.
@@ -55,7 +72,7 @@ pub fn spawn_archer(
     faction: Faction,
     terrain: &Terrain,
     commands: &mut Commands,
-    mesh: Handle<Mesh>,
+    asset_server: &AssetServer,
 ) {
     // The starting position
     let x = match faction {
@@ -70,7 +87,14 @@ pub fn spawn_archer(
         .into();
 
     commands
-        .spawn_bundle(ColoredMeshBundle::new([x, y].into(), mesh))
+        .spawn_bundle(
+            ColoredMeshBundle::new(match faction {
+                Faction::Ally => asset_server.load("units/allies/character.svg"),
+                Faction::Enemy => asset_server.load("units/enemies/character.svg"),
+            })
+            .with_position(x, y)
+            .with_z_index(1.0),
+        )
         .insert(polygon)
         .insert(Walk::new(match faction {
             Faction::Ally => 1.0,
@@ -80,7 +104,16 @@ pub fn spawn_archer(
         .insert(Name::new(match faction {
             Faction::Ally => "Allied Archer",
             Faction::Enemy => "Enemy Archer",
-        }));
+        }))
+        .with_children(|parent| {
+            parent
+                .spawn_bundle(
+                    BowBundle::new(2.0, asset_server.load("weapons/bow.svg"))
+                        .with_rotation(-90.0)
+                        .with_position(0.5, 1.0),
+                )
+                .insert(Name::new("Bow"));
+        });
 }
 
 /// The system for recruiting new allied units.
@@ -94,17 +127,9 @@ pub fn recruit_event_listener(
         .iter()
         // Spawn units based on what unit types have been send by the recruit button
         .for_each(|recruit_event| match recruit_event.0 {
-            UnitType::Soldier => spawn_melee_soldier(
-                Faction::Ally,
-                &terrain,
-                &mut commands,
-                asset_server.load("units/allies/character.svg"),
-            ),
-            UnitType::Archer => spawn_archer(
-                Faction::Ally,
-                &terrain,
-                &mut commands,
-                asset_server.load("units/allies/character.svg"),
-            ),
+            UnitType::Soldier => {
+                spawn_melee_soldier(Faction::Ally, &terrain, &mut commands, &asset_server)
+            }
+            UnitType::Archer => spawn_archer(Faction::Ally, &terrain, &mut commands, &asset_server),
         });
 }

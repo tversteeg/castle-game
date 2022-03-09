@@ -4,6 +4,7 @@ use crate::{
         breakable::{BreakEvent, Breakable},
         polygon::{Polygon, PolygonShapeBundle, ToColliderShape},
         split::Split,
+        transform::TransformBuilder,
     },
     physics::resting::RemoveAfterRestingFor,
 };
@@ -91,9 +92,10 @@ impl Rock {
             self.shape.clone(),
             Some(Palette::C24.into()),
             Some((Palette::C25.into(), 0.2)),
-            position,
             meshes,
-        );
+        )
+        .with_position(position.x, position.y)
+        .with_z_index(0.5);
 
         // Setup the physics
         let mut rigid_body_bundle = RigidBodyBundle {

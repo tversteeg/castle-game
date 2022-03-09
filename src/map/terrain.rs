@@ -4,7 +4,6 @@ use crate::{
 };
 use bevy::{
     core::Name,
-    math::Vec2,
     prelude::{Assets, Commands, Mesh, Res, ResMut},
     utils::tracing,
 };
@@ -64,7 +63,8 @@ impl Terrain {
 
         // Add the required edges to create a square
         let vertices = top_coordinates
-            .iter().copied()
+            .iter()
+            .copied()
             .chain([(TERRAIN_WIDTH, -5.0), (0.0, -5.0)].into_iter())
             .collect::<Vec<_>>();
 
@@ -128,7 +128,6 @@ pub fn setup(terrain: Res<Terrain>, mut commands: Commands, mut meshes: ResMut<A
             terrain.shape.clone(),
             Some(Palette::C11.into()),
             Some((Palette::C12.into(), 0.3)),
-            Vec2::ZERO,
             &mut meshes,
         ))
         .insert(Name::new("Terrain Polygon"));

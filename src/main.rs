@@ -8,13 +8,14 @@ mod physics;
 mod projectile;
 mod ui;
 mod unit;
+mod weapon;
 
 use crate::color::Palette;
 use crate::geometry::GeometryPlugin;
 use crate::log::CustomLogPlugin;
 use crate::{
     camera::CameraPlugin, draw::DrawPlugin, map::MapPlugin, physics::PhysicsPlugin,
-    projectile::ProjectilePlugin, ui::UiPlugin, unit::UnitPlugin,
+    projectile::ProjectilePlugin, ui::UiPlugin, unit::UnitPlugin, weapon::WeaponPlugin,
 };
 use bevy::{
     log::{Level, LogPlugin, LogSettings},
@@ -70,6 +71,8 @@ fn main() {
         .add_plugin(ProjectilePlugin)
         // The geometry
         .add_plugin(GeometryPlugin)
+        // The weapons
+        .add_plugin(WeaponPlugin)
         // Close when Esc is pressed
         .add_system(bevy::input::system::exit_on_esc_system)
         .add_startup_system(projectile::rock::setup)

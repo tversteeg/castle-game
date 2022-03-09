@@ -54,23 +54,27 @@ jobs:
           override: true
           target: wasm32-unknown-unknown
 
+      - name: install wasm-bindgen
+        uses: jetli/wasm-bindgen-action@v0.1.0
+
       - name: cargo build --release
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --release --target wasm32-unknown-unknown
 
-      - name: create www dir
+      - name: run wasm-bindgen and copy assets
         run: |
-          mkdir www
-          cp target/wasm32-unknown-unknown/release/*.wasm www
-          cp *.html www
+          wasm-bindgen --out-name castle-game --out-dir web --target web target/wasm32-unknown-unknown/release/castle-game.wasm
+          rm -rf web/assets
+          cp -R assets web/assets
+
       - name: deploy to github pages
         uses: s0/git-publish-subdir-action@master
         env:
           REPO: self
           BRANCH: gh-pages
-          FOLDER: www
+          FOLDER: web
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # Build sources for every OS
@@ -123,6 +127,7 @@ jobs:
           strip castle_game.exe
           mv castle_game.exe ../../../${{ matrix.name }}
           cd -
+
       - name: Prepare build artifacts [-nix]
         if: matrix.os != 'windows-latest'
         run: |
@@ -130,6 +135,7 @@ jobs:
           strip castle_game
           mv castle_game ../../../${{ matrix.name }}
           cd -
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v1
         with:
@@ -151,11 +157,13 @@ jobs:
         with:
           name: castle_game-x86_64-unknown-linux-gnu
           path: .
+
       - name: Download releases from github_build
         uses: actions/download-artifact@v1
         with:
           name: castle_game-x86_64-apple-darwin
           path: .
+
       - name: Download releases from github_build
         uses: actions/download-artifact@v1
         with:

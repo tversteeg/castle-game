@@ -42,6 +42,9 @@ fn setup(mut commands: Commands) {
 
     camera.orthographic_projection.window_origin = WindowOrigin::BottomLeft;
 
+    // Draw everything with z-index 0.0..100.0
+    camera.orthographic_projection.near = -1000.0;
+
     commands
         .spawn_bundle(camera)
         .insert(Camera)

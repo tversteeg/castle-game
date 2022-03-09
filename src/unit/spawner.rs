@@ -1,5 +1,5 @@
 use bevy::{
-    core::{Time, Timer},
+    core::{Name, Time, Timer},
     prelude::{AssetServer, Commands, Component, Handle, Mesh, Query, Res},
 };
 use bevy_inspector_egui::Inspectable;
@@ -16,7 +16,12 @@ pub struct EnemySpawner {
     timer: Timer,
     /// The function to spawn the unit.
     #[inspectable(ignore)]
-    spawn_fn: fn(faction: Faction, terrain: &Terrain, commands: &mut Commands, mesh: Handle<Mesh>),
+    spawn_fn: fn(
+        faction: Faction,
+        terrain: &Terrain,
+        commands: &mut Commands,
+        asset_server: &AssetServer,
+    ),
 }
 
 impl EnemySpawner {
@@ -27,7 +32,7 @@ impl EnemySpawner {
             faction: Faction,
             terrain: &Terrain,
             commands: &mut Commands,
-            mesh: Handle<Mesh>,
+            asset_server: &AssetServer,
         ),
     ) -> Self {
         Self {
@@ -48,25 +53,26 @@ pub fn system(
     for mut spawner in query.iter_mut() {
         if spawner.timer.tick(time.delta()).just_finished() {
             // Spawn the unit
-            (spawner.spawn_fn)(
-                Faction::Enemy,
-                &terrain,
-                &mut commands,
-                asset_server.load("units/enemies/character.svg"),
-            );
+            (spawner.spawn_fn)(Faction::Enemy, &terrain, &mut commands, &asset_server);
         }
     }
 }
 
 /// Setup the spawners.
 pub fn setup(mut commands: Commands) {
-    commands.spawn().insert(EnemySpawner::from_seconds(
-        5.0,
-        super::definitions::spawn_melee_soldier,
-    ));
+    commands
+        .spawn()
+        .insert(EnemySpawner::from_seconds(
+            5.0,
+            super::definitions::spawn_melee_soldier,
+        ))
+        .insert(Name::new("Enemy Melee Spawner"));
 
-    commands.spawn().insert(EnemySpawner::from_seconds(
-        9.0,
-        super::definitions::spawn_archer,
-    ));
+    commands
+        .spawn()
+        .insert(EnemySpawner::from_seconds(
+            9.0,
+            super::definitions::spawn_archer,
+        ))
+        .insert(Name::new("Enemy Archer Spawner"));
 }

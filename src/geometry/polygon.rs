@@ -1,5 +1,4 @@
 use bevy::{
-    math::Vec2,
     prelude::{Assets, Bundle, Color, Component, Mesh},
     utils::tracing,
 };
@@ -20,6 +19,8 @@ use crate::draw::{
     colored_mesh::ColoredMeshBundle,
     mesh::{MeshBuffers, ToMesh},
 };
+
+use super::transform::TransformBuilder;
 
 /// Lyon tolerance for generating a mesh from the stroke.
 pub const STROKE_TOLERANCE: f32 = 0.1;
@@ -232,14 +233,19 @@ impl PolygonShapeBundle {
         mut polygon: Polygon,
         fill: Option<Color>,
         stroke: Option<(Color, f32)>,
-        position: Vec2,
         meshes: &mut Assets<Mesh>,
     ) -> Self {
         polygon.fill = fill;
         polygon.stroke = stroke;
 
-        let mesh = ColoredMeshBundle::new(position, meshes.add(polygon.to_mesh()));
+        let mesh = ColoredMeshBundle::new(meshes.add(polygon.to_mesh()));
 
         Self { mesh, polygon }
+    }
+}
+
+impl TransformBuilder for PolygonShapeBundle {
+    fn transform_mut_ref(&'_ mut self) -> &'_ mut bevy::prelude::Transform {
+        self.mesh.transform_mut_ref()
     }
 }
