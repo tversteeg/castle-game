@@ -47,6 +47,7 @@ pub fn spawn_melee_soldier(
             .with_z_index(1.0),
         )
         .insert(polygon)
+        .insert(faction)
         .insert(Health::new(100.0))
         .insert(Walk::new(match faction {
             Faction::Ally => 1.0,
@@ -96,6 +97,7 @@ pub fn spawn_archer(
             .with_z_index(1.0),
         )
         .insert(polygon)
+        .insert(faction)
         .insert(Walk::new(match faction {
             Faction::Ally => 1.0,
             Faction::Enemy => -1.0,

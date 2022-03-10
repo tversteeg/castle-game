@@ -2,6 +2,7 @@ mod camera;
 mod color;
 mod draw;
 mod geometry;
+mod inspector;
 mod log;
 mod map;
 mod physics;
@@ -12,6 +13,7 @@ mod weapon;
 
 use crate::color::Palette;
 use crate::geometry::GeometryPlugin;
+use crate::inspector::InspectorPlugin;
 use crate::log::CustomLogPlugin;
 use crate::{
     camera::CameraPlugin, draw::DrawPlugin, map::MapPlugin, physics::PhysicsPlugin,
@@ -22,7 +24,6 @@ use bevy::{
     prelude::*,
 };
 use bevy_easings::EasingsPlugin;
-use bevy_inspector_egui::WorldInspectorPlugin;
 
 fn main() {
     // Print pretty errors in wasm https://github.com/rustwasm/console_error_panic_hook
@@ -51,8 +52,8 @@ fn main() {
         .add_plugins_with(DefaultPlugins, |group| group.disable::<LogPlugin>())
         // Our custom log plugin for tracing
         .add_plugin(CustomLogPlugin)
-        // Debug view
-        .add_plugin(WorldInspectorPlugin::new())
+        // Debug inspector
+        .add_plugin(InspectorPlugin)
         // Transitions
         .add_plugin(EasingsPlugin)
         // Rendering

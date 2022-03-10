@@ -29,6 +29,8 @@ use itertools::Itertools;
 use rand::Rng;
 use std::f32::consts::TAU;
 
+use super::Projectile;
+
 /// A rock projectile that can split into smaller rocks on impact.
 #[derive(Debug, Component, Inspectable)]
 pub struct Rock {
@@ -133,6 +135,7 @@ impl Rock {
                 .insert(Breakable::default())
                 // Remove after a longer while
                 .insert(RemoveAfterRestingFor::from_secs(5.0))
+                .insert(Projectile)
                 .insert(Name::new("Rock"));
         } else {
             // Disable CCD for parts that can't break further
@@ -148,6 +151,7 @@ impl Rock {
                 .insert(RigidBodyPositionSync::Discrete)
                 // Remove after a short while
                 .insert(RemoveAfterRestingFor::from_secs(3.0))
+                .insert(Projectile)
                 .insert(Name::new("Rock Fragment"));
         }
     }
