@@ -1,5 +1,11 @@
-use crate::{draw::colored_mesh::ColoredMeshBundle, geometry::transform::TransformBuilder};
-use bevy::prelude::{Bundle, Component, Handle, Mesh};
+use crate::{
+    draw::colored_mesh::ColoredMeshBundle, geometry::transform::TransformBuilder,
+    unit::faction::Faction,
+};
+use bevy::{
+    core::Name,
+    prelude::{AssetServer, Bundle, Component, Handle, Mesh},
+};
 use bevy_inspector_egui::Inspectable;
 
 #[derive(Debug, Component, Inspectable)]
@@ -13,14 +19,23 @@ pub struct SpearBundle {
     /// The mesh itself for the spear.
     #[bundle]
     pub mesh: ColoredMeshBundle,
+    /// Name of the weapon.
+    name: Name,
 }
 
 impl SpearBundle {
     /// Create a new bundle.
-    pub fn new(mesh: Handle<Mesh>) -> Self {
+    pub fn new(faction: Faction, asset_server: &AssetServer) -> Self {
         Self {
             spear: Spear,
-            mesh: ColoredMeshBundle::new(mesh).with_z_index(5.0),
+            mesh: ColoredMeshBundle::new(asset_server.load("weapons/spear.svg"))
+                .with_z_index(5.0)
+                .with_rotation(match faction {
+                    Faction::Ally => -20.0,
+                    Faction::Enemy => 20.0,
+                })
+                .with_position(0.0, 1.0),
+            name: Name::new("Spear"),
         }
     }
 }

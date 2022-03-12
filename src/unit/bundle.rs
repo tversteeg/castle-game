@@ -4,10 +4,11 @@ use crate::{
     geometry::{polygon::Polygon, transform::TransformBuilder},
     map::terrain::{Terrain, ALLY_STARTING_POSITION, ENEMY_STARTING_POSITION},
     ui::recruit_button::RecruitEvent,
+    weapon::{bow::BowBundle, spear::SpearBundle},
 };
 use bevy::{
     core::Name,
-    prelude::{AssetServer, Bundle, Commands, EventReader, Res},
+    prelude::{AssetServer, BuildChildren, Bundle, Commands, EventReader, Res},
 };
 use bevy_inspector_egui::Inspectable;
 use geo::{Coordinate, Rect};
@@ -15,15 +16,22 @@ use geo::{Coordinate, Rect};
 /// Wrapper for a unit.
 #[derive(Bundle, Inspectable)]
 pub struct UnitBundle {
+    /// To which side the unit belongs.
     faction: Faction,
+    /// What type of unit it is.
     unit_type: UnitType,
+    /// The shape used for collision detection.
     hitbox: Polygon,
+    /// How much health the unit has.
     health: Health,
+    /// How fast the unit walks.
     walk: Walk,
-    name: Name,
+    /// The unit mesh.
     #[bundle]
     #[inspectable(ignore)]
     mesh: ColoredMeshBundle,
+    /// The name of the unit.
+    name: Name,
 }
 
 impl UnitBundle {
@@ -32,7 +40,6 @@ impl UnitBundle {
         unit_type: UnitType,
         faction: Faction,
         terrain: &Terrain,
-        _commands: &mut Commands,
         asset_server: &AssetServer,
     ) -> Self {
         // The starting position
@@ -76,8 +83,15 @@ impl UnitBundle {
     }
 
     /// Spawn the unit.
-    pub fn spawn(self, commands: &mut Commands) {
-        commands.spawn_bundle(self);
+    pub fn spawn(self, commands: &mut Commands, asset_server: &AssetServer) {
+        let unit_type = self.unit_type;
+        let faction = self.faction;
+        commands.spawn_bundle(self).with_children(|parent| {
+            match unit_type {
+                UnitType::Soldier => parent.spawn_bundle(SpearBundle::new(faction, &asset_server)),
+                UnitType::Archer => parent.spawn_bundle(BowBundle::new(faction, &asset_server)),
+            };
+        });
     }
 }
 
@@ -92,14 +106,8 @@ pub fn recruit_event_listener(
         .iter()
         // Spawn units based on what unit types have been send by the recruit button
         .for_each(|recruit_event| {
-            let unit = UnitBundle::new(
-                recruit_event.0,
-                Faction::Ally,
-                &terrain,
-                &mut commands,
-                &asset_server,
-            );
+            let unit = UnitBundle::new(recruit_event.0, Faction::Ally, &terrain, &asset_server);
 
-            unit.spawn(&mut commands);
+            unit.spawn(&mut commands, &asset_server);
         });
 }

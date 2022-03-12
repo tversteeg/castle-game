@@ -25,10 +25,10 @@ impl Walk {
     /// Construct the walk component.
     pub fn for_unit(unit_type: UnitType, faction: Faction) -> Self {
         let speed = match (unit_type, faction) {
-            (UnitType::Soldier, Faction::Ally) => 2.0,
-            (UnitType::Soldier, Faction::Enemy) => -3.0,
-            (UnitType::Archer, Faction::Ally) => 1.5,
-            (UnitType::Archer, Faction::Enemy) => -2.5,
+            (UnitType::Soldier, Faction::Ally) => 1.5,
+            (UnitType::Soldier, Faction::Enemy) => -1.7,
+            (UnitType::Archer, Faction::Ally) => 1.2,
+            (UnitType::Archer, Faction::Enemy) => -1.3,
         };
 
         Self { speed }

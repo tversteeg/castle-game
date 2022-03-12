@@ -1,7 +1,10 @@
-use crate::{draw::colored_mesh::ColoredMeshBundle, geometry::transform::TransformBuilder};
+use crate::{
+    draw::colored_mesh::ColoredMeshBundle, geometry::transform::TransformBuilder,
+    unit::faction::Faction,
+};
 use bevy::{
-    core::Timer,
-    prelude::{Bundle, Component, Handle, Mesh},
+    core::{Name, Timer},
+    prelude::{AssetServer, Bundle, Component, Handle, Mesh},
 };
 use bevy_inspector_egui::Inspectable;
 
@@ -25,18 +28,33 @@ impl Bow {
 #[derive(Bundle)]
 pub struct BowBundle {
     /// The bow with the timer itself.
-    pub bow: Bow,
+    bow: Bow,
     /// The mesh itself for the bow.
     #[bundle]
-    pub mesh: ColoredMeshBundle,
+    mesh: ColoredMeshBundle,
+    /// Name of the weapon.
+    name: Name,
 }
 
 impl BowBundle {
     /// Create a new bundle.
-    pub fn new(shoot_interval_seconds: f32, mesh: Handle<Mesh>) -> Self {
+    pub fn new(faction: Faction, asset_server: &AssetServer) -> Self {
         Self {
-            bow: Bow::from_seconds(shoot_interval_seconds),
-            mesh: ColoredMeshBundle::new(mesh).with_z_index(5.0),
+            bow: Bow::from_seconds(5.0),
+            mesh: ColoredMeshBundle::new(asset_server.load("weapons/bow.svg"))
+                .with_z_index(5.0)
+                .with_rotation(match faction {
+                    Faction::Ally => -20.0,
+                    Faction::Enemy => 20.0,
+                })
+                .with_position(
+                    match faction {
+                        Faction::Ally => 0.5,
+                        Faction::Enemy => -0.5,
+                    },
+                    1.0,
+                ),
+            name: Name::new("Bow"),
         }
     }
 }

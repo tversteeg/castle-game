@@ -39,15 +39,9 @@ pub fn system(
     for mut spawner in query.iter_mut() {
         if spawner.timer.tick(time.delta()).just_finished() {
             // Spawn the unit
-            let unit = UnitBundle::new(
-                spawner.unit_type,
-                Faction::Enemy,
-                &terrain,
-                &mut commands,
-                &asset_server,
-            );
+            let unit = UnitBundle::new(spawner.unit_type, Faction::Enemy, &terrain, &asset_server);
 
-            unit.spawn(&mut commands);
+            unit.spawn(&mut commands, &asset_server);
         }
     }
 }
