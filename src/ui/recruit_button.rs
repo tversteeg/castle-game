@@ -42,10 +42,7 @@ impl RecruitButton {
             if progress >= 1.0 {
                 // The recruit button
                 if ui
-                    .add_sized(
-                        [WIDTH, HEIGHT],
-                        Button::new(self.unit_type.recruit_button_label()),
-                    )
+                    .add_sized([WIDTH, HEIGHT], Button::new(self.unit_type.to_string()))
                     .clicked()
                 {
                     // Reset the time
@@ -59,7 +56,7 @@ impl RecruitButton {
                 ui.add_sized(
                     [WIDTH, HEIGHT],
                     ProgressBar::new(progress)
-                        .text(self.unit_type.recruit_button_label())
+                        .text(self.unit_type.to_string())
                         .desired_width(WIDTH),
                 );
             }

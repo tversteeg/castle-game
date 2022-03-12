@@ -1,6 +1,8 @@
 use bevy::prelude::Component;
 use bevy_inspector_egui::Inspectable;
 
+use super::{faction::Faction, unit_type::UnitType};
+
 /// When the health of a unit is zero, it dies.
 #[derive(Debug, Component, Inspectable)]
 pub struct Health {
@@ -10,7 +12,14 @@ pub struct Health {
 
 impl Health {
     /// Construct the health component.
-    pub fn new(hp: f32) -> Self {
+    pub fn for_unit(unit_type: UnitType, faction: Faction) -> Self {
+        let hp = match (unit_type, faction) {
+            (UnitType::Soldier, Faction::Ally) => 100.0,
+            (UnitType::Soldier, Faction::Enemy) => 100.0,
+            (UnitType::Archer, Faction::Ally) => 100.0,
+            (UnitType::Archer, Faction::Enemy) => 100.0,
+        };
+
         Self { hp }
     }
 }

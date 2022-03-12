@@ -1,12 +1,12 @@
 use bevy::{
     core::{Name, Time, Timer},
-    prelude::{AssetServer, Commands, Component, Handle, Mesh, Query, Res},
+    prelude::{AssetServer, Commands, Component, Query, Res},
 };
 use bevy_inspector_egui::Inspectable;
 
 use crate::map::terrain::Terrain;
 
-use super::faction::Faction;
+use super::{bundle::UnitBundle, faction::Faction, unit_type::UnitType};
 
 /// Spawn an enemy unit once in a interval.
 #[derive(Component, Inspectable)]
@@ -14,30 +14,16 @@ pub struct EnemySpawner {
     /// Interval at which the enemy will be spawned.
     #[inspectable(ignore)]
     timer: Timer,
-    /// The function to spawn the unit.
-    #[inspectable(ignore)]
-    spawn_fn: fn(
-        faction: Faction,
-        terrain: &Terrain,
-        commands: &mut Commands,
-        asset_server: &AssetServer,
-    ),
+    /// The unit type to spawn.
+    unit_type: UnitType,
 }
 
 impl EnemySpawner {
     /// Spawn an enemy every amount of seconds.
-    pub fn from_seconds(
-        seconds: f32,
-        spawn_fn: fn(
-            faction: Faction,
-            terrain: &Terrain,
-            commands: &mut Commands,
-            asset_server: &AssetServer,
-        ),
-    ) -> Self {
+    pub fn from_seconds(seconds: f32, unit_type: UnitType) -> Self {
         Self {
             timer: Timer::from_seconds(seconds, true),
-            spawn_fn,
+            unit_type,
         }
     }
 }
@@ -53,7 +39,15 @@ pub fn system(
     for mut spawner in query.iter_mut() {
         if spawner.timer.tick(time.delta()).just_finished() {
             // Spawn the unit
-            (spawner.spawn_fn)(Faction::Enemy, &terrain, &mut commands, &asset_server);
+            let unit = UnitBundle::new(
+                spawner.unit_type,
+                Faction::Enemy,
+                &terrain,
+                &mut commands,
+                &asset_server,
+            );
+
+            unit.spawn(&mut commands);
         }
     }
 }
@@ -62,17 +56,11 @@ pub fn system(
 pub fn setup(mut commands: Commands) {
     commands
         .spawn()
-        .insert(EnemySpawner::from_seconds(
-            5.0,
-            super::definitions::spawn_melee_soldier,
-        ))
+        .insert(EnemySpawner::from_seconds(5.0, UnitType::Soldier))
         .insert(Name::new("Enemy Melee Spawner"));
 
     commands
         .spawn()
-        .insert(EnemySpawner::from_seconds(
-            9.0,
-            super::definitions::spawn_archer,
-        ))
+        .insert(EnemySpawner::from_seconds(9.0, UnitType::Archer))
         .insert(Name::new("Enemy Archer Spawner"));
 }

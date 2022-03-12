@@ -9,3 +9,13 @@ pub enum Faction {
     /// The enemy AI controls this unit.
     Enemy,
 }
+
+impl Faction {
+    /// The name as a string.
+    pub fn to_string(self) -> &'static str {
+        match self {
+            Faction::Ally => "Ally",
+            Faction::Enemy => "Enemy",
+        }
+    }
+}

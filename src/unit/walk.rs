@@ -8,6 +8,7 @@ use bevy_inspector_egui::Inspectable;
 use super::{
     closest::{ClosestAlly, ClosestEnemy},
     faction::Faction,
+    unit_type::UnitType,
 };
 
 /// The distance at which the unit must stop before the next one.
@@ -21,8 +22,15 @@ pub struct Walk {
 }
 
 impl Walk {
-    /// Create a new walk component with the specified speed in meters/second.
-    pub fn new(speed: f32) -> Self {
+    /// Construct the walk component.
+    pub fn for_unit(unit_type: UnitType, faction: Faction) -> Self {
+        let speed = match (unit_type, faction) {
+            (UnitType::Soldier, Faction::Ally) => 2.0,
+            (UnitType::Soldier, Faction::Enemy) => -3.0,
+            (UnitType::Archer, Faction::Ally) => 1.5,
+            (UnitType::Archer, Faction::Enemy) => -2.5,
+        };
+
         Self { speed }
     }
 }

@@ -3,12 +3,12 @@ use crate::projectile::Projectile;
 use crate::unit::closest::{ClosestAlly, ClosestEnemy};
 use crate::unit::faction::Faction;
 use bevy::prelude::{App, Entity, Plugin, With};
-use bevy_inspector_egui::egui::{Color32, Ui};
+
 use bevy_inspector_egui::widgets::{
-    InNewWindow, InspectorQuery, InspectorQuerySingle, ResourceInspector,
+    InspectorQuery, ResourceInspector,
 };
 use bevy_inspector_egui::{
-    Inspectable, InspectorPlugin as BevyInspectorEguiPlugin, WorldInspectorPlugin,
+    Inspectable, InspectorPlugin as BevyInspectorEguiPlugin,
 };
 
 /// The inspector with all the subwindows.

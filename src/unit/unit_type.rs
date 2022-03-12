@@ -9,8 +9,8 @@ pub enum UnitType {
 }
 
 impl UnitType {
-    /// The label for the recruit button.
-    pub fn recruit_button_label(&self) -> &'static str {
+    /// The name as a string.
+    pub fn to_string(self) -> &'static str {
         match self {
             UnitType::Soldier => "Soldier",
             UnitType::Archer => "Archer",

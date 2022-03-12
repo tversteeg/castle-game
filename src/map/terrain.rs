@@ -25,6 +25,10 @@ pub const TERRAIN_MIN_HEIGHT: f32 = 6.0;
 pub const TERRAIN_MAX_HEIGHT: f32 = 14.0;
 /// The scale of the noise, will influence which X points will be get as sample.
 pub const NOISE_SCALE: f64 = 0.01;
+/// The starting position x coordinate for ally units.
+pub const ALLY_STARTING_POSITION: f32 = 5.0;
+/// The starting position x coordinate for enemy units.
+pub const ENEMY_STARTING_POSITION: f32 = TERRAIN_WIDTH - 5.0;
 
 /// The destructible ground.
 #[derive(Inspectable)]
