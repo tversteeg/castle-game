@@ -4,7 +4,7 @@ pub mod rock;
 use self::{arrow::Arrow, rock::Rock};
 use crate::geometry::GeometrySystem;
 use bevy::prelude::{App, Component, ParallelSystemDescriptorCoercion, Plugin};
-use bevy_inspector_egui::RegisterInspectable;
+use crate::inspector::RegisterInspectable;
 
 #[derive(Component)]
 pub struct Projectile;

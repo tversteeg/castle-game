@@ -4,7 +4,7 @@ use bevy::{
     prelude::{Commands, Component, Query, Res},
 };
 use bevy_egui::egui::{Button, ProgressBar, Ui};
-use bevy_inspector_egui::Inspectable;
+use crate::inspector::Inspectable;
 use std::time::Duration;
 
 /// The width of the button and the progress bar.

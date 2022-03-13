@@ -2,7 +2,7 @@ use bevy::{
     core::{Name, Time, Timer},
     prelude::{AssetServer, Commands, Component, Query, Res},
 };
-use bevy_inspector_egui::Inspectable;
+use crate::inspector::Inspectable;
 
 use crate::map::terrain::Terrain;
 

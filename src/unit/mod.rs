@@ -16,7 +16,7 @@ use self::{
     walk::Walk,
 };
 use bevy::prelude::{App, Plugin};
-use bevy_inspector_egui::{widgets::ResourceInspector, RegisterInspectable};
+use crate::inspector::RegisterInspectable;
 
 /// The plugin to register units.
 pub struct UnitPlugin;
@@ -29,7 +29,6 @@ impl Plugin for UnitPlugin {
             .register_inspectable::<UnitType>()
             .register_inspectable::<EnemySpawner>()
             .register_inspectable::<UnitBundle>()
-            .register_inspectable::<ResourceInspector<ClosestEnemy>>()
             .insert_resource(ClosestEnemy::default())
             .insert_resource(ClosestAlly::default())
             .add_system(walk::system)

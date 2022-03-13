@@ -1,5 +1,5 @@
 use bevy::prelude::Component;
-use bevy_inspector_egui::Inspectable;
+use crate::inspector::Inspectable;
 
 use super::{faction::Faction, unit_type::UnitType};
 

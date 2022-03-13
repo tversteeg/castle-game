@@ -1,4 +1,5 @@
 use super::{faction::Faction, health::Health, unit_type::UnitType, walk::Walk};
+use crate::inspector::Inspectable;
 use crate::{
     draw::colored_mesh::ColoredMeshBundle,
     geometry::{polygon::Polygon, transform::TransformBuilder},
@@ -10,7 +11,6 @@ use bevy::{
     core::Name,
     prelude::{AssetServer, BuildChildren, Bundle, Commands, EventReader, Res},
 };
-use bevy_inspector_egui::Inspectable;
 use geo::{Coordinate, Rect};
 
 /// Wrapper for a unit.

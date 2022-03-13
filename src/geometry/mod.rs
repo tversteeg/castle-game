@@ -8,7 +8,7 @@ use self::{
     polygon::{Polygon, PolygonShapeBundle},
 };
 use bevy::prelude::{App, ParallelSystemDescriptorCoercion, Plugin, SystemLabel};
-use bevy_inspector_egui::RegisterInspectable;
+use crate::inspector::RegisterInspectable;
 
 /// For prioritizing systems in relation to our systems.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, SystemLabel)]

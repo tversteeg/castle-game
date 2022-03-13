@@ -1,3 +1,4 @@
+use crate::inspector::Inspectable;
 use crate::{
     draw::colored_mesh::ColoredMeshBundle, geometry::transform::TransformBuilder,
     unit::faction::Faction,
@@ -6,7 +7,6 @@ use bevy::{
     core::Name,
     prelude::{AssetServer, Bundle, Component, Handle, Mesh},
 };
-use bevy_inspector_egui::Inspectable;
 
 #[derive(Debug, Component, Inspectable)]
 pub struct Spear;

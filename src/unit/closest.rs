@@ -1,6 +1,6 @@
 use super::faction::Faction;
 use bevy::prelude::{Query, ResMut, Transform};
-use bevy_inspector_egui::Inspectable;
+use crate::inspector::Inspectable;
 
 /// The closest enemy.
 #[derive(Debug, Default, Inspectable)]

@@ -1,26 +1,20 @@
+use super::transform::TransformBuilder;
+use crate::{
+    draw::{
+        colored_mesh::ColoredMeshBundle,
+        mesh::{MeshBuffers, ToMesh},
+    },
+    inspector::Inspectable,
+};
 use bevy::{
     prelude::{Assets, Bundle, Color, Component, Mesh},
     utils::tracing,
-};
-use bevy_inspector_egui::{
-    egui::{
-        plot::{Legend, Line, Plot, Value, Values},
-        Grid, Ui,
-    },
-    Context, Inspectable,
 };
 use bevy_rapier2d::prelude::ColliderShape;
 use geo::{prelude::IsConvex, LineString, Polygon as GeoPolygon};
 use lyon_path::{geom::euclid::Point2D, math::Transform, Path};
 use lyon_tessellation::{LineCap, StrokeOptions};
 use std::ops::{Deref, DerefMut};
-
-use crate::draw::{
-    colored_mesh::ColoredMeshBundle,
-    mesh::{MeshBuffers, ToMesh},
-};
-
-use super::transform::TransformBuilder;
 
 /// Lyon tolerance for generating a mesh from the stroke.
 pub const STROKE_TOLERANCE: f32 = 0.1;
@@ -186,36 +180,6 @@ impl ToColliderShape for Polygon {
     }
 }
 
-impl Inspectable for Polygon {
-    type Attributes = ();
-
-    fn ui(&mut self, ui: &mut Ui, _: Self::Attributes, context: &mut Context) -> bool {
-        Grid::new(context.id()).show(ui, |ui| {
-            // Plot the polygon
-            ui.label("Plot");
-            let plot = Plot::new("polygon")
-                .legend(Legend::default())
-                .data_aspect(0.8)
-                .min_size(bevy_inspector_egui::egui::Vec2::new(250.0, 250.0))
-                .show_x(true)
-                .show_y(true);
-            plot.show(ui, |plot_ui| {
-                // TODO: plot interior
-                plot_ui.line(
-                    Line::new(Values::from_values_iter(
-                        self.exterior()
-                            .coords()
-                            .map(|coord| Value::new(coord.x, coord.y)),
-                    ))
-                    .name("exterior"),
-                )
-            });
-        });
-
-        false
-    }
-}
-
 /// The polygon component filled with a single color.
 #[derive(Bundle, Inspectable)]
 pub struct PolygonShapeBundle {
@@ -247,5 +211,47 @@ impl PolygonShapeBundle {
 impl TransformBuilder for PolygonShapeBundle {
     fn transform_mut_ref(&'_ mut self) -> &'_ mut bevy::prelude::Transform {
         self.mesh.transform_mut_ref()
+    }
+}
+
+#[cfg(feature = "inspector")]
+mod inspector {
+    use super::*;
+    use bevy_inspector_egui::{
+        egui::{
+            plot::{Legend, Line, Plot, Value, Values},
+            Grid, Ui,
+        },
+        Context, Inspectable,
+    };
+
+    impl Inspectable for Polygon {
+        type Attributes = ();
+
+        fn ui(&mut self, ui: &mut Ui, _: Self::Attributes, context: &mut Context) -> bool {
+            Grid::new(context.id()).show(ui, |ui| {
+                // Plot the polygon
+                ui.label("Plot");
+                let plot = Plot::new("polygon")
+                    .legend(Legend::default())
+                    .data_aspect(0.8)
+                    .min_size(bevy_inspector_egui::egui::Vec2::new(250.0, 250.0))
+                    .show_x(true)
+                    .show_y(true);
+                plot.show(ui, |plot_ui| {
+                    // TODO: plot interior
+                    plot_ui.line(
+                        Line::new(Values::from_values_iter(
+                            self.exterior()
+                                .coords()
+                                .map(|coord| Value::new(coord.x, coord.y)),
+                        ))
+                        .name("exterior"),
+                    )
+                });
+            });
+
+            false
+        }
     }
 }

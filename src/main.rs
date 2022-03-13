@@ -35,8 +35,8 @@ fn main() {
         .insert_resource(ClearColor(Palette::C21.into()))
         // Setup the window
         .insert_resource(WindowDescriptor {
-            width: 800.0,
-            height: 600.0,
+            width: 1200.0,
+            height: 800.0,
             title: "Castle Game".to_string(),
             // The canvas ID when running in WASM
             #[cfg(target_arch = "wasm32")]

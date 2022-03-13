@@ -4,7 +4,7 @@ use bevy::{
     prelude::{Color, Commands, Component},
     sprite::{Sprite, SpriteBundle},
 };
-use bevy_inspector_egui::Inspectable;
+use crate::inspector::Inspectable;
 
 #[derive(Component, Inspectable)]
 pub struct Arrow;

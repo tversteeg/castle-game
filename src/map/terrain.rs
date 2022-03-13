@@ -7,7 +7,7 @@ use bevy::{
     prelude::{Assets, Commands, Mesh, Res, ResMut},
     utils::tracing,
 };
-use bevy_inspector_egui::Inspectable;
+use crate::inspector::Inspectable;
 use bevy_rapier2d::{
     physics::{ColliderBundle, RigidBodyBundle},
     prelude::{ActiveEvents, RigidBodyType},

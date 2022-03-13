@@ -25,7 +25,7 @@ use bevy::{
         SetMesh2dBindGroup, SetMesh2dViewBindGroup,
     },
 };
-use bevy_inspector_egui::Inspectable;
+use crate::inspector::Inspectable;
 
 use crate::geometry::transform::TransformBuilder;
 

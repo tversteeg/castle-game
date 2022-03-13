@@ -12,7 +12,7 @@
 //! ```
 
 use bevy::prelude::Color;
-use bevy_inspector_egui::egui::Color32;
+use bevy_egui::egui::Color32;
 
 pub enum Palette {
     /// `#000000`.

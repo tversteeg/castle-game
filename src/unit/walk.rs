@@ -3,7 +3,7 @@ use bevy::{
     core::Time,
     prelude::{Component, Query, Res, Transform},
 };
-use bevy_inspector_egui::Inspectable;
+use crate::inspector::Inspectable;
 
 use super::{
     closest::{ClosestAlly, ClosestEnemy},

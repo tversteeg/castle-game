@@ -2,7 +2,7 @@ pub mod terrain;
 
 use self::terrain::Terrain;
 use bevy::prelude::{App, Plugin};
-use bevy_inspector_egui::RegisterInspectable;
+use crate::inspector::RegisterInspectable;
 
 /// The plugin to manage the map.
 pub struct MapPlugin;

@@ -4,7 +4,7 @@ use bevy::{
     core::Time,
     prelude::{Commands, Component, Entity, Query, Res},
 };
-use bevy_inspector_egui::Inspectable;
+use crate::inspector::Inspectable;
 use bevy_rapier2d::prelude::RigidBodyVelocityComponent;
 
 /// The treshold of kinetic energy at which point the timer goes down.

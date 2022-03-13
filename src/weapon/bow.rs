@@ -6,7 +6,7 @@ use bevy::{
     core::{Name, Timer},
     prelude::{AssetServer, Bundle, Component, Handle, Mesh},
 };
-use bevy_inspector_egui::Inspectable;
+use crate::inspector::Inspectable;
 
 #[derive(Debug, Component, Inspectable)]
 pub struct Bow {

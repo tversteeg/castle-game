@@ -1,5 +1,5 @@
 use bevy::prelude::{Component, Entity, EventReader, EventWriter, Query};
-use bevy_inspector_egui::Inspectable;
+use crate::inspector::Inspectable;
 use bevy_rapier2d::{
     physics::IntoEntity,
     prelude::{ContactEvent, RigidBodyVelocityComponent},

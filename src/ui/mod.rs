@@ -3,11 +3,11 @@ pub mod spawn_bar;
 pub mod theme;
 
 use self::recruit_button::{RecruitButton, RecruitEvent};
+use crate::inspector::RegisterInspectable;
 use bevy::{
     diagnostic::FrameTimeDiagnosticsPlugin,
     prelude::{App, Plugin},
 };
-use bevy_inspector_egui::RegisterInspectable;
 
 /// The plugin to handle camera movements.
 pub struct UiPlugin;
