@@ -1,5 +1,6 @@
 mod camera;
 mod color;
+mod constants;
 mod draw;
 mod geometry;
 mod inspector;
@@ -24,6 +25,7 @@ use bevy::{
     prelude::*,
 };
 use bevy_easings::EasingsPlugin;
+use constants::Constants;
 
 fn main() {
     // Print pretty errors in wasm https://github.com/rustwasm/console_error_panic_hook
@@ -31,6 +33,8 @@ fn main() {
     console_error_panic_hook::set_once();
 
     App::new()
+        // The constants
+        .insert_resource(Constants::default())
         // The background color
         .insert_resource(ClearColor(Palette::C21.into()))
         // Setup the window

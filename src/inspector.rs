@@ -2,6 +2,7 @@
 mod inspector {
     pub use bevy_inspector_egui::{Inspectable, RegisterInspectable};
 
+    use crate::constants::Constants;
     use crate::map::terrain::Terrain;
     use crate::projectile::Projectile;
     use crate::unit::closest::{ClosestAlly, ClosestEnemy};
@@ -9,7 +10,6 @@ mod inspector {
     use bevy::prelude::{App, Entity, Plugin, With};
     use bevy_inspector_egui::{
         widgets::{InspectorQuery, ResourceInspector},
-        world_inspector::WorldInspectorPlugin,
         InspectorPlugin as BevyInspectorEguiPlugin,
     };
 
@@ -27,8 +27,13 @@ mod inspector {
     /// Show these resources.
     #[derive(Default, Inspectable)]
     pub struct Resources {
+        #[inspectable(label = "Constants", collapse)]
+        constants: ResourceInspector<Constants>,
+        #[inspectable(label = "Closest Ally")]
         closest_ally: ResourceInspector<ClosestAlly>,
+        #[inspectable(label = "Closest Enemy")]
         closest_enemy: ResourceInspector<ClosestEnemy>,
+        #[inspectable(label = "Terrain", collapse)]
         terrain: ResourceInspector<Terrain>,
     }
 
@@ -39,8 +44,7 @@ mod inspector {
         fn build(&self, app: &mut App) {
             app
                 // The debug view
-                .add_plugin(BevyInspectorEguiPlugin::<Inspector>::new())
-                .add_plugin(WorldInspectorPlugin::new());
+                .add_plugin(BevyInspectorEguiPlugin::<Inspector>::new());
         }
     }
 }

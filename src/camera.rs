@@ -9,12 +9,7 @@ use bevy::{
     window::{CursorMoved, Windows},
 };
 
-use crate::map::terrain::TERRAIN_WIDTH;
-
-/// How far the camera is zoomed in.
-pub const CAMERA_SCALE: f32 = 1.0 / 10.0;
-/// Camera border on the each on which it won't move.
-pub const CAMERA_BORDER_SIZE: f32 = 0.2;
+use crate::constants::{CameraConstants, Constants};
 
 /// The plugin to handle camera movements.
 pub struct CameraPlugin;
@@ -31,12 +26,12 @@ impl Plugin for CameraPlugin {
 pub struct Camera;
 
 /// Initial setup for the camera.
-fn setup(mut commands: Commands) {
+fn setup(mut commands: Commands, constants: Res<Constants>) {
     // Setup the cameras
     let mut camera = OrthographicCameraBundle::new_2d();
 
     camera.transform = Transform {
-        scale: Vec3::splat(CAMERA_SCALE),
+        scale: Vec3::splat(constants.camera.scale),
         ..Default::default()
     };
 
@@ -59,6 +54,7 @@ pub fn system(
     mut events: EventReader<CursorMoved>,
     windows: Res<Windows>,
     mut query: Query<&mut GlobalTransform, With<Camera>>,
+    constants: Res<Constants>,
 ) {
     events.iter().for_each(|event| {
         // The camera should always be in the query
@@ -68,12 +64,13 @@ pub fn system(
         let window_size = windows.get(event.id).unwrap();
 
         // The maximum position of the camera to the right
-        let max_position = TERRAIN_WIDTH - window_size.width() * CAMERA_SCALE;
+        let max_position = constants.terrain.width - window_size.width() * constants.camera.scale;
 
         // The position of the mouse as a fraction
         // Keep a zone on the edges in which moving the mouse won't move the camera
-        let mouse_x = ((event.position.x / window_size.width()) * (1.0 + CAMERA_BORDER_SIZE * 2.0)
-            - CAMERA_BORDER_SIZE)
+        let mouse_x = ((event.position.x / window_size.width())
+            * (1.0 + constants.camera.border_size * 2.0)
+            - constants.camera.border_size)
             .clamp(0.0, 1.0);
 
         // Position the camera at the mouse

@@ -1,8 +1,8 @@
+use crate::{constants::Constants, inspector::Inspectable};
 use bevy::{
     core::{Name, Time, Timer},
     prelude::{AssetServer, Commands, Component, Query, Res},
 };
-use crate::inspector::Inspectable;
 
 use crate::map::terrain::Terrain;
 
@@ -35,11 +35,18 @@ pub fn system(
     terrain: Res<Terrain>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    constants: Res<Constants>,
 ) {
     for mut spawner in query.iter_mut() {
         if spawner.timer.tick(time.delta()).just_finished() {
             // Spawn the unit
-            let unit = UnitBundle::new(spawner.unit_type, Faction::Enemy, &terrain, &asset_server);
+            let unit = UnitBundle::new(
+                spawner.unit_type,
+                Faction::Enemy,
+                &terrain,
+                &asset_server,
+                &constants,
+            );
 
             unit.spawn(&mut commands, &asset_server);
         }

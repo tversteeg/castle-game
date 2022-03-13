@@ -1,9 +1,9 @@
-use crate::map::terrain::Terrain;
+use crate::inspector::Inspectable;
+use crate::{constants::Constants, map::terrain::Terrain};
 use bevy::{
     core::Time,
     prelude::{Component, Query, Res, Transform},
 };
-use crate::inspector::Inspectable;
 
 use super::{
     closest::{ClosestAlly, ClosestEnemy},
@@ -23,13 +23,8 @@ pub struct Walk {
 
 impl Walk {
     /// Construct the walk component.
-    pub fn for_unit(unit_type: UnitType, faction: Faction) -> Self {
-        let speed = match (unit_type, faction) {
-            (UnitType::Soldier, Faction::Ally) => 1.5,
-            (UnitType::Soldier, Faction::Enemy) => -1.7,
-            (UnitType::Archer, Faction::Ally) => 1.2,
-            (UnitType::Archer, Faction::Enemy) => -1.3,
-        };
+    pub fn for_unit(unit_type: UnitType, faction: Faction, constants: &Constants) -> Self {
+        let speed = constants.unit(unit_type, faction).walking_speed;
 
         Self { speed }
     }

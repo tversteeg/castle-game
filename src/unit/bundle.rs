@@ -1,9 +1,10 @@
 use super::{faction::Faction, health::Health, unit_type::UnitType, walk::Walk};
+use crate::constants::Constants;
 use crate::inspector::Inspectable;
 use crate::{
     draw::colored_mesh::ColoredMeshBundle,
     geometry::{polygon::Polygon, transform::TransformBuilder},
-    map::terrain::{Terrain, ALLY_STARTING_POSITION, ENEMY_STARTING_POSITION},
+    map::terrain::Terrain,
     ui::recruit_button::RecruitEvent,
     weapon::{bow::BowBundle, spear::SpearBundle},
 };
@@ -41,11 +42,12 @@ impl UnitBundle {
         faction: Faction,
         terrain: &Terrain,
         asset_server: &AssetServer,
+        constants: &Constants,
     ) -> Self {
         // The starting position
         let x = match faction {
-            Faction::Ally => ALLY_STARTING_POSITION,
-            Faction::Enemy => ENEMY_STARTING_POSITION,
+            Faction::Ally => constants.terrain.ally_starting_position,
+            Faction::Enemy => constants.terrain.enemy_starting_position,
         };
 
         let y = terrain.height_at_x(x);
@@ -64,10 +66,10 @@ impl UnitBundle {
         .with_position(x, y)
         .with_z_index(1.0);
 
-        let health = Health::for_unit(unit_type, faction);
+        let health = Health::for_unit(unit_type, faction, constants);
 
         // How fast the unit walks
-        let walk = Walk::for_unit(unit_type, faction);
+        let walk = Walk::for_unit(unit_type, faction, constants);
 
         let name = Name::new(format!("{} {}", faction.to_string(), unit_type.to_string()));
 
@@ -101,12 +103,19 @@ pub fn recruit_event_listener(
     terrain: Res<Terrain>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    constants: Res<Constants>,
 ) {
     events
         .iter()
         // Spawn units based on what unit types have been send by the recruit button
         .for_each(|recruit_event| {
-            let unit = UnitBundle::new(recruit_event.0, Faction::Ally, &terrain, &asset_server);
+            let unit = UnitBundle::new(
+                recruit_event.0,
+                Faction::Ally,
+                &terrain,
+                &asset_server,
+                &constants,
+            );
 
             unit.spawn(&mut commands, &asset_server);
         });

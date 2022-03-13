@@ -1,5 +1,5 @@
+use crate::{constants::Constants, inspector::Inspectable};
 use bevy::prelude::Component;
-use crate::inspector::Inspectable;
 
 use super::{faction::Faction, unit_type::UnitType};
 
@@ -12,13 +12,8 @@ pub struct Health {
 
 impl Health {
     /// Construct the health component.
-    pub fn for_unit(unit_type: UnitType, faction: Faction) -> Self {
-        let hp = match (unit_type, faction) {
-            (UnitType::Soldier, Faction::Ally) => 100.0,
-            (UnitType::Soldier, Faction::Enemy) => 100.0,
-            (UnitType::Archer, Faction::Ally) => 100.0,
-            (UnitType::Archer, Faction::Enemy) => 100.0,
-        };
+    pub fn for_unit(unit_type: UnitType, faction: Faction, constants: &Constants) -> Self {
+        let hp = constants.unit(unit_type, faction).hp;
 
         Self { hp }
     }
