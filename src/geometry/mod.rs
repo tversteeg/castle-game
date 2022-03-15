@@ -7,8 +7,8 @@ use self::{
     breakable::{BreakEvent, Breakable},
     polygon::{Polygon, PolygonShapeBundle},
 };
-use bevy::prelude::{App, ParallelSystemDescriptorCoercion, Plugin, SystemLabel};
 use crate::inspector::RegisterInspectable;
+use bevy::prelude::{App, ParallelSystemDescriptorCoercion, Plugin, SystemLabel};
 
 /// For prioritizing systems in relation to our systems.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, SystemLabel)]

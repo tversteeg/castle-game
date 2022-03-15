@@ -48,7 +48,7 @@ pub fn system(
                 &constants,
             );
 
-            unit.spawn(&mut commands, &asset_server);
+            unit.spawn(&mut commands, &asset_server, &constants);
         }
     }
 }

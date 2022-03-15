@@ -85,13 +85,16 @@ impl UnitBundle {
     }
 
     /// Spawn the unit.
-    pub fn spawn(self, commands: &mut Commands, asset_server: &AssetServer) {
+    pub fn spawn(self, commands: &mut Commands, asset_server: &AssetServer, constants: &Constants) {
         let unit_type = self.unit_type;
         let faction = self.faction;
         commands.spawn_bundle(self).with_children(|parent| {
             match unit_type {
-                UnitType::Soldier => parent.spawn_bundle(SpearBundle::new(faction, &asset_server)),
-                UnitType::Archer => parent.spawn_bundle(BowBundle::new(faction, &asset_server)),
+                // TODO: Something weird happens here
+                UnitType::Soldier => parent.spawn_bundle(SpearBundle::new(faction, asset_server)),
+                UnitType::Archer => {
+                    parent.spawn_bundle(BowBundle::new(faction, asset_server, constants))
+                }
             };
         });
     }
@@ -117,6 +120,6 @@ pub fn recruit_event_listener(
                 &constants,
             );
 
-            unit.spawn(&mut commands, &asset_server);
+            unit.spawn(&mut commands, &asset_server, &constants);
         });
 }

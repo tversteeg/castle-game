@@ -5,7 +5,7 @@ use crate::{
 };
 use bevy::{
     core::Name,
-    prelude::{AssetServer, Bundle, Component, Handle, Mesh},
+    prelude::{AssetServer, Bundle, Component},
 };
 
 #[derive(Debug, Component, Inspectable)]
@@ -16,6 +16,8 @@ pub struct Spear;
 pub struct SpearBundle {
     /// The spear with the timer itself.
     pub spear: Spear,
+    /// The faction of the unit holding the spear.
+    faction: Faction,
     /// The mesh itself for the spear.
     #[bundle]
     pub mesh: ColoredMeshBundle,
@@ -27,6 +29,7 @@ impl SpearBundle {
     /// Create a new bundle.
     pub fn new(faction: Faction, asset_server: &AssetServer) -> Self {
         Self {
+            faction,
             spear: Spear,
             mesh: ColoredMeshBundle::new(asset_server.load("weapons/spear.svg"))
                 .with_z_index(5.0)

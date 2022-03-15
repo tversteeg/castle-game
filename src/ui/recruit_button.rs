@@ -1,10 +1,10 @@
+use crate::inspector::Inspectable;
 use crate::unit::unit_type::UnitType;
 use bevy::{
     core::{Name, Time},
     prelude::{Commands, Component, Query, Res},
 };
 use bevy_egui::egui::{Button, ProgressBar, Ui};
-use crate::inspector::Inspectable;
 use std::time::Duration;
 
 /// The width of the button and the progress bar.

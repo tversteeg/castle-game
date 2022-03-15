@@ -1,3 +1,4 @@
+use crate::inspector::Inspectable;
 use bevy::{
     core::FloatOrd,
     core_pipeline::Transparent2d,
@@ -25,7 +26,6 @@ use bevy::{
         SetMesh2dBindGroup, SetMesh2dViewBindGroup,
     },
 };
-use crate::inspector::Inspectable;
 
 use crate::geometry::transform::TransformBuilder;
 

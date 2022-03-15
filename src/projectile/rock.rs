@@ -1,3 +1,4 @@
+use crate::inspector::Inspectable;
 use crate::{
     color::Palette,
     geometry::{
@@ -16,7 +17,6 @@ use bevy::{
         Transform,
     },
 };
-use crate::inspector::Inspectable;
 use bevy_rapier2d::{
     physics::{ColliderBundle, RigidBodyBundle, RigidBodyPositionSync},
     prelude::{
@@ -104,7 +104,8 @@ impl Rock {
             position: (position, rotation).into(),
             velocity: velocity.into(),
             ccd: RigidBodyCcd {
-                ccd_enabled: true,
+                // Disable CCD for parts that can't break further
+                ccd_enabled: area > 2.0,
                 ..Default::default()
             }
             .into(),
@@ -138,9 +139,6 @@ impl Rock {
                 .insert(Projectile)
                 .insert(Name::new("Rock"));
         } else {
-            // Disable CCD for parts that can't break further
-            rigid_body_bundle.ccd.0.ccd_enabled = false;
-
             commands
                 .spawn()
                 .insert(self)

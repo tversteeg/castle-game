@@ -1,4 +1,4 @@
-use crate::constants::{Constants, TerrainConstants};
+use crate::constants::{TerrainConstants};
 use crate::inspector::Inspectable;
 use crate::{
     color::Palette,

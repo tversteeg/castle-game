@@ -1,5 +1,5 @@
-use bevy::prelude::Component;
 use crate::inspector::Inspectable;
+use bevy::prelude::Component;
 
 /// To which side the unit belongs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Inspectable)]

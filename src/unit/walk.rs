@@ -1,18 +1,13 @@
-use crate::inspector::Inspectable;
-use crate::{constants::Constants, map::terrain::Terrain};
-use bevy::{
-    core::Time,
-    prelude::{Component, Query, Res, Transform},
-};
-
 use super::{
     closest::{ClosestAlly, ClosestEnemy},
     faction::Faction,
     unit_type::UnitType,
 };
-
-/// The distance at which the unit must stop before the next one.
-pub const STOP_DISTANCE: f32 = 2.0;
+use crate::{constants::Constants, inspector::Inspectable, map::terrain::Terrain};
+use bevy::{
+    core::Time,
+    prelude::{Component, Query, Res, Transform},
+};
 
 /// Allow a unit to walk across the map.
 #[derive(Debug, Component, Inspectable)]
@@ -34,20 +29,24 @@ impl Walk {
 ///
 /// Stop walking when the closest is reached.
 pub fn system(
-    mut query: Query<(&Faction, &Walk, &mut Transform)>,
+    mut query: Query<(&Faction, &UnitType, &Walk, &mut Transform)>,
     terrain: Res<Terrain>,
     time: Res<Time>,
     closest_ally: Res<ClosestAlly>,
     closest_enemy: Res<ClosestEnemy>,
+    constants: Res<Constants>,
 ) {
-    for (faction, walk, mut transform) in query.iter_mut() {
+    for (faction, unit_type, walk, mut transform) in query.iter_mut() {
+        // Get the constant stop distance for the unit
+        let stop_distance = constants.unit(*unit_type, *faction).stop_distance;
+
         // Determine whether we can walk
         let must_stop = match (faction, closest_ally.x, closest_enemy.x) {
             // We are an ally walking to an enemy
-            (Faction::Ally, _closest_ally, Some(x)) => transform.translation.x >= x - STOP_DISTANCE,
+            (Faction::Ally, _closest_ally, Some(x)) => transform.translation.x >= x - stop_distance,
             // We are an enemy walking to an ally
             (Faction::Enemy, Some(x), _closest_enemy) => {
-                transform.translation.x <= x + STOP_DISTANCE
+                transform.translation.x <= x + stop_distance
             }
             _ => false,
         };
@@ -55,9 +54,9 @@ pub fn system(
         if !must_stop {
             // Walk horizontally
             transform.translation.x += walk.speed * time.delta_seconds();
-        }
 
-        // Follow the curve of the terrain vertically
-        transform.translation.y = terrain.height_at_x(transform.translation.x);
+            // Follow the curve of the terrain vertically
+            transform.translation.y = terrain.height_at_x(transform.translation.x);
+        }
     }
 }

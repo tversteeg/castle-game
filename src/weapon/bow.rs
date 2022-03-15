@@ -1,36 +1,35 @@
+use crate::constants::Constants;
+use crate::inspector::Inspectable;
+
+use crate::unit::unit_type::UnitType;
 use crate::{
     draw::colored_mesh::ColoredMeshBundle, geometry::transform::TransformBuilder,
     unit::faction::Faction,
 };
+
 use bevy::{
-    core::{Name, Timer},
-    prelude::{AssetServer, Bundle, Component, Handle, Mesh},
+    core::Name,
+    prelude::{AssetServer, Bundle, Component},
 };
-use crate::inspector::Inspectable;
 
+use super::discharge::Discharge;
+
+/// Unit struct for determining the weapon.
 #[derive(Debug, Component, Inspectable)]
-pub struct Bow {
-    /// Interval at which an arrow will be shoot.
-    #[inspectable(ignore)]
-    timer: Timer,
-}
-
-impl Bow {
-    /// Spawn a bow which shoots an arrow every amount of seconds.
-    pub fn from_seconds(seconds: f32) -> Self {
-        Self {
-            timer: Timer::from_seconds(seconds, true),
-        }
-    }
-}
+pub struct Bow;
 
 /// Bow with mesh.
-#[derive(Bundle)]
+#[derive(Bundle, Inspectable)]
 pub struct BowBundle {
-    /// The bow with the timer itself.
+    /// Determine that it's a bow.
     bow: Bow,
+    /// Timer for firing the bow.
+    discharge: Discharge,
+    /// The faction of the unit holding the bow.
+    faction: Faction,
     /// The mesh itself for the bow.
     #[bundle]
+    #[inspectable(ignore)]
     mesh: ColoredMeshBundle,
     /// Name of the weapon.
     name: Name,
@@ -38,9 +37,11 @@ pub struct BowBundle {
 
 impl BowBundle {
     /// Create a new bundle.
-    pub fn new(faction: Faction, asset_server: &AssetServer) -> Self {
+    pub fn new(faction: Faction, asset_server: &AssetServer, constants: &Constants) -> Self {
         Self {
-            bow: Bow::from_seconds(5.0),
+            faction,
+            discharge: Discharge::new(UnitType::Archer, faction, constants),
+            bow: Bow,
             mesh: ColoredMeshBundle::new(asset_server.load("weapons/bow.svg"))
                 .with_z_index(5.0)
                 .with_rotation(match faction {

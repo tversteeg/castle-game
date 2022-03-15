@@ -15,8 +15,18 @@ use self::{
     unit_type::UnitType,
     walk::Walk,
 };
-use bevy::prelude::{App, Plugin};
 use crate::inspector::RegisterInspectable;
+use bevy::{
+    core::FixedTimestep,
+    prelude::{App, CoreStage, Plugin, StageLabel, SystemStage},
+};
+
+/// The label used for the slow stage.
+const SLOW_STAGE_LABEL: &str = "unit_slow_stage";
+
+/// A stage that's updated not every frame.
+#[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
+struct SlowUpdateStage;
 
 /// The plugin to register units.
 pub struct UnitPlugin;
@@ -34,7 +44,15 @@ impl Plugin for UnitPlugin {
             .add_system(walk::system)
             .add_system(bundle::recruit_event_listener)
             .add_system(spawner::system)
-            .add_system(closest::system)
+            // Check the closest distance with a different interval
+            .add_stage_after(
+                CoreStage::Update,
+                SlowUpdateStage,
+                SystemStage::parallel()
+                    // Run the system twice per second
+                    .with_run_criteria(FixedTimestep::step(0.5).with_label(SLOW_STAGE_LABEL))
+                    .with_system(closest::system),
+            )
             .add_startup_system(spawner::setup);
     }
 }
