@@ -1,19 +1,19 @@
-use crate::geometry::transform::TransformBuilder;
-use crate::projectile::Projectile;
-use crate::{draw::colored_mesh::ColoredMeshBundle, inspector::Inspectable};
-use bevy::prelude::{AssetServer, Assets, Mesh};
-use bevy::{
-    math::Vec2,
-    prelude::{Bundle, Color, Commands, Component},
-    sprite::{Sprite, SpriteBundle},
+use crate::{
+    constants::Constants, draw::colored_mesh::ColoredMeshBundle,
+    geometry::transform::TransformBuilder, inspector::Inspectable,
+    physics::resting::RemoveAfterRestingFor, projectile::Projectile,
 };
-use bevy_rapier2d::prelude::{
-    ActiveEvents, ColliderMassProps, ColliderShape, ColliderShapeComponent, RigidBodyCcd,
-    RigidBodyType,
+use bevy::{
+    core::Name,
+    math::Vec2,
+    prelude::{AssetServer, Bundle, Component},
 };
 use bevy_rapier2d::{
-    physics::{ColliderBundle, RigidBodyBundle},
-    prelude::RigidBodyVelocity,
+    physics::{ColliderBundle, RigidBodyBundle, RigidBodyPositionSync},
+    prelude::{
+        ActiveEvents, ColliderMassProps, ColliderShape, RigidBodyCcd, RigidBodyType,
+        RigidBodyVelocity,
+    },
 };
 
 /// Unit struct for determining the projectile.
@@ -27,9 +27,13 @@ pub struct ArrowBundle {
     arrow: Arrow,
     /// Determine that it's a projectile.
     projectile: Projectile,
+    /// Remove the component after resting for a specific time.
+    remove_after_resting_for: RemoveAfterRestingFor,
+    /// Sync with bevy transform.
+    #[inspectable(ignore)]
+    position_sync: RigidBodyPositionSync,
     /// The mesh itself for the arrow.
     #[bundle]
-    #[inspectable(ignore)]
     mesh: ColoredMeshBundle,
     /// Physics.
     #[bundle]
@@ -39,6 +43,8 @@ pub struct ArrowBundle {
     #[bundle]
     #[inspectable(ignore)]
     collider: ColliderBundle,
+    /// Name of the entity.
+    name: Name,
 }
 
 impl ArrowBundle {
@@ -48,6 +54,7 @@ impl ArrowBundle {
         velocity: RigidBodyVelocity,
         rotation: f32,
         asset_server: &AssetServer,
+        constants: &Constants,
     ) -> Self {
         // Setup the physics
         let rigid_body = RigidBodyBundle {
@@ -63,7 +70,7 @@ impl ArrowBundle {
         };
         let collider = ColliderBundle {
             // TODO: add proper size
-            shape: ColliderShape::cuboid(1.0, 1.0).into(),
+            shape: ColliderShape::cuboid(0.05, 0.5).into(),
             mass_properties: ColliderMassProps::Density(2.0).into(),
             // Register to collision events
             flags: ActiveEvents::CONTACT_EVENTS.into(),
@@ -71,15 +78,24 @@ impl ArrowBundle {
         };
 
         // Load the svg
-        let mesh = ColoredMeshBundle::new(asset_server.load("weapons/bow.svg"))
+        let mesh = ColoredMeshBundle::new(asset_server.load("projectiles/arrow.svg"))
             .with_position(position.x, position.y);
+
+        // When to remove the arrow
+        let remove_after_resting_for =
+            RemoveAfterRestingFor::from_secs(constants.arrow.remove_after_resting_for);
+
+        let name = Name::new("Arrow");
 
         Self {
             rigid_body,
             collider,
             mesh,
+            name,
+            remove_after_resting_for,
             arrow: Arrow,
             projectile: Projectile,
+            position_sync: RigidBodyPositionSync::Discrete,
         }
     }
 }

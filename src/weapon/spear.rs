@@ -8,14 +8,18 @@ use bevy::{
     prelude::{AssetServer, Bundle, Component},
 };
 
+use super::Weapon;
+
 #[derive(Debug, Component, Inspectable)]
 pub struct Spear;
 
 /// Spear with mesh.
 #[derive(Bundle)]
 pub struct SpearBundle {
-    /// The spear with the timer itself.
-    pub spear: Spear,
+    /// Determine that it's a spear.
+    spear: Spear,
+    /// Determine that it's a weapon.
+    weapon: Weapon,
     /// The faction of the unit holding the spear.
     faction: Faction,
     /// The mesh itself for the spear.
@@ -31,6 +35,7 @@ impl SpearBundle {
         Self {
             faction,
             spear: Spear,
+            weapon: Weapon,
             mesh: ColoredMeshBundle::new(asset_server.load("weapons/spear.svg"))
                 .with_z_index(5.0)
                 .with_rotation(match faction {

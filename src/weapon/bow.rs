@@ -13,6 +13,7 @@ use bevy::{
 };
 
 use super::discharge::Discharge;
+use super::Weapon;
 
 /// Unit struct for determining the weapon.
 #[derive(Debug, Component, Inspectable)]
@@ -23,6 +24,8 @@ pub struct Bow;
 pub struct BowBundle {
     /// Determine that it's a bow.
     bow: Bow,
+    /// Determine that it's a weapon.
+    weapon: Weapon,
     /// Timer for firing the bow.
     discharge: Discharge,
     /// The faction of the unit holding the bow.
@@ -42,6 +45,7 @@ impl BowBundle {
             faction,
             discharge: Discharge::new(UnitType::Archer, faction, constants),
             bow: Bow,
+            weapon: Weapon,
             mesh: ColoredMeshBundle::new(asset_server.load("weapons/bow.svg"))
                 .with_z_index(5.0)
                 .with_rotation(match faction {

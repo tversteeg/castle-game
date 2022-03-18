@@ -3,7 +3,7 @@ use crate::{constants::Constants, projectile::event::ProjectileType};
 use super::{arrow::ArrowBundle, event::ProjectileSpawnEvent};
 use bevy::{
     math::Vec2,
-    prelude::{AssetServer, Commands, EventReader, Res, ResMut},
+    prelude::{AssetServer, Commands, EventReader, Res},
 };
 use bevy_rapier2d::prelude::RigidBodyVelocity;
 
@@ -35,6 +35,7 @@ pub fn spawn_event_listener(
                     },
                     0.0,
                     &asset_server,
+                    &constants,
                 ));
             }
             ProjectileType::Rock => todo!(),
@@ -44,14 +45,16 @@ pub fn spawn_event_listener(
 
 /// Calculate the velocity needed for shooting from point A to point B.
 fn shoot_velocity(a: Vec2, b: Vec2, constants: &Constants) -> Vec2 {
-    // TODO: do something with this
-    let flight_time = 5.0;
-
     // X velocity, a constant
-    let vx = (b.x - a.x) / flight_time;
+    let vx = (b.x - a.x) / constants.arrow.flight_time;
     // Y velocity, calculate the arch
-    let vy = (b.y + 0.5 * constants.world.gravity * flight_time * flight_time - a.y) / flight_time;
-    dbg!(vx, vy);
+    let vy = (b.y
+        + 0.5
+            * -constants.world.gravity
+            * constants.arrow.flight_time
+            * constants.arrow.flight_time
+        - a.y)
+        / constants.arrow.flight_time;
 
     Vec2::new(vx, vy)
 }

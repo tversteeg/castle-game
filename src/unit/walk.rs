@@ -13,6 +13,7 @@ use bevy::{
 #[derive(Debug, Component, Inspectable)]
 pub struct Walk {
     /// How many meters per second the unit walks.
+    #[inspectable(min = -100.0, max = 100.0, suffix = "m/s")]
     speed: f32,
 }
 

@@ -1,18 +1,18 @@
 use crate::color::Palette;
-use bevy_egui::egui::{epaint::Shadow, Frame, Ui};
+use bevy_egui::egui::{epaint::Shadow, style::Margin, Frame, Rounding, Ui};
 
 /// Default settings for a frame.
 pub fn frame() -> Frame {
     Frame {
         // Rounded edges
-        corner_radius: 3.0,
+        rounding: Rounding::same(3.0),
         // No shadow
         shadow: Shadow {
             extrusion: 0.0,
             ..Default::default()
         },
         fill: Palette::C26.into(),
-        margin: (5.0, 5.0).into(),
+        margin: Margin::symmetric(5.0, 5.0),
         ..Default::default()
     }
 }

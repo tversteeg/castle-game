@@ -100,7 +100,7 @@ impl Rock {
         .with_z_index(0.5);
 
         // Setup the physics
-        let mut rigid_body_bundle = RigidBodyBundle {
+        let rigid_body_bundle = RigidBodyBundle {
             position: (position, rotation).into(),
             velocity: velocity.into(),
             ccd: RigidBodyCcd {

@@ -38,13 +38,16 @@ pub const COLORED_MESH_SHADER_HANDLE: HandleUntyped =
 pub struct ColoredMesh;
 
 /// Bundle for easy construction of colored meshes.
-#[derive(Default, Bundle)]
+#[derive(Default, Bundle, Inspectable)]
 pub struct ColoredMeshBundle {
     pub colored_mesh: ColoredMesh,
+    #[inspectable(ignore)]
     pub handle: Mesh2dHandle,
     pub transform: Transform,
     pub global_transform: GlobalTransform,
+    #[inspectable(ignore)]
     pub visibility: Visibility,
+    #[inspectable(ignore)]
     pub computed_visibility: ComputedVisibility,
 }
 

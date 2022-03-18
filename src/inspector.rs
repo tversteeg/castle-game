@@ -2,16 +2,25 @@
 mod inspector {
     pub use bevy_inspector_egui::{Inspectable, RegisterInspectable};
 
-    use crate::constants::Constants;
-    use crate::map::terrain::Terrain;
-    use crate::projectile::Projectile;
-    use crate::unit::closest::{ClosestAlly, ClosestEnemy};
-    use crate::unit::faction::Faction;
-    use bevy::prelude::{App, Entity, Plugin, With};
+    use crate::{
+        constants::Constants,
+        map::terrain::Terrain,
+        projectile::Projectile,
+        unit::{
+            closest::{ClosestAlly, ClosestEnemy},
+            unit_type::UnitType,
+        },
+        weapon::Weapon,
+    };
+    use bevy::{
+        prelude::{App, Assets, Entity, Mesh, Plugin, With},
+        sprite::Mesh2dHandle,
+    };
     use bevy_inspector_egui::{
         widgets::{InspectorQuery, ResourceInspector},
-        InspectorPlugin as BevyInspectorEguiPlugin,
+        InspectableRegistry, InspectorPlugin as BevyInspectorEguiPlugin,
     };
+    use bevy_inspector_egui_rapier::InspectableRapierPlugin;
 
     /// The inspector with all the subwindows.
     #[derive(Default, Inspectable)]
@@ -19,7 +28,9 @@ mod inspector {
         #[inspectable(label = "Resources", collapse)]
         resources: Resources,
         #[inspectable(label = "Units", collapse)]
-        units: InspectorQuery<Entity, With<Faction>>,
+        units: InspectorQuery<Entity, With<UnitType>>,
+        #[inspectable(label = "Weapons", collapse)]
+        weapons: InspectorQuery<Entity, With<Weapon>>,
         #[inspectable(label = "Projectiles", collapse)]
         projectiles: InspectorQuery<Entity, With<Projectile>>,
     }
@@ -43,8 +54,19 @@ mod inspector {
     impl Plugin for InspectorPlugin {
         fn build(&self, app: &mut App) {
             app
+                // Rapier structs
+                .add_plugin(InspectableRapierPlugin)
                 // The debug view
                 .add_plugin(BevyInspectorEguiPlugin::<Inspector>::new());
+
+            // Get the registry for inspectables to add our own implementation for custom types
+            let mut inspectable_registry = app
+                .world
+                .get_resource_or_insert_with(InspectableRegistry::default);
+
+            // "Implement" inspectable trait for mesh
+            inspectable_registry
+                .register_raw::<Mesh2dHandle, _>(crate::draw::mesh::inspector::mesh_inspectable);
         }
     }
 }

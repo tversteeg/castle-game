@@ -19,16 +19,19 @@ pub struct Constants {
     pub terrain: TerrainConstants,
     /// Ally soldier constants.
     #[inspectable(label = "Ally Soldier", collapse)]
-    ally_soldier: UnitConstants,
+    pub ally_soldier: UnitConstants,
     /// Enemy soldier constants.
     #[inspectable(label = "Enemy Soldier", collapse)]
-    enemy_soldier: UnitConstants,
+    pub enemy_soldier: UnitConstants,
     /// Ally archer constants.
     #[inspectable(label = "Ally Archer", collapse)]
-    ally_archer: UnitConstants,
+    pub ally_archer: UnitConstants,
     /// Enemy archer constants.
     #[inspectable(label = "Enemy Archer", collapse)]
-    enemy_archer: UnitConstants,
+    pub enemy_archer: UnitConstants,
+    /// Arrow constants.
+    #[inspectable(label = "Arrow", collapse)]
+    pub arrow: ProjectileConstants,
 }
 
 impl Constants {
@@ -65,14 +68,18 @@ impl Default for Constants {
                 walking_speed: 1.2,
                 minimum_weapon_distance: 500.0,
                 weapon_delay: 5.0,
-                stop_distance: 2.0,
+                stop_distance: 50.0,
             },
             enemy_archer: UnitConstants {
                 hp: 100.0,
                 walking_speed: -1.3,
-                minimum_weapon_distance: 100.0,
+                minimum_weapon_distance: 500.0,
                 weapon_delay: 5.0,
-                stop_distance: 2.0,
+                stop_distance: 50.0,
+            },
+            arrow: ProjectileConstants {
+                remove_after_resting_for: 0.5,
+                flight_time: 5.0,
             },
             terrain: TerrainConstants::default(),
             camera: CameraConstants::default(),
@@ -158,6 +165,17 @@ impl Default for CameraConstants {
             border_size: 0.2,
         }
     }
+}
+
+/// Constants for projectiles.
+#[derive(Debug, Clone, Copy, Inspectable)]
+pub struct ProjectileConstants {
+    /// How long until an arrow is removed when laying on the ground.
+    #[inspectable(min = 0.0, max = 1000.0, suffix = "s")]
+    pub remove_after_resting_for: f32,
+    /// Seconds until the arrow will hit the target.
+    #[inspectable(min = 0.0, max = 1000.0, suffix = "s")]
+    pub flight_time: f32,
 }
 
 /// Constants for the world.

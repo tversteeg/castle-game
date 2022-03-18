@@ -7,6 +7,7 @@ use super::{faction::Faction, unit_type::UnitType};
 #[derive(Debug, Component, Inspectable)]
 pub struct Health {
     /// The health of the unit.
+    #[inspectable(min = 00.0, max = 1000.0)]
     hp: f32,
 }
 

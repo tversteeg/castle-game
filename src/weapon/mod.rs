@@ -3,8 +3,12 @@ pub mod discharge;
 pub mod spear;
 
 use self::{bow::Bow, discharge::Discharge, spear::Spear};
-use crate::inspector::RegisterInspectable;
-use bevy::prelude::{App, Plugin};
+use crate::inspector::{Inspectable, RegisterInspectable};
+use bevy::prelude::{App, Component, Plugin};
+
+/// Weapon marker component.
+#[derive(Debug, Component, Inspectable)]
+pub struct Weapon;
 
 /// The plugin to manage the different weapons.
 pub struct WeaponPlugin;

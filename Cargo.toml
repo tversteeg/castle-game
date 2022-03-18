@@ -18,14 +18,16 @@ travis-ci = {repository = "tversteeg/castle-game"}
 is-it-maintained-issue-resolution = { repository = "tversteeg/castle-game" }
 
 [features]
+default = ["inspector"]
 inspector = ["bevy-inspector-egui"]
 
 [dependencies]
 anyhow = "1.0.56"
 bevy = { version = "0.6.1", default-features = false, features = ["trace"] }
-bevy-inspector-egui = { version = "0.8.2", optional = true }
+bevy-inspector-egui = { version = "0.9.0", optional = true }
 bevy_easings = "0.6.0"
-bevy_egui = "0.11.1"
+bevy_egui = "0.12.1"
+bevy-inspector-egui-rapier = { version = "0.1", features = ["rapier2d"] }
 bevy_rapier2d = { version = "0.12.1", features = ["simd-stable", "wasm-bindgen", "render"] }
 earcutr = "0.2.0"
 fastrand = "1.7.0"

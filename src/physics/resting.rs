@@ -1,11 +1,10 @@
-use std::time::Duration;
-
 use crate::inspector::Inspectable;
 use bevy::{
     core::Time,
     prelude::{Commands, Component, Entity, Query, Res},
 };
 use bevy_rapier2d::prelude::RigidBodyVelocityComponent;
+use std::time::Duration;
 
 /// The treshold of kinetic energy at which point the timer goes down.
 const KINETIC_ENERGY_TRESHOLD: f32 = 1.0;
