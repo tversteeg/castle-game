@@ -169,7 +169,7 @@ pub mod inspector {
     };
     use bevy_inspector_egui::{
         egui::{
-            plot::{Legend, Line, Plot, Polygon, Value, Values},
+            plot::{Legend, Plot, Polygon, Value, Values},
             Color32, Grid, Ui, Vec2,
         },
         Context,
@@ -177,74 +177,75 @@ pub mod inspector {
 
     /// Draw the inspectable view for a bevy [`Mesh`].
     pub fn mesh_inspectable(handle: &mut Mesh2dHandle, ui: &mut Ui, context: &mut Context) -> bool {
-        if let Some(world) = context.world() {
-            // Get the mesh
-            if let Some(meshes) = world.get_resource::<Assets<Mesh>>() {
-                if let Some(mesh) = meshes.get(&handle.0) {
-                    let indices = mesh.indices();
-                    let vertices = mesh.attribute(Mesh::ATTRIBUTE_POSITION);
-                    let colors = mesh.attribute(Mesh::ATTRIBUTE_COLOR);
+        if let Some(mesh) = context
+            .world()
+            .map(|world| world.get_resource::<Assets<Mesh>>())
+            .flatten()
+            .map(|meshes| meshes.get(&handle.0))
+            .flatten()
+        {
+            let indices = mesh.indices();
+            let vertices = mesh.attribute(Mesh::ATTRIBUTE_POSITION);
+            let colors = mesh.attribute(Mesh::ATTRIBUTE_COLOR);
 
-                    if let Some(((indices, vertices), colors)) = indices.zip(vertices).zip(colors) {
-                        // Convert the mesh into colored triangles
-                        if let Indices::U32(indices) = indices {
-                            if let VertexAttributeValues::Float32x3(vertices) = vertices {
-                                if let VertexAttributeValues::Float32x4(colors) = colors {
-                                    // Convert the mesh data into plot data
-                                    let vertices_and_colors = indices
-                                        .iter()
-                                        .map(|index| {
-                                            let pos = vertices[*index as usize];
-                                            let color = colors[*index as usize];
-                                            (
-                                                Value::new(pos[0], pos[1]),
-                                                Color32::from_rgba_unmultiplied(
-                                                    (color[0] * 255.0) as u8,
-                                                    (color[1] * 255.0) as u8,
-                                                    (color[2] * 255.0) as u8,
-                                                    (color[3] * 255.0) as u8,
+            if let Some(((indices, vertices), colors)) = indices.zip(vertices).zip(colors) {
+                // Convert the mesh into colored triangles
+                if let Indices::U32(indices) = indices {
+                    if let VertexAttributeValues::Float32x3(vertices) = vertices {
+                        if let VertexAttributeValues::Float32x4(colors) = colors {
+                            // Convert the mesh data into plot data
+                            let vertices_and_colors = indices
+                                .iter()
+                                .map(|index| {
+                                    let pos = vertices[*index as usize];
+                                    let color = colors[*index as usize];
+                                    (
+                                        Value::new(pos[0], pos[1]),
+                                        Color32::from_rgba_unmultiplied(
+                                            (color[0] * 255.0) as u8,
+                                            (color[1] * 255.0) as u8,
+                                            (color[2] * 255.0) as u8,
+                                            (color[3] * 255.0) as u8,
+                                        ),
+                                    )
+                                })
+                                .collect::<Vec<_>>();
+
+                            // Draw a grid with all the triangles
+                            Grid::new(context.id()).show(ui, |ui| {
+                                let plot = Plot::new("triangles")
+                                    .legend(Legend::default())
+                                    .data_aspect(0.8)
+                                    .min_size(Vec2::new(250.0, 250.0))
+                                    .show_x(true)
+                                    .show_y(true);
+                                plot.show(ui, |plot_ui| {
+                                    vertices_and_colors.chunks_exact(3).for_each(|triangle| {
+                                        plot_ui.polygon(
+                                            Polygon::new(Values::from_values_iter(
+                                                triangle
+                                                    .iter()
+                                                    .map(|vertex_and_color| vertex_and_color.0),
+                                            ))
+                                            // Add thicker strokes and reduce the fill
+                                            // transparency
+                                            .highlight(true)
+                                            .color(triangle[0].1)
+                                            // Use the color as the name so everything
+                                            // with the same color will be grouped
+                                            .name(
+                                                format!(
+                                                    "#{:02X?}{:02X?}{:02X?}{:02X?}",
+                                                    triangle[0].1.r(),
+                                                    triangle[0].1.g(),
+                                                    triangle[0].1.b(),
+                                                    triangle[0].1.a()
                                                 ),
-                                            )
-                                        })
-                                        .collect::<Vec<_>>();
-
-                                    // Draw a grid with all the triangles
-                                    Grid::new(context.id()).show(ui, |ui| {
-                                        ui.label("Plot");
-                                        let plot = Plot::new("triangles")
-                                            .legend(Legend::default())
-                                            .data_aspect(0.8)
-                                            .min_size(Vec2::new(250.0, 250.0))
-                                            .show_x(true)
-                                            .show_y(true);
-                                        plot.show(ui, |plot_ui| {
-                                            vertices_and_colors.chunks_exact(3).for_each(
-                                                |triangle| {
-                                                    plot_ui.polygon(
-                                                        Polygon::new(Values::from_values_iter(
-                                                            triangle.iter().map(
-                                                                |vertex_and_color| {
-                                                                    vertex_and_color.0
-                                                                },
-                                                            ),
-                                                        ))
-                                                        .color(triangle[0].1)
-                                                        // Use the color as the name so everytthing
-                                                        // with the same color will be grouped
-                                                        .name(format!(
-                                                            "{}-{}-{}-{}",
-                                                            triangle[0].1.r(),
-                                                            triangle[0].1.g(),
-                                                            triangle[0].1.b(),
-                                                            triangle[0].1.a()
-                                                        )),
-                                                    );
-                                                },
-                                            );
-                                        });
+                                            ),
+                                        );
                                     });
-                                }
-                            }
+                                });
+                            });
                         }
                     }
                 }

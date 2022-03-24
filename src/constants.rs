@@ -66,20 +66,21 @@ impl Default for Constants {
             ally_archer: UnitConstants {
                 hp: 100.0,
                 walking_speed: 1.2,
-                minimum_weapon_distance: 500.0,
+                minimum_weapon_distance: 100.0,
                 weapon_delay: 5.0,
                 stop_distance: 50.0,
             },
             enemy_archer: UnitConstants {
                 hp: 100.0,
                 walking_speed: -1.3,
-                minimum_weapon_distance: 500.0,
+                minimum_weapon_distance: 100.0,
                 weapon_delay: 5.0,
                 stop_distance: 50.0,
             },
             arrow: ProjectileConstants {
                 remove_after_resting_for: 0.5,
                 flight_time: 5.0,
+                rotation_offset: -std::f32::consts::PI / 2.0,
             },
             terrain: TerrainConstants::default(),
             camera: CameraConstants::default(),
@@ -176,6 +177,9 @@ pub struct ProjectileConstants {
     /// Seconds until the arrow will hit the target.
     #[inspectable(min = 0.0, max = 1000.0, suffix = "s")]
     pub flight_time: f32,
+    /// How much the rotation of the arrow will be offset.
+    #[inspectable(min = -std::f32::consts::PI, max = std::f32::consts::PI, suffix = "r")]
+    pub rotation_offset: f32,
 }
 
 /// Constants for the world.

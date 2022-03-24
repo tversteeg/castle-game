@@ -1,7 +1,12 @@
+
+
 use crate::{
-    constants::Constants, draw::colored_mesh::ColoredMeshBundle,
-    geometry::transform::TransformBuilder, inspector::Inspectable,
-    physics::resting::RemoveAfterRestingFor, projectile::Projectile,
+    constants::Constants,
+    draw::colored_mesh::ColoredMeshBundle,
+    geometry::transform::TransformBuilder,
+    inspector::Inspectable,
+    physics::{resting::RemoveAfterRestingFor, rotation::RotateToVelocityUntilContact},
+    projectile::Projectile,
 };
 use bevy::{
     core::Name,
@@ -11,8 +16,8 @@ use bevy::{
 use bevy_rapier2d::{
     physics::{ColliderBundle, RigidBodyBundle, RigidBodyPositionSync},
     prelude::{
-        ActiveEvents, ColliderMassProps, ColliderShape, RigidBodyCcd, RigidBodyType,
-        RigidBodyVelocity,
+        ActiveEvents, ColliderMassProps, ColliderShape, RigidBodyCcd,
+        RigidBodyType, RigidBodyVelocity,
     },
 };
 
@@ -29,6 +34,8 @@ pub struct ArrowBundle {
     projectile: Projectile,
     /// Remove the component after resting for a specific time.
     remove_after_resting_for: RemoveAfterRestingFor,
+    /// Lock the rotation to the velocity until a collision event.
+    rotate_to_velocity_until_contact: RotateToVelocityUntilContact,
     /// Sync with bevy transform.
     #[inspectable(ignore)]
     position_sync: RigidBodyPositionSync,
@@ -52,13 +59,12 @@ impl ArrowBundle {
     pub fn new(
         position: Vec2,
         velocity: RigidBodyVelocity,
-        rotation: f32,
         asset_server: &AssetServer,
         constants: &Constants,
     ) -> Self {
         // Setup the physics
         let rigid_body = RigidBodyBundle {
-            position: (position, rotation).into(),
+            position: (position, 0.0).into(),
             velocity: velocity.into(),
             ccd: RigidBodyCcd {
                 ccd_enabled: true,
@@ -66,6 +72,8 @@ impl ArrowBundle {
             }
             .into(),
             body_type: RigidBodyType::Dynamic.into(),
+            // Lock the rotation
+            //mass_properties: RigidBodyMassPropsFlags::ROTATION_LOCKED.into(),
             ..Default::default()
         };
         let collider = ColliderBundle {
@@ -85,6 +93,10 @@ impl ArrowBundle {
         let remove_after_resting_for =
             RemoveAfterRestingFor::from_secs(constants.arrow.remove_after_resting_for);
 
+        // Add a rotation offset
+        let rotate_to_velocity_until_contact =
+            RotateToVelocityUntilContact::with_rotation_offset(constants.arrow.rotation_offset);
+
         let name = Name::new("Arrow");
 
         Self {
@@ -93,6 +105,7 @@ impl ArrowBundle {
             mesh,
             name,
             remove_after_resting_for,
+            rotate_to_velocity_until_contact,
             arrow: Arrow,
             projectile: Projectile,
             position_sync: RigidBodyPositionSync::Discrete,

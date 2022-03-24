@@ -13,7 +13,7 @@ mod inspector {
         weapon::Weapon,
     };
     use bevy::{
-        prelude::{App, Assets, Entity, Mesh, Plugin, With},
+        prelude::{App, Entity, Plugin, With},
         sprite::Mesh2dHandle,
     };
     use bevy_inspector_egui::{
@@ -25,6 +25,8 @@ mod inspector {
     /// The inspector with all the subwindows.
     #[derive(Default, Inspectable)]
     pub struct Inspector {
+        #[inspectable(label = "Constants", collapse)]
+        constants: ResourceInspector<Constants>,
         #[inspectable(label = "Resources", collapse)]
         resources: Resources,
         #[inspectable(label = "Units", collapse)]
@@ -38,8 +40,6 @@ mod inspector {
     /// Show these resources.
     #[derive(Default, Inspectable)]
     pub struct Resources {
-        #[inspectable(label = "Constants", collapse)]
-        constants: ResourceInspector<Constants>,
         #[inspectable(label = "Closest Ally")]
         closest_ally: ResourceInspector<ClosestAlly>,
         #[inspectable(label = "Closest Enemy")]

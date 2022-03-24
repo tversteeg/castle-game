@@ -33,7 +33,6 @@ pub fn spawn_event_listener(
                         linvel: velocity.into(),
                         angvel: 0.0,
                     },
-                    0.0,
                     &asset_server,
                     &constants,
                 ));

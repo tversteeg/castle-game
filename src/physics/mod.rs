@@ -1,5 +1,8 @@
 pub mod resting;
+pub mod rotation;
 
+use self::{resting::RemoveAfterRestingFor, rotation::RotateToVelocityUntilContact};
+use crate::inspector::RegisterInspectable;
 use bevy::prelude::{App, Plugin, ResMut};
 use bevy_rapier2d::{
     na::Vector2,
@@ -12,10 +15,14 @@ pub struct PhysicsPlugin;
 
 impl Plugin for PhysicsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
+        app.register_inspectable::<RemoveAfterRestingFor>()
+            .register_inspectable::<RotateToVelocityUntilContact>()
+            .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
             .add_plugin(RapierRenderPlugin)
             .add_startup_system(setup)
-            .add_system(resting::system);
+            .add_system(resting::system)
+            .add_system(rotation::system)
+            .add_system(rotation::contact_event_listener);
     }
 }
 
