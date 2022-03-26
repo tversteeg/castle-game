@@ -1,6 +1,6 @@
 use super::recruit_button::RecruitEvent;
 
-use crate::ui::recruit_button::RecruitButton;
+use crate::{constants::Constants, ui::recruit_button::RecruitButton};
 use bevy::{
     diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
     prelude::{EventWriter, Query, Res, ResMut},
@@ -14,6 +14,7 @@ use bevy_egui::{
 pub fn system(
     mut egui_context: ResMut<EguiContext>,
     diagnostics: Res<Diagnostics>,
+    constants: Res<Constants>,
     mut query: Query<&mut RecruitButton>,
     mut event_writer: EventWriter<RecruitEvent>,
 ) {
@@ -24,7 +25,13 @@ pub fn system(
         .collapsible(false)
         .title_bar(false)
         // Always dock the window to the center of bottom of the screen
-        .anchor(Align2::CENTER_TOP, [0.0, 5.0])
+        .anchor(
+            Align2::CENTER_TOP,
+            [
+                constants.ui.main_bar_offset.x,
+                constants.ui.main_bar_offset.y,
+            ],
+        )
         .frame(super::theme::frame())
         .show(egui_context.ctx_mut(), |ui| {
             super::theme::apply_theme(ui);
@@ -36,7 +43,7 @@ pub fn system(
                         ui.label("Recruit");
                         ui.horizontal(|ui| {
                             for mut recruit_button in query.iter_mut() {
-                                if let Some(event) = recruit_button.draw(ui) {
+                                if let Some(event) = recruit_button.draw(ui, &constants) {
                                     // A unit should be recruited, throw the event
                                     event_writer.send(event);
                                 }

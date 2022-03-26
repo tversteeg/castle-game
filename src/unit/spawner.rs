@@ -54,14 +54,20 @@ pub fn system(
 }
 
 /// Setup the spawners.
-pub fn setup(mut commands: Commands) {
+pub fn setup(mut commands: Commands, constants: Res<Constants>) {
     commands
         .spawn()
-        .insert(EnemySpawner::from_seconds(5.0, UnitType::Soldier))
+        .insert(EnemySpawner::from_seconds(
+            constants.spawning.enemy_soldier_interval,
+            UnitType::Soldier,
+        ))
         .insert(Name::new("Enemy Melee Spawner"));
 
     commands
         .spawn()
-        .insert(EnemySpawner::from_seconds(9.0, UnitType::Archer))
+        .insert(EnemySpawner::from_seconds(
+            constants.spawning.enemy_archer_interval,
+            UnitType::Archer,
+        ))
         .insert(Name::new("Enemy Archer Spawner"));
 }

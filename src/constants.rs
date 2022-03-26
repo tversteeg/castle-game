@@ -2,6 +2,7 @@ use crate::{
     inspector::Inspectable,
     unit::{faction::Faction, unit_type::UnitType},
 };
+use bevy::math::Vec2;
 
 /// The constants.
 ///
@@ -17,6 +18,9 @@ pub struct Constants {
     /// Terrain constants.
     #[inspectable(label = "Terrain", collapse)]
     pub terrain: TerrainConstants,
+    /// Enemy spawning constants.
+    #[inspectable(label = "Spawning", collapse)]
+    pub spawning: SpawningConstants,
     /// Ally soldier constants.
     #[inspectable(label = "Ally Soldier", collapse)]
     pub ally_soldier: UnitConstants,
@@ -32,6 +36,9 @@ pub struct Constants {
     /// Arrow constants.
     #[inspectable(label = "Arrow", collapse)]
     pub arrow: ProjectileConstants,
+    /// UI constants.
+    #[inspectable(label = "UI", collapse)]
+    pub ui: UiConstants,
 }
 
 impl Constants {
@@ -82,9 +89,11 @@ impl Default for Constants {
                 flight_time: 5.0,
                 rotation_offset: -std::f32::consts::PI / 2.0,
             },
+            spawning: SpawningConstants::default(),
             terrain: TerrainConstants::default(),
             camera: CameraConstants::default(),
             world: WorldConstants::default(),
+            ui: UiConstants::default(),
         }
     }
 }
@@ -193,5 +202,51 @@ pub struct WorldConstants {
 impl Default for WorldConstants {
     fn default() -> Self {
         Self { gravity: -9.81 }
+    }
+}
+
+/// Constants for the spawning of enemies and allies.
+#[derive(Debug, Clone, Copy, Inspectable)]
+pub struct SpawningConstants {
+    /// When the recruit button for an allied soldier is available again.
+    #[inspectable(min = 0.1, max = 1000.0, suffix = "s")]
+    pub ally_soldier_interval: f32,
+    /// When the recruit button for an allied archer is available again.
+    #[inspectable(min = 0.1, max = 1000.0, suffix = "s")]
+    pub ally_archer_interval: f32,
+    /// How long it takes for an enemy soldier to spawn.
+    #[inspectable(min = 0.1, max = 1000.0, suffix = "s")]
+    pub enemy_soldier_interval: f32,
+    /// How long it takes for an enemy archer to spawn.
+    #[inspectable(min = 0.1, max = 1000.0, suffix = "s")]
+    pub enemy_archer_interval: f32,
+}
+
+impl Default for SpawningConstants {
+    fn default() -> Self {
+        Self {
+            ally_soldier_interval: 5.0,
+            ally_archer_interval: 10.0,
+            enemy_soldier_interval: 10.0,
+            enemy_archer_interval: 21.0,
+        }
+    }
+}
+
+/// Constants for the UI.
+#[derive(Debug, Clone, Copy, Inspectable)]
+pub struct UiConstants {
+    /// How far the main bar is removed from the top half of the screen.
+    pub main_bar_offset: Vec2,
+    /// The size of the recruit button and the progress bar.
+    pub recruit_button_size: Vec2,
+}
+
+impl Default for UiConstants {
+    fn default() -> Self {
+        Self {
+            main_bar_offset: [0.0, 5.0].into(),
+            recruit_button_size: [80.0, 20.0].into(),
+        }
     }
 }

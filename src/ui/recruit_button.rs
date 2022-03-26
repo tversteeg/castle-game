@@ -1,15 +1,11 @@
-use crate::inspector::Inspectable;
 use crate::unit::unit_type::UnitType;
+use crate::{constants::Constants, inspector::Inspectable};
 use bevy::{
     core::{Name, Time},
     prelude::{Commands, Component, Query, Res},
 };
-use bevy_egui::egui::{Button, ProgressBar, Ui};
+use bevy_egui::egui::{Button, ProgressBar, Ui, Vec2};
 use std::time::Duration;
-
-/// The width of the button and the progress bar.
-pub const WIDTH: f32 = 80.0;
-pub const HEIGHT: f32 = 20.0;
 
 /// A recruit button with a timer.
 #[derive(Debug, Component, Inspectable)]
@@ -33,16 +29,22 @@ impl RecruitButton {
     }
 
     /// Draw the button on the UI.
-    pub fn draw(&mut self, ui: &mut Ui) -> Option<RecruitEvent> {
+    pub fn draw(&mut self, ui: &mut Ui, constants: &Constants) -> Option<RecruitEvent> {
         let progress = self.progress();
 
         let mut event = None;
 
         ui.vertical(|ui| {
+            let button_size: Vec2 = [
+                constants.ui.recruit_button_size.x,
+                constants.ui.recruit_button_size.y,
+            ]
+            .into();
+
             if progress >= 1.0 {
                 // The recruit button
                 if ui
-                    .add_sized([WIDTH, HEIGHT], Button::new(self.unit_type.to_string()))
+                    .add_sized(button_size, Button::new(self.unit_type.to_string()))
                     .clicked()
                 {
                     // Reset the time
@@ -54,10 +56,10 @@ impl RecruitButton {
             } else {
                 // The progress bar
                 ui.add_sized(
-                    [WIDTH, HEIGHT],
+                    button_size,
                     ProgressBar::new(progress)
                         .text(self.unit_type.to_string())
-                        .desired_width(WIDTH),
+                        .desired_width(constants.ui.recruit_button_size.x),
                 );
             }
         });
@@ -89,17 +91,20 @@ pub fn system(mut query: Query<&mut RecruitButton>, time: Res<Time>) {
 }
 
 /// Setup the recruit buttons.
-pub fn setup(mut commands: Commands) {
+pub fn setup(mut commands: Commands, constants: Res<Constants>) {
     commands
         .spawn()
         .insert(RecruitButton::new(
             UnitType::Soldier,
-            Duration::from_secs(2),
+            Duration::from_secs_f32(constants.spawning.ally_soldier_interval),
         ))
         .insert(Name::new("Soldier Recruit Button"));
 
     commands
         .spawn()
-        .insert(RecruitButton::new(UnitType::Archer, Duration::from_secs(3)))
+        .insert(RecruitButton::new(
+            UnitType::Archer,
+            Duration::from_secs_f32(constants.spawning.ally_archer_interval),
+        ))
         .insert(Name::new("Archer Recruit Button"));
 }

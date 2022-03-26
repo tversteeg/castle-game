@@ -231,7 +231,6 @@ mod inspector {
         fn ui(&mut self, ui: &mut Ui, _: Self::Attributes, context: &mut Context) -> bool {
             Grid::new(context.id()).show(ui, |ui| {
                 // Plot the polygon
-                ui.label("Plot");
                 let plot = Plot::new("polygon")
                     .legend(Legend::default())
                     .data_aspect(0.8)
