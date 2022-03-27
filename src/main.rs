@@ -8,6 +8,7 @@ mod log;
 mod map;
 mod physics;
 mod projectile;
+mod random;
 mod ui;
 mod unit;
 mod weapon;

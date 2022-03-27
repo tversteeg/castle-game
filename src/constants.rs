@@ -1,5 +1,6 @@
 use crate::{
     inspector::Inspectable,
+    random::RandomRange,
     unit::{faction::Faction, unit_type::UnitType},
 };
 use bevy::math::Vec2;
@@ -126,12 +127,9 @@ pub struct TerrainConstants {
     pub width: f32,
     /// How many height points should be calculated for the terrain.
     pub height_points: usize,
-    /// Minimum height of the terrain.
+    /// Random height of the terrain between the bounds.
     #[inspectable(min = 1.0, max = 50.0, suffix = "m")]
-    pub min_height: f32,
-    /// Maximum height of the terrain.
-    #[inspectable(min = 0.0, max = 50.0, suffix = "m")]
-    pub max_height: f32,
+    pub height: RandomRange,
     /// The scale of the noise, will influence which X points will be get as sample.
     #[inspectable(min = 0.0, max = 1.0)]
     pub noise_scale: f64,
@@ -150,8 +148,10 @@ impl Default for TerrainConstants {
         Self {
             width,
             height_points: 100,
-            min_height: 6.0,
-            max_height: 14.0,
+            height: RandomRange {
+                min: 6.0,
+                max: 14.0,
+            },
             noise_scale: 0.01,
             ally_starting_position: 5.0,
             enemy_starting_position: width - 5.0,

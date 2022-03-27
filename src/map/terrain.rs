@@ -1,4 +1,4 @@
-use crate::constants::{TerrainConstants};
+use crate::constants::TerrainConstants;
 use crate::inspector::Inspectable;
 use crate::{
     color::Palette,
@@ -43,9 +43,9 @@ impl Terrain {
                 let x = (index as f32 / constants.height_points as f32) * constants.width;
 
                 // Generate a random height
-                let y = noise.get([x as f64 * constants.noise_scale, 0.0]) as f32
-                    * (constants.max_height - constants.min_height)
-                    + constants.min_height;
+                let y = constants
+                    .height
+                    .multiply_fraction(noise.get([x as f64 * constants.noise_scale, 0.0]) as f32);
 
                 (x, y)
             })

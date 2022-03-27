@@ -1,3 +1,4 @@
+use crate::constants::UiConstants;
 use crate::unit::unit_type::UnitType;
 use crate::{constants::Constants, inspector::Inspectable};
 use bevy::{
@@ -29,15 +30,15 @@ impl RecruitButton {
     }
 
     /// Draw the button on the UI.
-    pub fn draw(&mut self, ui: &mut Ui, constants: &Constants) -> Option<RecruitEvent> {
+    pub fn draw(&mut self, ui: &mut Ui, constants: &UiConstants) -> Option<RecruitEvent> {
         let progress = self.progress();
 
         let mut event = None;
 
         ui.vertical(|ui| {
             let button_size: Vec2 = [
-                constants.ui.recruit_button_size.x,
-                constants.ui.recruit_button_size.y,
+                constants.recruit_button_size.x,
+                constants.recruit_button_size.y,
             ]
             .into();
 
@@ -59,7 +60,7 @@ impl RecruitButton {
                     button_size,
                     ProgressBar::new(progress)
                         .text(self.unit_type.to_string())
-                        .desired_width(constants.ui.recruit_button_size.x),
+                        .desired_width(constants.recruit_button_size.x),
                 );
             }
         });

@@ -43,7 +43,7 @@ pub fn system(
                         ui.label("Recruit");
                         ui.horizontal(|ui| {
                             for mut recruit_button in query.iter_mut() {
-                                if let Some(event) = recruit_button.draw(ui, &constants) {
+                                if let Some(event) = recruit_button.draw(ui, &constants.ui) {
                                     // A unit should be recruited, throw the event
                                     event_writer.send(event);
                                 }
