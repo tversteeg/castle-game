@@ -89,6 +89,8 @@ impl Default for Constants {
                 remove_after_resting_for: 0.5,
                 flight_time: 5.0,
                 rotation_offset: -std::f32::consts::PI / 2.0,
+                damage: 20.0,
+                min_velocity_for_damage: 1.0,
             },
             spawning: SpawningConstants::default(),
             terrain: TerrainConstants::default(),
@@ -143,7 +145,7 @@ pub struct TerrainConstants {
 
 impl Default for TerrainConstants {
     fn default() -> Self {
-        let width = 300.0;
+        let width = 200.0;
 
         Self {
             width,
@@ -153,8 +155,8 @@ impl Default for TerrainConstants {
                 max: 14.0,
             },
             noise_scale: 0.01,
-            ally_starting_position: 5.0,
-            enemy_starting_position: width - 5.0,
+            ally_starting_position: 20.0,
+            enemy_starting_position: width - 20.0,
         }
     }
 }
@@ -189,6 +191,12 @@ pub struct ProjectileConstants {
     /// How much the rotation of the arrow will be offset.
     #[inspectable(min = -std::f32::consts::PI, max = std::f32::consts::PI, suffix = "r")]
     pub rotation_offset: f32,
+    /// How much damage this does on collision.
+    #[inspectable(min = 0.0, max = 10000.0, suffix = "hp")]
+    pub damage: f32,
+    /// The minimum velocity to inflict damage.
+    #[inspectable(min = 0.0, max = 10000.0, suffix = "hp")]
+    pub min_velocity_for_damage: f32,
 }
 
 /// Constants for the world.

@@ -1,5 +1,3 @@
-
-
 use crate::{
     constants::Constants,
     draw::colored_mesh::ColoredMeshBundle,
@@ -16,10 +14,12 @@ use bevy::{
 use bevy_rapier2d::{
     physics::{ColliderBundle, RigidBodyBundle, RigidBodyPositionSync},
     prelude::{
-        ActiveEvents, ColliderMassProps, ColliderShape, RigidBodyCcd,
-        RigidBodyType, RigidBodyVelocity,
+        ActiveEvents, ColliderMassProps, ColliderShape, RigidBodyCcd, RigidBodyType,
+        RigidBodyVelocity,
     },
 };
+
+use super::collision::DamageOnImpact;
 
 /// Unit struct for determining the projectile.
 #[derive(Debug, Component, Inspectable)]
@@ -36,6 +36,8 @@ pub struct ArrowBundle {
     remove_after_resting_for: RemoveAfterRestingFor,
     /// Lock the rotation to the velocity until a collision event.
     rotate_to_velocity_until_contact: RotateToVelocityUntilContact,
+    /// Damage done when hitting a target.
+    damage_on_impact: DamageOnImpact,
     /// Sync with bevy transform.
     #[inspectable(ignore)]
     position_sync: RigidBodyPositionSync,
@@ -97,6 +99,9 @@ impl ArrowBundle {
         let rotate_to_velocity_until_contact =
             RotateToVelocityUntilContact::with_rotation_offset(constants.arrow.rotation_offset);
 
+        // The damage done when a unit is hit
+        let damage_on_impact = DamageOnImpact::from_constants(&constants.arrow);
+
         let name = Name::new("Arrow");
 
         Self {
@@ -106,6 +111,7 @@ impl ArrowBundle {
             name,
             remove_after_resting_for,
             rotate_to_velocity_until_contact,
+            damage_on_impact,
             arrow: Arrow,
             projectile: Projectile,
             position_sync: RigidBodyPositionSync::Discrete,

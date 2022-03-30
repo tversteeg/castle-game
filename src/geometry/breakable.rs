@@ -21,6 +21,7 @@ impl Default for Breakable {
 }
 
 /// The event that's fired when an entity needs to break.
+#[derive(Debug)]
 pub struct BreakEvent {
     /// The speed with which the collision occurs.
     pub impact_velocity: f32,

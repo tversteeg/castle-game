@@ -12,6 +12,8 @@ use bevy::{
     core::Name,
     prelude::{AssetServer, BuildChildren, Bundle, Commands, EventReader, Res},
 };
+use bevy_rapier2d::physics::ColliderBundle;
+use bevy_rapier2d::prelude::{ColliderShape, ColliderType};
 use geo::{Coordinate, Rect};
 
 /// Wrapper for a unit.
@@ -21,16 +23,17 @@ pub struct UnitBundle {
     faction: Faction,
     /// What type of unit it is.
     unit_type: UnitType,
-    /// The shape used for collision detection.
-    hitbox: Polygon,
     /// How much health the unit has.
     health: Health,
     /// How fast the unit walks.
     walk: Walk,
     /// The unit mesh.
     #[bundle]
-    #[inspectable(ignore)]
     mesh: ColoredMeshBundle,
+    /// The collider for detecting collisions, mainly with projectiles.
+    #[bundle]
+    #[inspectable(ignore)]
+    collider: ColliderBundle,
     /// The name of the unit.
     name: Name,
 }
@@ -49,13 +52,7 @@ impl UnitBundle {
             Faction::Ally => constants.terrain.ally_starting_position,
             Faction::Enemy => constants.terrain.enemy_starting_position,
         };
-
         let y = terrain.height_at_x(x);
-
-        // Use a simple square for the collision shape
-        let hitbox: Polygon = Rect::new(Coordinate::zero(), Coordinate { x: 0.5, y: 1.8 })
-            .to_polygon()
-            .into();
 
         let mesh = ColoredMeshBundle::new(match (unit_type, faction) {
             (UnitType::Soldier, Faction::Ally) => asset_server.load("units/allies/character.svg"),
@@ -71,6 +68,13 @@ impl UnitBundle {
         // How fast the unit walks
         let walk = Walk::for_unit(unit_type, faction, constants);
 
+        // The collision shape for the unit
+        let collider = ColliderBundle {
+            shape: ColliderShape::cuboid(1.0, 2.0).into(),
+            collider_type: ColliderType::Sensor.into(),
+            ..Default::default()
+        };
+
         let name = Name::new(format!("{} {}", faction.to_string(), unit_type.to_string()));
 
         Self {
@@ -80,7 +84,7 @@ impl UnitBundle {
             walk,
             name,
             health,
-            hitbox,
+            collider,
         }
     }
 
