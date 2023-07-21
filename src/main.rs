@@ -1,310 +1,221 @@
-mod ai;
-mod audio;
-mod draw;
-mod geom;
-mod gui;
-mod level;
-mod physics;
-mod projectile;
-mod terrain;
-mod turret;
-mod unit;
+mod font;
+mod game;
+mod input;
 
-use minifb::*;
-use rust_embed::RustEmbed;
-use specs::{DispatcherBuilder, Join, World, WorldExt};
-use std::{
-    collections::HashMap,
-    thread,
-    time::{Duration, SystemTime},
+use blit::prelude::Size;
+use game::GameState;
+use game_loop::winit::{dpi::LogicalSize, window::WindowBuilder};
+use miette::{IntoDiagnostic, Result};
+use pixels::{PixelsBuilder, SurfaceTexture};
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::runtime::Runtime;
+use vek::Vec2;
+use winit::{
+    event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
+    event_loop::EventLoop,
 };
 
-use ai::*;
-use audio::Audio;
-use draw::*;
-use geom::*;
-use gui::*;
-use level::*;
-use physics::*;
-use projectile::*;
-use terrain::*;
-use turret::*;
-use unit::*;
+const WIDTH: usize = 320;
+const HEIGHT: usize = 180;
+const FPS: usize = 60;
 
-const WIDTH: usize = 1280;
-const HEIGHT: usize = 540;
+async fn run() -> Result<()> {
+    // Construct the game
+    let state = GameState::new();
 
-const GRAVITY: f64 = 98.1;
+    // Build the window builder with the event loop the user supplied
+    let event_loop = EventLoop::new();
+    let size = LogicalSize::new(WIDTH as f64, HEIGHT as f64);
+    let mut window_builder = WindowBuilder::new()
+        .with_title("Castle Game")
+        .with_inner_size(size)
+        .with_min_inner_size(size);
 
-#[derive(RustEmbed)]
-#[folder = "$OUT_DIR/sprites/"]
-struct SpriteFolder;
+    // Setup the WASM canvas if running on the browser
+    #[cfg(target_arch = "wasm32")]
+    {
+        use winit::platform::web::WindowBuilderExtWebSys;
 
-impl SpriteFolder {
-    fn load_sprite(render: &mut Render, resources: &mut HashMap<String, usize>, name: &str) {
-        let mut file = name.to_owned();
-        file.push_str(".blit");
-
-        let buf = Self::get(&*file).unwrap();
-
-        resources.insert(name.to_string(), render.add_buf_from_memory(name, &buf));
+        window_builder = window_builder.with_canvas(Some(wasm::setup_canvas()));
     }
 
-    fn load_anim(render: &mut Render, resources: &mut HashMap<String, usize>, name: &str) {
-        let mut file = name.to_owned();
-        file.push_str(".anim");
+    let window = window_builder.build(&event_loop).unwrap();
 
-        let buf = Self::get(&*file).unwrap();
-
-        resources.insert(
-            name.to_string(),
-            render.add_anim_buf_from_memory(name, &buf),
-        );
+    let pixels = {
+        let surface_texture = SurfaceTexture::new(WIDTH as u32, HEIGHT as u32, &window);
+        PixelsBuilder::new(WIDTH as u32, HEIGHT as u32, surface_texture)
+            .clear_color(pixels::wgpu::Color {
+                r: 0.796,
+                g: 0.859,
+                b: 0.988,
+                a: 1.0,
+            })
+            .build_async()
+            .await
     }
-}
+    .unwrap();
 
-#[derive(RustEmbed)]
-#[folder = "$OUT_DIR/masks/"]
-struct MaskFolder;
+    // Open the window and run the event loop
+    let mut buffer = vec![0u32; WIDTH * HEIGHT];
 
-impl MaskFolder {
-    fn load_sprite(render: &mut Render, resources: &mut HashMap<String, usize>, name: &str) {
-        let mut file = name.to_owned();
-        file.push_str(".blit");
+    game_loop::game_loop(
+        event_loop,
+        window,
+        (state, pixels),
+        FPS as u32,
+        0.1,
+        move |g| {
+            // Update
+            g.window
+                .set_title(&format!("Update: {}", g.last_frame_time()));
 
-        let buf = Self::get(&*file).unwrap();
+            // Update the game
+            g.game.0.update();
+        },
+        move |g| {
+            buffer.fill(0);
 
-        resources.insert(name.to_string(), render.add_buf_from_memory(name, &buf));
-    }
+            // Draw the game
+            g.game.0.render(&mut buffer, Size::new(WIDTH, HEIGHT));
+
+            // Blit draws the pixels in RGBA format, but the pixels crate expects BGRA, so convert it
+            g.game
+                .1
+                .frame_mut()
+                .chunks_exact_mut(4)
+                .zip(buffer.iter())
+                .for_each(|(target, source)| {
+                    let source = source.to_ne_bytes();
+                    target[0] = source[2];
+                    target[1] = source[1];
+                    target[2] = source[0];
+                    target[3] = source[3];
+                });
+
+            // Render the pixel buffer
+            if let Err(err) = g.game.1.render() {
+                dbg!(err);
+                // TODO: properly handle error
+                g.exit();
+            }
+        },
+        |g, event| {
+            // Window events
+            match event {
+                // Handle key presses
+                Event::WindowEvent {
+                    event:
+                        WindowEvent::KeyboardInput {
+                            input:
+                                KeyboardInput {
+                                    virtual_keycode,
+                                    state,
+                                    ..
+                                },
+                            ..
+                        },
+                    ..
+                } => match virtual_keycode {
+                    Some(VirtualKeyCode::Up | VirtualKeyCode::W) => {
+                        g.game.0.input.up_pressed = state == &ElementState::Pressed
+                    }
+                    Some(VirtualKeyCode::Down | VirtualKeyCode::S) => {
+                        g.game.0.input.down_pressed = state == &ElementState::Pressed
+                    }
+                    Some(VirtualKeyCode::Left | VirtualKeyCode::A) => {
+                        g.game.0.input.left_pressed = state == &ElementState::Pressed
+                    }
+                    Some(VirtualKeyCode::Right | VirtualKeyCode::D) => {
+                        g.game.0.input.right_pressed = state == &ElementState::Pressed
+                    }
+                    // Close the window when the <ESC> key is pressed
+                    Some(VirtualKeyCode::Escape) => g.exit(),
+                    _ => (),
+                },
+
+                // Handle mouse move
+                Event::WindowEvent {
+                    event: WindowEvent::CursorMoved { position, .. },
+                    ..
+                } => {
+                    // Map raw window pixel to actual pixel
+                    g.game.0.input.mouse_pos = g
+                        .game
+                        .1
+                        .window_pos_to_pixel((position.x as f32, position.y as f32))
+                        .map(|(x, y)| Vec2::new(x as f64, y as f64))
+                        // We also map the mouse when it's outside of the bounds
+                        .unwrap_or_else(|(x, y)| Vec2::new(x as f64, y as f64))
+                }
+
+                // Handle close event
+                Event::WindowEvent {
+                    event: WindowEvent::CloseRequested,
+                    ..
+                } => g.exit(),
+
+                // Resize the window
+                Event::WindowEvent {
+                    event: WindowEvent::Resized(new_size),
+                    ..
+                } => {
+                    g.game
+                        .1
+                        .resize_surface(new_size.width, new_size.height)
+                        .into_diagnostic()
+                        .unwrap();
+                }
+                _ => (),
+            }
+        },
+    );
 }
 
 fn main() {
-    let mut buffer: Vec<u32> = vec![0; (WIDTH * HEIGHT) as usize];
-
-    let mut render = Render::new((WIDTH, HEIGHT));
-
-    let mut resources = HashMap::new();
-
-    SpriteFolder::load_anim(&mut render, &mut resources, "ally-archer1");
-    SpriteFolder::load_sprite(&mut render, &mut resources, "ally-melee1");
-    SpriteFolder::load_sprite(&mut render, &mut resources, "enemy-melee1");
-    SpriteFolder::load_sprite(&mut render, &mut resources, "enemy-archer1");
-    SpriteFolder::load_sprite(&mut render, &mut resources, "projectile1");
-
-    MaskFolder::load_sprite(&mut render, &mut resources, "bighole1");
-
-    // Setup game related things
-    let mut world = World::new();
-
-    // draw.rs
-    world.register::<PixelParticle>();
-    world.register::<MaskId>();
-    world.register::<Anim>();
-    world.register::<Sprite>();
-    world.register::<Line>();
-
-    // terrain.rs
-    world.register::<TerrainMask>();
-    world.register::<TerrainCollapse>();
-
-    // physics.rs
-    world.register::<WorldPosition>();
-    world.register::<Point>();
-    world.register::<BoundingBox>();
-    world.register::<Velocity>();
-
-    // ai.rs
-    world.register::<Destination>();
-    world.register::<Ally>();
-    world.register::<Enemy>();
-    world.register::<Melee>();
-
-    // unit.rs
-    world.register::<UnitState>();
-    world.register::<Health>();
-    world.register::<HealthBar>();
-    world.register::<Walk>();
-
-    // turret.rs
-    world.register::<Turret>();
-    world.register::<TurretOffset>();
-
-    // projectile.rs
-    world.register::<Projectile>();
-    world.register::<ProjectileSprite>();
-    world.register::<ProjectileBoundingBox>();
-    world.register::<IgnoreCollision>();
-    world.register::<Arrow>();
-    world.register::<Damage>();
-
-    // gui.rs
-    world.register::<FloatingText>();
-
-    // Resources to `Fetch`
-    world.insert(Terrain::new((WIDTH, HEIGHT)));
-    world.insert(Gravity(GRAVITY));
-    world.insert(DeltaTime::new(1.0 / 60.0));
-    world.insert(Images(resources));
-    world.insert(Audio::new());
-
-    render.draw_background_from_memory(&SpriteFolder::get("background.blit").unwrap());
-    render.draw_terrain_from_memory(
-        &mut *world.write_resource::<Terrain>(),
-        &SpriteFolder::get("level.blit").unwrap(),
-    );
-
-    place_turrets(&mut world, 1);
-
-    let mut dispatcher = DispatcherBuilder::new()
-        .with(ProjectileSystem, "projectile", &[])
-        .with(ArrowSystem, "arrow", &["projectile"])
-        .with(
-            ProjectileCollisionSystem,
-            "projectile_collision",
-            &["projectile"],
-        )
-        .with(
-            ProjectileRemovalFromMaskSystem,
-            "projectile_removal_from_mask",
-            &["projectile"],
-        )
-        .with(TerrainCollapseSystem, "terrain_collapse", &["projectile"])
-        .with(WalkSystem, "walk", &[])
-        .with(UnitFallSystem, "unit_fall", &["walk"])
-        .with(UnitResumeWalkingSystem, "unit_resume_walking", &["walk"])
-        .with(UnitCollideSystem, "unit_collide", &["walk"])
-        .with(MeleeSystem, "melee", &["walk"])
-        .with(HealthBarSystem, "health_bar", &["walk"])
-        .with(TurretUnitSystem, "turret_unit", &["walk"])
-        .with(TurretSystem, "turret", &["turret_unit"])
-        .with(SpriteSystem, "sprite", &["projectile", "walk"])
-        .with(AnimSystem, "anim", &["projectile", "walk"])
-        .with(ParticleSystem, "particle", &[])
-        .with(FloatingTextSystem, "floating_text", &[])
-        .build();
-
-    // Setup minifb window related things
-    let title = format!(
-        "Castle Game {} - Press ESC to exit.",
-        env!("CARGO_PKG_VERSION")
-    );
-    let options = WindowOptions {
-        borderless: false,
-        title: true,
-        scale: Scale::X2,
-        scale_mode: ScaleMode::AspectRatioStretch,
-        ..Default::default()
-    };
-    let mut window = Window::new(&title, WIDTH, HEIGHT, options).expect("Unable to open window");
-
-    // Setup the GUI system
-    let mut gui = IngameGui::new((WIDTH as i32, HEIGHT as i32));
-
+    #[cfg(target_arch = "wasm32")]
     {
-        // Start the audio
-        let mut audio = world.write_resource::<Audio>();
-        audio.run();
+        std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+        console_log::init_with_level(log::Level::Info).expect("error initializing logger");
+
+        wasm_bindgen_futures::spawn_local(async { run().await.unwrap() });
     }
 
-    // Game loop
-    let mut time = SystemTime::now();
-    while window.is_open() && !window.is_key_down(Key::Escape) {
-        // Calculate the delta-time
-        {
-            let mut delta = world.write_resource::<DeltaTime>();
-            *delta = DeltaTime(time.elapsed().unwrap());
-            time = SystemTime::now();
-        }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let rt = Runtime::new().unwrap();
+        rt.block_on(async { run().await.unwrap() });
+    }
+}
 
-        // Handle mouse events
-        if let Some(mouse) = window.get_mouse_pos(MouseMode::Discard) {
-            gui.handle_mouse(
-                (mouse.0 as i32, mouse.1 as i32),
-                window.get_mouse_down(MouseButton::Left),
-            );
-        };
+#[cfg(target_arch = "wasm32")]
+mod wasm {
+    use wasm_bindgen::JsCast;
+    use web_sys::HtmlCanvasElement;
 
-        dispatcher.dispatch(&world);
+    /// Attach the winit window to a canvas.
+    pub fn setup_canvas() -> HtmlCanvasElement {
+        log::debug!("Binding window to HTML canvas");
 
-        // Add/remove entities added in dispatch through `LazyUpdate`
-        world.maintain();
+        let window = web_sys::window().unwrap();
 
-        // Render the sprites & masks
-        {
-            render.draw_terrain_and_background(&mut buffer, &*world.write_resource::<Terrain>());
+        let document = window.document().unwrap();
+        let body = document.body().unwrap();
+        body.style().set_css_text("text-align: center");
 
-            let mut anims = world.write_storage::<Anim>();
-            let sprites = world.read_storage::<Sprite>();
-            let lines = world.read_storage::<Line>();
-            let pixels = world.read_storage::<PixelParticle>();
-            let terrain_masks = world.read_storage::<TerrainMask>();
-            let health_bars = world.read_storage::<HealthBar>();
-            for entity in world.entities().join() {
-                if let Some(anim) = anims.get_mut(entity) {
-                    render
-                        .update_anim(anim, world.read_resource::<DeltaTime>().0)
-                        .unwrap();
+        let canvas = document
+            .create_element("canvas")
+            .unwrap()
+            .dyn_into::<HtmlCanvasElement>()
+            .unwrap();
 
-                    render.draw_foreground_anim(&mut buffer, anim).unwrap();
-                }
+        canvas.set_id("canvas");
+        body.append_child(&canvas).unwrap();
+        canvas.style().set_css_text("display:block; margin: auto");
 
-                if let Some(sprite) = sprites.get(entity) {
-                    render.draw_foreground(&mut buffer, sprite).unwrap();
-                }
+        let header = document.create_element("h2").unwrap();
+        header.set_text_content(Some("Caste Game"));
+        body.append_child(&header).unwrap();
 
-                if let Some(line) = lines.get(entity) {
-                    render.draw_foreground_line(&mut buffer, line.p1, line.p2, line.color);
-                }
-
-                if let Some(pixel) = pixels.get(entity) {
-                    render.draw_foreground_pixel(&mut buffer, pixel.pos, pixel.color);
-                }
-
-                if let Some(health_bar) = health_bars.get(entity) {
-                    render.draw_healthbar(
-                        &mut buffer,
-                        health_bar.pos,
-                        health_bar.health / health_bar.max_health,
-                        health_bar.width,
-                    );
-                }
-
-                if let Some(mask) = terrain_masks.get(entity) {
-                    render
-                        .draw_mask_terrain(&mut *world.write_resource::<Terrain>(), mask)
-                        .unwrap();
-
-                    // Immediately remove the mask after drawing it
-                    let _ = world.entities().delete(entity);
-                }
-            }
-        }
-
-        // Update the gui system and receive a possible event
-        match gui.update() {
-            GuiEvent::BuyArcherButton => {
-                buy_archer(&mut world);
-            }
-            GuiEvent::BuySoldierButton => {
-                buy_soldier(&mut world);
-            }
-            _ => (),
-        }
-
-        // Render the floating text
-        let floating_texts = world.read_storage::<FloatingText>();
-
-        // Render the gui on the buffer
-        gui.render(&mut buffer);
-        for entity in world.entities().join() {
-            if let Some(text) = floating_texts.get(entity) {
-                gui.draw_label(&mut buffer, &text.text, text.pos.as_i32());
-            }
-        }
-
-        // Finally draw the buffer on the window
-        window.update_with_buffer(&buffer, WIDTH, HEIGHT).unwrap();
-
-        thread::sleep(Duration::from_millis(1));
+        canvas
     }
 }
