@@ -1,85 +1,58 @@
-use std::f64::consts::TAU;
+use blit::prelude::Size;
 
-use blit::{
-    prelude::{Size, SubRect},
-    Blit, BlitBuffer, BlitOptions, ToBlitBuffer,
-};
-use vek::Vec2;
+use crate::{camera::Camera, font::Font, input::Input, terrain::Terrain, SIZE};
 
-use crate::{font::Font, input::Input, SIZE};
+/// Mouse offset for panning the camera.
+const PAN_EDGE_OFFSET: i32 = 30;
 
 /// Handles everything related to the game.
 pub struct GameState {
     /// Font sprite.
     font: Font,
-    /// Input that can be changed by the window.
-    pub input: Input,
+    /// First level ground.
+    terrain: Terrain,
+    /// Camera position based on the cursor.
+    camera: Camera,
 }
 
 impl GameState {
     /// Construct the game state with default values.
     pub fn new() -> Self {
+        // Load the embedded font
         let font = Font::from_bytes(
+            // Embed the image in the binary
             include_bytes!("../assets/font/torus-sans.png"),
             (9, 9).into(),
         );
 
-        let input = Input::default();
+        // Load the embedded terrain
+        let terrain = Terrain::from_bytes(
+            // Embed the image in the binary
+            include_bytes!("../assets/level/grass-1.png"),
+        );
 
-        Self { font, input }
+        let camera = Camera::default();
+
+        Self {
+            font,
+            terrain,
+            camera,
+        }
     }
 
     /// Draw a frame.
     pub fn render(&mut self, canvas: &mut [u32], canvas_size: Size) {
         self.font.render(canvas, canvas_size, "Castle Game", 0, 0);
+
+        self.terrain.render(canvas, canvas_size, &self.camera);
     }
 
-    /// Update a frame.
-    pub fn update(&mut self) {}
-}
-
-/// Pre rendered sprites for rotations where each index is the degrees divided by the amount of rotations.
-struct RotatedBlitBuffer(Vec<BlitBuffer>);
-
-impl RotatedBlitBuffer {
-    /// Rotate a buffer a set amount of times.
-    pub fn from_blit_buffer(
-        buffer: BlitBuffer,
-        rotations: usize,
-        sprite_rotation_offset: f64,
-    ) -> Self {
-        Self(
-            (0..rotations)
-                .map(|i| {
-                    let (width, _, buffer) = rotsprite::rotsprite(
-                        buffer.pixels(),
-                        &0,
-                        buffer.width() as usize,
-                        i as f64 * 360.0 / rotations as f64 + sprite_rotation_offset,
-                    )
-                    .unwrap();
-
-                    BlitBuffer::from_buffer(&buffer, width, 127)
-                })
-                .collect(),
-        )
-    }
-
-    /// Draw with a set rotation around the center.
-    pub fn render(&self, canvas: &mut [u32], canvas_size: Size, pos: Vec2<f64>, rotation: f64) {
-        // TODO: fix rotation
-        let index = (rotation / TAU * self.0.len() as f64)
-            .round()
-            .rem_euclid(self.0.len() as f64) as usize;
-
-        let sprite = &self.0[index];
-        sprite.blit(
-            canvas,
-            canvas_size,
-            &BlitOptions::new_position(
-                pos.x - sprite.width() as f64 / 2.0,
-                pos.y - sprite.height() as f64 / 2.0,
-            ),
-        );
+    /// Update a frame and handle user input.
+    pub fn update(&mut self, input: &Input) {
+        if input.mouse_pos.x <= PAN_EDGE_OFFSET {
+            self.camera.pan(1.0, 0.0);
+        } else if input.mouse_pos.x >= SIZE.w as i32 - PAN_EDGE_OFFSET {
+            self.camera.pan(-1.0, 0.0);
+        }
     }
 }

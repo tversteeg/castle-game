@@ -1,15 +1,20 @@
+mod buffer;
+mod camera;
 mod font;
 mod game;
 mod input;
+mod terrain;
 mod window;
 
 use game::GameState;
-use miette::{IntoDiagnostic, Result};
+use miette::Result;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::runtime::Runtime;
 use vek::Extent2;
 
+/// Window size.
 pub const SIZE: Extent2<usize> = Extent2::new(320, 180);
+/// Frames per second of the render loop.
 const FPS: u32 = 60;
 
 async fn run() -> Result<()> {
@@ -22,7 +27,7 @@ async fn run() -> Result<()> {
         FPS,
         |g, input| {
             // Update the game
-            g.update();
+            g.update(input);
         },
         |g, buffer| {
             buffer.fill(0);
@@ -36,6 +41,7 @@ async fn run() -> Result<()> {
     Ok(())
 }
 
+/// Entry point starting either a WASM future or a Tokio runtime.
 fn main() {
     #[cfg(target_arch = "wasm32")]
     {

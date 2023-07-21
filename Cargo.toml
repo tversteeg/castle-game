@@ -19,7 +19,7 @@ log = "0.4.19"
 web-time = "0.2.0"
 pixels = "0.13.0"
 bytemuck = "1.13.1"
-blit = "0.8.1"
+blit = "0.8.2"
 game-loop = { version = "0.10.2", features = ["winit"] }
 miette = { version = "5.10.0", features = ["fancy"] }
 image = { version = "0.24.6", default-features = false, features = ["png"] }
