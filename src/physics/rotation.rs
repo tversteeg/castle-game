@@ -2,12 +2,8 @@ use crate::inspector::Inspectable;
 use bevy::prelude::{Commands, Component, Entity, EventReader, Query, With};
 use bevy_rapier2d::{
     physics::IntoEntity,
-    prelude::{
-        ContactEvent, RigidBodyPositionComponent,
-        RigidBodyVelocityComponent, Rotation,
-    },
+    prelude::{ContactEvent, RigidBodyPositionComponent, RigidBodyVelocityComponent, Rotation},
 };
-
 
 /// Tell the physics engine to lock the rotation to the velocity until the first contact event.
 ///
@@ -57,6 +53,6 @@ pub fn system(
         // Calculate the rotation based on the velocity
         let rotation = velocity.linvel.y.atan2(velocity.linvel.x) + rotation_offset.0;
 
-        position.position.rotation = Rotation::new(rotation).into();
+        position.position.rotation = Rotation::new(rotation);
     }
 }

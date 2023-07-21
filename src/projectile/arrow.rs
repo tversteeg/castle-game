@@ -1,3 +1,4 @@
+use super::collision::DamageOnImpact;
 use crate::{
     constants::Constants,
     draw::colored_mesh::ColoredMeshBundle,
@@ -18,8 +19,6 @@ use bevy_rapier2d::{
         RigidBodyVelocity,
     },
 };
-
-use super::collision::DamageOnImpact;
 
 /// Unit struct for determining the projectile.
 #[derive(Debug, Component, Inspectable)]

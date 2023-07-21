@@ -2,7 +2,7 @@ use crate::{
     constants::Constants,
     inspector::Inspectable,
     map::terrain::Terrain,
-    projectile::event::{ProjectileSpawnEvent},
+    projectile::event::ProjectileSpawnEvent,
     unit::{
         closest::{ClosestAlly, ClosestEnemy},
         faction::Faction,

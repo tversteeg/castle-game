@@ -1,5 +1,3 @@
-use crate::inspector::Inspectable;
-
 /// A random number between two numbers.
 #[derive(Debug, Clone, Copy)]
 pub struct RandomRange {
@@ -24,6 +22,7 @@ impl RandomRange {
 #[cfg(feature = "inspector")]
 pub mod inspector {
     use super::*;
+    use crate::inspector::Inspectable;
     use bevy_inspector_egui::{
         egui::{
             plot::{Legend, Plot, Polygon, Value, Values},

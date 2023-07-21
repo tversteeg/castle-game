@@ -3,7 +3,7 @@ use crate::constants::Constants;
 use crate::inspector::Inspectable;
 use crate::{
     draw::colored_mesh::ColoredMeshBundle,
-    geometry::{polygon::Polygon, transform::TransformBuilder},
+    geometry::{transform::TransformBuilder},
     map::terrain::Terrain,
     ui::recruit_button::RecruitEvent,
     weapon::{bow::BowBundle, spear::SpearBundle},
@@ -14,7 +14,7 @@ use bevy::{
 };
 use bevy_rapier2d::physics::ColliderBundle;
 use bevy_rapier2d::prelude::{ColliderShape, ColliderType};
-use geo::{Coordinate, Rect};
+
 
 /// Wrapper for a unit.
 #[derive(Bundle, Inspectable)]

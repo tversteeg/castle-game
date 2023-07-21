@@ -87,7 +87,7 @@ impl Default for Constants {
             },
             arrow: ProjectileConstants {
                 remove_after_resting_for: 0.5,
-                flight_time: 5.0,
+                flight_time: RandomRange { min: 4.0, max: 6.0 },
                 rotation_offset: -std::f32::consts::PI / 2.0,
                 damage: 20.0,
                 min_velocity_for_damage: 1.0,
@@ -187,7 +187,7 @@ pub struct ProjectileConstants {
     pub remove_after_resting_for: f32,
     /// Seconds until the arrow will hit the target.
     #[inspectable(min = 0.0, max = 1000.0, suffix = "s")]
-    pub flight_time: f32,
+    pub flight_time: RandomRange,
     /// How much the rotation of the arrow will be offset.
     #[inspectable(min = -std::f32::consts::PI, max = std::f32::consts::PI, suffix = "r")]
     pub rotation_offset: f32,

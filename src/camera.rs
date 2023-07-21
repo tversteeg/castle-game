@@ -9,7 +9,7 @@ use bevy::{
     window::{CursorMoved, Windows},
 };
 
-use crate::constants::{Constants};
+use crate::constants::Constants;
 
 /// The plugin to handle camera movements.
 pub struct CameraPlugin;

@@ -1,9 +1,9 @@
-use super::Projectile;
+
 use crate::{constants::ProjectileConstants, inspector::Inspectable, unit::health::Health};
 use bevy::prelude::{Commands, Component, Entity, EventReader, EventWriter, Query, With};
 use bevy_rapier2d::{
     physics::IntoEntity,
-    prelude::{ContactEvent, RigidBodyVelocity, RigidBodyVelocityComponent},
+    prelude::{ContactEvent, RigidBodyVelocityComponent},
 };
 
 /// Do damage when a certain velocity is exceeded.

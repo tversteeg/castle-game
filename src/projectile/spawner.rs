@@ -44,16 +44,12 @@ pub fn spawn_event_listener(
 
 /// Calculate the velocity needed for shooting from point A to point B.
 fn shoot_velocity(a: Vec2, b: Vec2, constants: &Constants) -> Vec2 {
+    let flight_time = constants.arrow.flight_time.gen();
+
     // X velocity, a constant
-    let vx = (b.x - a.x) / constants.arrow.flight_time;
+    let vx = (b.x - a.x) / flight_time;
     // Y velocity, calculate the arch
-    let vy = (b.y
-        + 0.5
-            * -constants.world.gravity
-            * constants.arrow.flight_time
-            * constants.arrow.flight_time
-        - a.y)
-        / constants.arrow.flight_time;
+    let vy = (b.y + 0.5 * -constants.world.gravity * flight_time * flight_time - a.y) / flight_time;
 
     Vec2::new(vx, vy)
 }
