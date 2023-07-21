@@ -109,7 +109,7 @@ jobs:
 
       # Build the WASM 
       - name: Build Showcase example
-        run: cargo run --package run-wasm -- --bin rise-of-the-oreads --release --build-only
+        run: cargo run --package run-wasm -- --bin castle-game --release --build-only
 
       # Deploy to GitHub pages
       - name: Deploy to GitHub Pages

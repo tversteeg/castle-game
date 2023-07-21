@@ -6,7 +6,7 @@ use blit::{
 };
 use vek::Vec2;
 
-use crate::{font::Font, input::Input, HEIGHT, WIDTH};
+use crate::{font::Font, input::Input, SIZE};
 
 /// Handles everything related to the game.
 pub struct GameState {
