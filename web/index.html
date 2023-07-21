@@ -1,0 +1,30 @@
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      body {
+        background: linear-gradient(
+          135deg,
+          white 0%,
+          white 49%,
+          black 49%,
+          black 51%,
+          white 51%,
+          white 100%
+        );
+        background-repeat: repeat;
+        background-size: 20px 20px;
+      }
+      canvas {
+        background-color: white;
+      }
+    </style>
+  </head>
+  <script type="module">
+    import init from './castle-game.js'
+    await init()
+  </script>
+  <body>
+    <canvas id="bevy_canvas" tabindex="1" width="1200" height="800" style="margin-left: auto; margin-right: auto; display: block; padding-left: 0; padding-right: 0; border-style: solid;"></canvas>
+  </body>
+</html>

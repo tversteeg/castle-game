@@ -10,4 +10,7 @@ Cargo.lock
 **/*.rs.bk
 
 resources/
-assets/
+
+*.js
+*.wasm
+*.ts

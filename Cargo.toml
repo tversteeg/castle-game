@@ -1,7 +1,7 @@
 [package]
 name = "castle-game"
 version = "0.1.37-alpha.0"
-edition = "2018"
+edition = "2021"
 authors = ["Thomas Versteeg <thomasversteeg@gmx.com>"]
 license = "GPL-3.0"
 homepage = "https://github.com/tversteeg/castle-game"
@@ -13,37 +13,48 @@ repository = "https://github.com/tversteeg/castle-game.git"
 keywords = ["game", "2d", "destructible"]
 categories = ["games"]
 
-build = "build.rs"
-
 [badges]
 travis-ci = {repository = "tversteeg/castle-game"}
 is-it-maintained-issue-resolution = { repository = "tversteeg/castle-game" }
 
+[features]
+default = []
+inspector = ["bevy-inspector-egui"]
+
 [dependencies]
-cgmath = "0.17.0"
-collision = "0.20.1"
-const-tweaker = "0.3.1"
-cpal = "0.11.0"
-direct-gui = "0.1.25"
-line_drawing = "0.8.0"
-minifb = "0.19.0"
-rand = "0.8.0"
-sfxr = "0.1.4"
-specs = { version = "0.16.1", features = ["shred-derive"] }
-specs-derive = "0.4.1"
+anyhow = "1.0.56"
+bevy = { version = "0.7.0", default-features = false, features = ["trace"] }
+bevy-inspector-egui = { version = "0.10.0", optional = true }
+bevy_easings = "0.6.0"
+bevy_egui = "0.13.0"
+bevy-inspector-egui-rapier = { version = "0.1.1", features = ["rapier2d"] }
+bevy_rapier2d = { version = "0.12.1", features = ["simd-stable", "wasm-bindgen", "render"] }
+earcutr = "0.2.0"
+fastrand = "1.7.0"
+geo = "0.20.0"
+geo-booleanop = { git = "https://github.com/21re/rust-geo-booleanop.git" }
+geo-types = "0.7.4"
+itertools = "0.10.3"
+lyon_path = "0.17.7"
+lyon_tessellation = "0.17.10"
+nalgebra = "0.30.1"
+noise = { version = "0.7.0", default-features = false }
+mock-inspector-derive = { version = "0.0.1", path = "mock-inspector-derive" }
+rand = "0.8.5"
+tracing-subscriber = "0.3.11"
+usvg = { version = "0.22.0", default-features = false }
 
-[dependencies.rust-embed]
-version = "5.5.1"
-features = ["interpolate-folder-path"]
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+tracing-wasm = "0.2.1"
+console_error_panic_hook = "0.1.7"
 
-[dependencies.blit]
-version = "0.5.12"
-default-features = false
-features = ["aseprite"]
+[workspace]
+members = [".", "mock-inspector-derive"]
 
-[build-dependencies]
-git2 = "0.13.6"
-blit = "0.5.12"
-image = "0.23.6"
-aseprite = "0.1.3"
-serde_json = "1.0.56"
+# Don't make debug builds painfully slow
+[profile.dev]
+opt-level = 1
+
+# Always run release versions of slow crates
+[profile.dev.package."*"]
+opt-level = 3
