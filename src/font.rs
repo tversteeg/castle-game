@@ -4,6 +4,8 @@ use blit::{
 };
 use vek::Extent2;
 
+use crate::SIZE;
+
 /// Pixel font loaded from an image.
 pub struct Font {
     /// Image to render.
@@ -24,14 +26,7 @@ impl Font {
     }
 
     /// Render text on a pixel buffer.
-    pub fn render(
-        &self,
-        canvas: &mut [u32],
-        canvas_size: Size,
-        text: &str,
-        start_x: i32,
-        mut y: i32,
-    ) {
+    pub fn render(&self, canvas: &mut [u32], text: &str, start_x: i32, mut y: i32) {
         // First character in the image
         let char_start = '!';
         let char_end = '~';
@@ -60,7 +55,7 @@ impl Font {
             // Draw the character
             self.sprite.blit(
                 canvas,
-                canvas_size,
+                SIZE.into_tuple().into(),
                 &BlitOptions::new_position(x, y).with_sub_rect(SubRect::new(
                     char_offset,
                     0,

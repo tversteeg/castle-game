@@ -3,7 +3,9 @@ mod camera;
 mod font;
 mod game;
 mod input;
+mod sprite;
 mod terrain;
+mod unit;
 mod window;
 
 use game::GameState;
@@ -33,7 +35,7 @@ async fn run() -> Result<()> {
             buffer.fill(0);
 
             // Draw the game
-            g.render(buffer, SIZE.into_tuple().into());
+            g.render(buffer);
         },
     )
     .await?;

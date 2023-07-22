@@ -1,6 +1,4 @@
-use blit::prelude::Size;
-
-use crate::{camera::Camera, font::Font, input::Input, terrain::Terrain, SIZE};
+use crate::{camera::Camera, font::Font, input::Input, terrain::Terrain, unit::Unit, SIZE};
 
 /// Mouse offset for panning the camera.
 const PAN_EDGE_OFFSET: i32 = SIZE.w as i32 / 4;
@@ -11,6 +9,8 @@ pub struct GameState {
     font: Font,
     /// First level ground.
     terrain: Terrain,
+    /// Single unit.
+    unit: Unit,
     /// Camera position based on the cursor.
     camera: Camera,
     /// Maximum X position of the level.
@@ -33,6 +33,13 @@ impl GameState {
             include_bytes!("../assets/level/grass-1.png"),
         );
 
+        // Load the embedded unit
+        let unit = Unit::from_bytes(
+            // Embed the image in the binary
+            include_bytes!("../assets/unit/spear-1.png"),
+            (1.0, 10.0).into(),
+        );
+
         let level_width = terrain.width();
 
         let camera = Camera::default();
@@ -40,16 +47,18 @@ impl GameState {
         Self {
             font,
             terrain,
+            unit,
             camera,
             level_width,
         }
     }
 
     /// Draw a frame.
-    pub fn render(&mut self, canvas: &mut [u32], canvas_size: Size) {
-        self.font.render(canvas, canvas_size, "Castle Game", 0, 0);
+    pub fn render(&mut self, canvas: &mut [u32]) {
+        self.font.render(canvas, "Castle Game", 0, 0);
 
-        self.terrain.render(canvas, canvas_size, &self.camera);
+        self.terrain.render(canvas, &self.camera);
+        self.unit.render(canvas, &self.camera);
     }
 
     /// Update a frame and handle user input.
@@ -61,5 +70,7 @@ impl GameState {
             self.camera
                 .pan(1.0, 0.0, 0.0, (self.level_width - SIZE.w as u32) as f64);
         }
+
+        self.unit.update(&self.terrain);
     }
 }
