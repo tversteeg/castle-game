@@ -24,7 +24,7 @@ where
 {
     // Build the window builder with the event loop the user supplied
     let event_loop = EventLoop::new();
-    let logical_size = LogicalSize::new(size.w as f64, size.h as f64);
+    let logical_size = LogicalSize::new(size.w as f64 * 2.0, size.h as f64 * 2.0);
     #[allow(unused_mut)]
     let mut window_builder = WindowBuilder::new()
         .with_title("Castle Game")
@@ -186,7 +186,7 @@ mod wasm {
         canvas.style().set_css_text("display:block; margin: auto");
 
         let header = document.create_element("h2").unwrap();
-        header.set_text_content(Some("Caste Game"));
+        header.set_text_content(Some("Castle Game"));
         body.append_child(&header).unwrap();
 
         canvas

@@ -108,7 +108,7 @@ jobs:
           save-if: ${{ github.event_name == 'push' }}
 
       # Build the WASM 
-      - name: Build Showcase example
+      - name: Build
         run: cargo run --package run-wasm -- --bin castle-game --release --build-only
 
       # Deploy to GitHub pages
@@ -117,5 +117,5 @@ jobs:
         env:
           REPO: self
           BRANCH: gh-pages
-          FOLDER: target/wasm-examples
+          FOLDER: target/wasm-examples/castle-game
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

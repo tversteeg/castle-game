@@ -34,4 +34,9 @@ impl Terrain {
 
         self.sprite.blit(canvas, canvas_size, &blit_options);
     }
+
+    /// Width of the terrain.
+    pub fn width(&self) -> u32 {
+        self.size.w
+    }
 }
