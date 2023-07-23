@@ -1,5 +1,5 @@
-use blit::prelude::Size;
-use vek::{Extent2, Vec2};
+
+use vek::{Vec2};
 
 use crate::{camera::Camera, sprite::Sprite, terrain::Terrain};
 
@@ -7,18 +7,16 @@ use crate::{camera::Camera, sprite::Sprite, terrain::Terrain};
 const WALK_SPEED: f64 = 0.2;
 
 /// Unit that can walk on the terrain.
-pub struct Unit {
+pub struct Unit<'a> {
     /// Absolute position.
     pos: Vec2<f64>,
     /// Sprite to render.
-    sprite: Sprite,
+    sprite: &'a Sprite,
 }
 
-impl Unit {
-    /// Load a unit from image bytes.
-    pub fn from_bytes(sprite_bytes: &[u8], pos: Vec2<f64>) -> Self {
-        let sprite = Sprite::from_bytes(sprite_bytes);
-
+impl<'a> Unit<'a> {
+    /// Create a new unit.
+    pub fn new(sprite: &'a Sprite, pos: Vec2<f64>) -> Self {
         Self { sprite, pos }
     }
 

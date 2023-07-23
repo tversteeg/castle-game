@@ -1,23 +1,21 @@
-use blit::prelude::Size;
+
 use vek::{Extent2, Vec2};
 
 use crate::{camera::Camera, sprite::Sprite, SIZE};
 
 /// Destructible terrain buffer.
-pub struct Terrain {
+pub struct Terrain<'a> {
     /// Size of the terrain.
     size: Extent2<u32>,
     /// Terrain to render.
-    sprite: Sprite,
+    sprite: &'a Sprite,
     /// Array of the top collision point heights of the terrain.
     top_heights: Vec<u8>,
 }
 
-impl Terrain {
+impl<'a> Terrain<'a> {
     /// Load a terrain from image bytes.
-    pub fn from_bytes(sprite_bytes: &[u8]) -> Self {
-        let sprite = Sprite::from_bytes(sprite_bytes);
-
+    pub fn new(sprite: &'a Sprite) -> Self {
         let size = Extent2::new(sprite.width(), sprite.height());
 
         // Create an empty vector so we can fill it with a method

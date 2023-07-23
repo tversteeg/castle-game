@@ -1,4 +1,4 @@
-use blit::{prelude::Size, Blit, BlitBuffer, ToBlitBuffer};
+use blit::{Blit, BlitBuffer, ToBlitBuffer};
 use vek::Vec2;
 
 use crate::{camera::Camera, SIZE};

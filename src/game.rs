@@ -1,16 +1,19 @@
-use crate::{camera::Camera, font::Font, input::Input, terrain::Terrain, unit::Unit, SIZE};
+use crate::{
+    assets::Assets, camera::Camera, input::Input, terrain::Terrain,
+    unit::Unit, SIZE,
+};
 
 /// Mouse offset for panning the camera.
 const PAN_EDGE_OFFSET: i32 = SIZE.w as i32 / 4;
 
 /// Handles everything related to the game.
 pub struct GameState {
-    /// Font sprite.
-    font: Font,
+    /// Reference to all assets.
+    assets: &'static Assets,
     /// First level ground.
-    terrain: Terrain,
+    terrain: Terrain<'static>,
     /// Single unit.
-    unit: Unit,
+    unit: Unit<'static>,
     /// Camera position based on the cursor.
     camera: Camera,
     /// Maximum X position of the level.
@@ -19,33 +22,19 @@ pub struct GameState {
 
 impl GameState {
     /// Construct the game state with default values.
-    pub fn new() -> Self {
-        // Load the embedded font
-        let font = Font::from_bytes(
-            // Embed the image in the binary
-            include_bytes!("../assets/font/torus-sans.png"),
-            (9, 9).into(),
-        );
-
-        // Load the embedded terrain
-        let terrain = Terrain::from_bytes(
-            // Embed the image in the binary
-            include_bytes!("../assets/level/grass-1.png"),
-        );
+    pub fn new(assets: &'static Assets) -> Self {
+        // Load the terrain
+        let terrain = Terrain::new(&assets.terrain_sprite);
 
         // Load the embedded unit
-        let unit = Unit::from_bytes(
-            // Embed the image in the binary
-            include_bytes!("../assets/unit/spear-1.png"),
-            (1.0, 10.0).into(),
-        );
+        let unit = Unit::new(&assets.unit_sprite, (1.0, 10.0).into());
 
         let level_width = terrain.width();
 
         let camera = Camera::default();
 
         Self {
-            font,
+            assets,
             terrain,
             unit,
             camera,
@@ -55,7 +44,7 @@ impl GameState {
 
     /// Draw a frame.
     pub fn render(&mut self, canvas: &mut [u32]) {
-        self.font.render(canvas, "Castle Game", 0, 0);
+        self.assets.font.render(canvas, "Castle Game", 0, 0);
 
         self.terrain.render(canvas, &self.camera);
         self.unit.render(canvas, &self.camera);

@@ -1,5 +1,5 @@
 use blit::{
-    prelude::{Size, SubRect},
+    prelude::{SubRect},
     Blit, BlitBuffer, BlitOptions, ToBlitBuffer,
 };
 use vek::Extent2;

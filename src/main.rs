@@ -1,3 +1,4 @@
+mod assets;
 mod buffer;
 mod camera;
 mod font;
@@ -8,6 +9,9 @@ mod terrain;
 mod unit;
 mod window;
 
+use std::sync::OnceLock;
+
+use assets::Assets;
 use game::GameState;
 use miette::Result;
 #[cfg(not(target_arch = "wasm32"))]
@@ -19,9 +23,15 @@ pub const SIZE: Extent2<usize> = Extent2::new(320, 180);
 /// Frames per second of the render loop.
 const FPS: u32 = 60;
 
+/// The assets as a 'static reference.
+static ASSETS: OnceLock<Assets> = OnceLock::new();
+
 async fn run() -> Result<()> {
+    // Initialize the assets once
+    let assets = ASSETS.get_or_init(Assets::load);
+
     // Construct the game
-    let state = GameState::new();
+    let state = GameState::new(assets);
 
     window::run(
         state,
