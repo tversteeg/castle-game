@@ -28,8 +28,9 @@ const FPS: u32 = 60;
 static ASSETS: OnceLock<Assets> = OnceLock::new();
 
 async fn run() -> Result<()> {
-    // Initialize the assets once
+    // Initialize the asset loader
     let assets = ASSETS.get_or_init(Assets::load);
+    assets.enable_hot_reloading();
 
     // Construct the game
     let state = GameState::new(assets);

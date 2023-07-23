@@ -4,6 +4,10 @@ use crate::{assets::Assets, camera::Camera, sprite::Sprite, terrain::Terrain};
 
 /// How fast the unit walks.
 const WALK_SPEED: f64 = 0.2;
+/// Unit base asset path.
+const BASE_ASSET_PATH: &str = "unit.base-1";
+/// Unit hands with spear asset path.
+const SPEAR_HANDS_ASSET_PATH: &str = "unit.spear-hands-1";
 
 /// Unit that can walk on the terrain.
 pub struct Unit {
@@ -35,7 +39,7 @@ impl Unit {
 
     /// Draw the unit.
     pub fn render(&self, canvas: &mut [u32], camera: &Camera) {
-        self.assets.unit_base_sprite.render(
+        self.assets.sprite(BASE_ASSET_PATH).render(
             canvas,
             camera,
             (self.pos - self.ground_collision_point())
@@ -43,7 +47,7 @@ impl Unit {
                 .unwrap_or_default(),
         );
 
-        self.assets.unit_weapon_sprite.render(
+        self.assets.sprite(SPEAR_HANDS_ASSET_PATH).render(
             canvas,
             camera,
             (self.pos - (1.0, 1.0) - self.ground_collision_point())
@@ -54,10 +58,8 @@ impl Unit {
 
     /// Where the unit collides with the ground.
     fn ground_collision_point(&self) -> Vec2<f64> {
-        (
-            self.assets.unit_base_sprite.width() as f64 / 2.0,
-            self.assets.unit_base_sprite.height() as f64 - 2.0,
-        )
-            .into()
+        let sprite = self.assets.sprite(BASE_ASSET_PATH);
+
+        (sprite.width() as f64 / 2.0, sprite.height() as f64 - 2.0).into()
     }
 }

@@ -1,27 +1,32 @@
 use vek::{Extent2, Vec2};
 
-use crate::{camera::Camera, sprite::Sprite, SIZE};
+use crate::{assets::Assets, camera::Camera, sprite::Sprite, SIZE};
+
+/// Level asset path.
+const ASSET_PATH: &str = "level.grass-1";
 
 /// Destructible terrain buffer.
 pub struct Terrain {
+    /// Assets for the sprite.
+    assets: &'static Assets,
     /// Size of the terrain.
     size: Extent2<u32>,
-    /// Terrain to render.
-    sprite: &'static Sprite,
     /// Array of the top collision point heights of the terrain.
     top_heights: Vec<u8>,
 }
 
 impl Terrain {
     /// Load a terrain from image bytes.
-    pub fn new(sprite: &'static Sprite) -> Self {
+    pub fn new(assets: &'static Assets) -> Self {
+        let sprite = assets.sprite(ASSET_PATH);
+
         let size = Extent2::new(sprite.width(), sprite.height());
 
         // Create an empty vector so we can fill it with a method
         let top_heights = vec![0; size.w as usize];
 
         let mut terrain = Self {
-            sprite,
+            assets,
             size,
             top_heights,
         };
@@ -33,7 +38,8 @@ impl Terrain {
 
     /// Draw the terrain based on a camera offset.
     pub fn render(&self, canvas: &mut [u32], camera: &Camera) {
-        self.sprite
+        self.assets
+            .sprite(ASSET_PATH)
             .render(canvas, camera, (0, self.y_offset()).into());
     }
 
@@ -59,14 +65,16 @@ impl Terrain {
 
     /// Recalculate the collision top heights.
     fn recalculate_top_height(&mut self) {
+        let sprite = self.assets.sprite(ASSET_PATH);
+
         // Loop over each X value
         self.top_heights
             .iter_mut()
             .enumerate()
             .for_each(|(x, height)| {
                 // Loop over each Y value to find the first pixel that is not transparent
-                *height = (0..self.sprite.height())
-                    .find(|y| !self.sprite.is_pixel_transparent(x as u32, *y))
+                *height = (0..sprite.height())
+                    .find(|y| !sprite.is_pixel_transparent(x as u32, *y))
                     // If nothing is found just use the bottom
                     .unwrap_or(self.size.h) as u8;
             });

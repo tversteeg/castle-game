@@ -1,7 +1,9 @@
+use assets_manager::{loader::TomlLoader, AnyCache, Asset, BoxedError, Compound, SharedString};
 use blit::{prelude::SubRect, Blit, BlitBuffer, BlitOptions, ToBlitBuffer};
+use serde::Deserialize;
 use vek::Extent2;
 
-use crate::SIZE;
+use crate::{sprite::Sprite, SIZE};
 
 /// Pixel font loaded from an image.
 pub struct Font {
@@ -13,15 +15,6 @@ pub struct Font {
 
 impl Font {
     /// Load a font from image bytes.
-    pub fn from_bytes(sprite_bytes: &[u8], char_size: Extent2<u8>) -> Self {
-        let sprite = image::load_from_memory(sprite_bytes)
-            .unwrap()
-            .into_rgba8()
-            .to_blit_buffer_with_mask_color(0xFF_00_FF);
-
-        Self { sprite, char_size }
-    }
-
     /// Render text on a pixel buffer.
     pub fn render(&self, canvas: &mut [u32], text: &str, start_x: i32, mut y: i32) {
         // First character in the image
@@ -61,4 +54,32 @@ impl Font {
             );
         });
     }
+}
+
+impl Compound for Font {
+    fn load(cache: AnyCache, id: &SharedString) -> Result<Self, BoxedError> {
+        // Load the sprite
+        let sprite = cache.load_owned::<Sprite>(id)?.into_blit_buffer();
+
+        // Load the metadata
+        let metadata = cache.load::<FontMetadata>(id)?.read();
+        let char_size = Extent2::new(metadata.char_width, metadata.char_height);
+
+        Ok(Self { sprite, char_size })
+    }
+}
+
+/// Font metadata to load.
+#[derive(Deserialize)]
+struct FontMetadata {
+    /// Width of a single character.
+    char_width: u8,
+    /// Height of a single character.
+    char_height: u8,
+}
+
+impl Asset for FontMetadata {
+    const EXTENSION: &'static str = "toml";
+
+    type Loader = TomlLoader;
 }

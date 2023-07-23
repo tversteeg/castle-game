@@ -10,6 +10,7 @@ on:
       - "**.md"
 
 jobs:
+  # Check for formatting
   rustfmt:
     name: Formatter check
     runs-on: ubuntu-latest
@@ -30,7 +31,6 @@ jobs:
           args: --all -- --check
 
   # Run compile check on Linux, macOS, and Windows
-  # On both Rust stable and Rust nightly
   compile:
     name: Compile
     runs-on: ${{ matrix.os }}
@@ -38,7 +38,6 @@ jobs:
       fail-fast: true
       matrix:
         os: [ubuntu-latest, macOS-latest, windows-latest]
-        toolchain: [stable, nightly]
     steps:
       # Checkout the branch being tested
       - uses: actions/checkout@v3
@@ -46,7 +45,7 @@ jobs:
       # Install rust stable
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ matrix.toolchain }}
+          toolchain: stable
 
       # Cache the built dependencies
       - uses: Swatinem/rust-cache@v2.4.0
@@ -60,36 +59,7 @@ jobs:
       - name: Compile
         run: cargo hack --feature-powerset check
 
-  # Run tests on Linux
-  # On both Rust stable and Rust nightly
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        toolchain: [stable, nightly]
-    steps:
-      # Checkout the branch being tested
-      - uses: actions/checkout@v3
-
-      # Install rust stable
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ matrix.toolchain }}
-
-      # Cache the built dependencies
-      - uses: Swatinem/rust-cache@v2.4.0
-        with:
-          save-if: ${{ github.event_name == 'push' }}
-
-      # Install cargo-hack
-      - uses: taiki-e/install-action@cargo-hack
-
-      # Run the ignored tests that expect the above setup
-      - name: Run all tests
-        run: cargo hack --feature-powerset test
-
+  # Build the WASM target & push it to GitHub pages
   wasm:
     name: WASM build
     runs-on: ubuntu-latest

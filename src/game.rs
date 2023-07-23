@@ -1,5 +1,11 @@
+use assets_manager::{
+    source::{Embedded, FileSystem},
+    AssetCache,
+};
+
 use crate::{
-    assets::Assets, camera::Camera, input::Input, terrain::Terrain, timer::Timer, unit::Unit, SIZE,
+    assets::Assets, camera::Camera, input::Input, sprite::Sprite, terrain::Terrain, timer::Timer,
+    unit::Unit, SIZE,
 };
 
 /// Mouse offset for panning the camera.
@@ -25,7 +31,7 @@ impl GameState {
     /// Construct the game state with default values.
     pub fn new(assets: &'static Assets) -> Self {
         // Load the terrain
-        let terrain = Terrain::new(&assets.terrain_sprite);
+        let terrain = Terrain::new(&assets);
 
         // Load the embedded unit
         let units = Vec::new();
@@ -47,9 +53,12 @@ impl GameState {
 
     /// Draw a frame.
     pub fn render(&mut self, canvas: &mut [u32], frame_time: f64) {
-        self.assets
-            .font
-            .render(canvas, &format!("Castle Game: {frame_time}"), 0, 0);
+        self.assets.font("font.torus-sans").render(
+            canvas,
+            &format!("Castle Game: {frame_time}"),
+            0,
+            0,
+        );
 
         self.terrain.render(canvas, &self.camera);
 

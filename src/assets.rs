@@ -1,53 +1,44 @@
+use assets_manager::{AssetCache, AssetGuard};
+
 use crate::{font::Font, sprite::Sprite};
 
 /// All external data.
-pub struct Assets {
-    /// Sprite for the default unit body.
-    pub unit_base_sprite: Sprite,
-    /// Sprite for the default unit hands with spear.
-    pub unit_weapon_sprite: Sprite,
-    /// Sprite for the spear projectile.
-    pub spear_projectile_sprite: Sprite,
-    /// Sprite for the default terrain.
-    pub terrain_sprite: Sprite,
-    /// Default font
-    pub font: Font,
-}
+#[cfg(not(target_arch = "wasm32"))]
+pub struct Assets(AssetCache<assets_manager::source::FileSystem>);
+#[cfg(target_arch = "wasm32")]
+pub struct Assets(AssetCache<assets_manager::source::Embedded<'static>>);
 
 impl Assets {
-    /// Load all assets immediately.
+    /// Construct the asset loader.
+    ///
+    /// Embeds all assets for the WASM target.
     pub fn load() -> Self {
-        // Load the embedded font
-        let font = Font::from_bytes(
-            // Embed the image in the binary
-            include_bytes!("../assets/font/torus-sans.png"),
-            (9, 9).into(),
-        );
+        // Load the assets from disk, allows hot-reloading
+        #[cfg(not(target_arch = "wasm32"))]
+        let source = assets_manager::source::FileSystem::new("assets").unwrap();
 
-        // Load the embedded sprites
-        let unit_base_sprite = Sprite::from_bytes(
-            // Embed the image in the binary
-            include_bytes!("../assets/unit/base-1.png"),
-        );
-        let unit_weapon_sprite = Sprite::from_bytes(
-            // Embed the image in the binary
-            include_bytes!("../assets/unit/spear-hands-1.png"),
-        );
-        let spear_projectile_sprite = Sprite::from_bytes(
-            // Embed the image in the binary
-            include_bytes!("../assets/projectile/spear-1.png"),
-        );
-        let terrain_sprite = Sprite::from_bytes(
-            // Embed the image in the binary
-            include_bytes!("../assets/level/grass-1.png"),
-        );
+        // Embed all assets into the binary
+        #[cfg(target_arch = "wasm32")]
+        let source =
+            assets_manager::source::Embedded::from(assets_manager::source::embed!("assets"));
 
-        Self {
-            font,
-            unit_base_sprite,
-            unit_weapon_sprite,
-            spear_projectile_sprite,
-            terrain_sprite,
-        }
+        let asset_cache = AssetCache::with_source(source);
+
+        Self(asset_cache)
+    }
+
+    /// Load a sprite.
+    pub fn sprite(&self, path: &str) -> AssetGuard<Sprite> {
+        self.0.load_expect(path).read()
+    }
+
+    /// Load a font.
+    pub fn font(&self, path: &str) -> AssetGuard<Font> {
+        self.0.load_expect(path).read()
+    }
+
+    /// Hot reload from disk if applicable.
+    pub fn enable_hot_reloading(&'static self) {
+        self.0.enhance_hot_reloading();
     }
 }

@@ -1,4 +1,4 @@
 [toolchain]
 # We need 1.70 because we use OnceLock
 channel = "1.70"
-targets = [ "wasm32-unknown-unknown" ]
+targets = ["wasm32-unknown-unknown"]
