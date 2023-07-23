@@ -1,21 +1,20 @@
-
 use vek::{Extent2, Vec2};
 
 use crate::{camera::Camera, sprite::Sprite, SIZE};
 
 /// Destructible terrain buffer.
-pub struct Terrain<'a> {
+pub struct Terrain {
     /// Size of the terrain.
     size: Extent2<u32>,
     /// Terrain to render.
-    sprite: &'a Sprite,
+    sprite: &'static Sprite,
     /// Array of the top collision point heights of the terrain.
     top_heights: Vec<u8>,
 }
 
-impl<'a> Terrain<'a> {
+impl Terrain {
     /// Load a terrain from image bytes.
-    pub fn new(sprite: &'a Sprite) -> Self {
+    pub fn new(sprite: &'static Sprite) -> Self {
         let size = Extent2::new(sprite.width(), sprite.height());
 
         // Create an empty vector so we can fill it with a method
@@ -54,7 +53,7 @@ impl<'a> Terrain<'a> {
     }
 
     /// Total offset to place the terrain at the bottom.
-    fn y_offset(&self) -> i32 {
+    pub fn y_offset(&self) -> i32 {
         SIZE.h as i32 - self.size.h as i32
     }
 

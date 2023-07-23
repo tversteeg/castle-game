@@ -20,7 +20,7 @@ pub async fn run<G, U, R>(
 where
     G: 'static,
     U: FnMut(&mut G, &Input) + 'static,
-    R: FnMut(&mut G, &mut [u32]) + 'static,
+    R: FnMut(&mut G, &mut [u32], f64) + 'static,
 {
     // Build the window builder with the event loop the user supplied
     let event_loop = EventLoop::new();
@@ -66,7 +66,8 @@ where
         0.1,
         move |g| update(&mut g.game.0, &g.game.2),
         move |g| {
-            render(&mut g.game.0, &mut buffer);
+            let frame_time = g.last_frame_time();
+            render(&mut g.game.0, &mut buffer, frame_time);
 
             // Blit draws the pixels in RGBA format, but the pixels crate expects BGRA, so convert it
             g.game

@@ -6,6 +6,7 @@ mod game;
 mod input;
 mod sprite;
 mod terrain;
+mod timer;
 mod unit;
 mod window;
 
@@ -19,7 +20,7 @@ use tokio::runtime::Runtime;
 use vek::Extent2;
 
 /// Window size.
-pub const SIZE: Extent2<usize> = Extent2::new(320, 180);
+pub const SIZE: Extent2<usize> = Extent2::new(360, 360);
 /// Frames per second of the render loop.
 const FPS: u32 = 60;
 
@@ -41,11 +42,11 @@ async fn run() -> Result<()> {
             // Update the game
             g.update(input);
         },
-        |g, buffer| {
+        |g, buffer, frame_time| {
             buffer.fill(0);
 
             // Draw the game
-            g.render(buffer);
+            g.render(buffer, frame_time);
         },
     )
     .await?;

@@ -2,8 +2,12 @@ use crate::{font::Font, sprite::Sprite};
 
 /// All external data.
 pub struct Assets {
-    /// Sprite for the default unit.
-    pub unit_sprite: Sprite,
+    /// Sprite for the default unit body.
+    pub unit_base_sprite: Sprite,
+    /// Sprite for the default unit hands with spear.
+    pub unit_weapon_sprite: Sprite,
+    /// Sprite for the spear projectile.
+    pub spear_projectile_sprite: Sprite,
     /// Sprite for the default terrain.
     pub terrain_sprite: Sprite,
     /// Default font
@@ -21,9 +25,17 @@ impl Assets {
         );
 
         // Load the embedded sprites
-        let unit_sprite = Sprite::from_bytes(
+        let unit_base_sprite = Sprite::from_bytes(
             // Embed the image in the binary
-            include_bytes!("../assets/unit/spear-1.png"),
+            include_bytes!("../assets/unit/base-1.png"),
+        );
+        let unit_weapon_sprite = Sprite::from_bytes(
+            // Embed the image in the binary
+            include_bytes!("../assets/unit/spear-hands-1.png"),
+        );
+        let spear_projectile_sprite = Sprite::from_bytes(
+            // Embed the image in the binary
+            include_bytes!("../assets/projectile/spear-1.png"),
         );
         let terrain_sprite = Sprite::from_bytes(
             // Embed the image in the binary
@@ -32,7 +44,9 @@ impl Assets {
 
         Self {
             font,
-            unit_sprite,
+            unit_base_sprite,
+            unit_weapon_sprite,
+            spear_projectile_sprite,
             terrain_sprite,
         }
     }

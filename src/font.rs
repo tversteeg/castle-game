@@ -1,7 +1,4 @@
-use blit::{
-    prelude::{SubRect},
-    Blit, BlitBuffer, BlitOptions, ToBlitBuffer,
-};
+use blit::{prelude::SubRect, Blit, BlitBuffer, BlitOptions, ToBlitBuffer};
 use vek::Extent2;
 
 use crate::SIZE;
