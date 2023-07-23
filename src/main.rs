@@ -39,9 +39,9 @@ async fn run() -> Result<()> {
         state,
         SIZE,
         FPS,
-        |g, input| {
+        |g, input, dt| {
             // Update the game
-            g.update(input);
+            g.update(input, dt);
         },
         |g, buffer, frame_time| {
             buffer.fill(0);

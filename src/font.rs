@@ -1,5 +1,5 @@
 use assets_manager::{loader::TomlLoader, AnyCache, Asset, BoxedError, Compound, SharedString};
-use blit::{prelude::SubRect, Blit, BlitBuffer, BlitOptions, ToBlitBuffer};
+use blit::{prelude::SubRect, Blit, BlitBuffer, BlitOptions};
 use serde::Deserialize;
 use vek::Extent2;
 

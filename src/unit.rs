@@ -1,9 +1,7 @@
 use vek::Vec2;
 
-use crate::{assets::Assets, camera::Camera, sprite::Sprite, terrain::Terrain};
+use crate::{assets::Assets, camera::Camera, terrain::Terrain};
 
-/// How fast the unit walks.
-const WALK_SPEED: f64 = 0.2;
 /// Unit base asset path.
 const BASE_ASSET_PATH: &str = "unit.base-1";
 /// Unit hands with spear asset path.
@@ -24,7 +22,7 @@ impl Unit {
     }
 
     /// Move the unit.
-    pub fn update(&mut self, terrain: &Terrain) {
+    pub fn update(&mut self, terrain: &Terrain, dt: f64) {
         if !terrain.point_collides(self.pos.numcast().unwrap_or_default()) {
             // No collision with the terrain, the unit falls down
             self.pos.y += 1.0;
@@ -33,7 +31,7 @@ impl Unit {
             self.pos.y -= 1.0;
         } else {
             // Collision with the terrain, the unit walks to the right
-            self.pos.x += WALK_SPEED;
+            self.pos.x += self.assets.settings().unit_speed * dt;
         }
     }
 

@@ -1,6 +1,6 @@
 use vek::{Extent2, Vec2};
 
-use crate::{assets::Assets, camera::Camera, sprite::Sprite, SIZE};
+use crate::{assets::Assets, camera::Camera, SIZE};
 
 /// Level asset path.
 const ASSET_PATH: &str = "level.grass-1";

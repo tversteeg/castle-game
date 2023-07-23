@@ -1,6 +1,6 @@
 use assets_manager::{AssetCache, AssetGuard};
 
-use crate::{font::Font, sprite::Sprite};
+use crate::{font::Font, game::Settings, sprite::Sprite};
 
 /// All external data.
 #[cfg(not(target_arch = "wasm32"))]
@@ -35,6 +35,11 @@ impl Assets {
     /// Load a font.
     pub fn font(&self, path: &str) -> AssetGuard<Font> {
         self.0.load_expect(path).read()
+    }
+
+    /// Load the settings.
+    pub fn settings(&self) -> AssetGuard<Settings> {
+        self.0.load_expect("settings").read()
     }
 
     /// Hot reload from disk if applicable.

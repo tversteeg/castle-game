@@ -19,7 +19,7 @@ pub async fn run<G, U, R>(
 ) -> Result<()>
 where
     G: 'static,
-    U: FnMut(&mut G, &Input) + 'static,
+    U: FnMut(&mut G, &Input, f64) + 'static,
     R: FnMut(&mut G, &mut [u32], f64) + 'static,
 {
     // Build the window builder with the event loop the user supplied
@@ -64,7 +64,7 @@ where
         (game_state, pixels, Input::default()),
         fps,
         0.1,
-        move |g| update(&mut g.game.0, &g.game.2),
+        move |g| update(&mut g.game.0, &g.game.2, 0.1),
         move |g| {
             let frame_time = g.last_frame_time();
             render(&mut g.game.0, &mut buffer, frame_time);
