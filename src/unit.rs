@@ -19,6 +19,8 @@ pub struct Unit {
     pos: Vec2<f64>,
     /// Timer for throwing a spear.
     projectile_timer: Timer,
+    /// How long to hide the hands after a spear is thrown.
+    hide_hands_delay: f64,
 }
 
 impl Unit {
@@ -30,9 +32,12 @@ impl Unit {
                 .projectile_spawn_interval,
         );
 
+        let hide_hands_delay = 0.0;
+
         Self {
             pos,
             projectile_timer,
+            hide_hands_delay,
         }
     }
 
@@ -56,11 +61,17 @@ impl Unit {
             self.pos.x += assets.asset::<Settings>(SETTINGS_ASSET_PATH).walk_speed * dt;
         }
 
+        // Update hands delay
+        if self.hide_hands_delay > 0.0 {
+            self.hide_hands_delay -= dt;
+        }
+
         // Spawn a projectile if timer runs out
         if self.projectile_timer.update(dt) {
-            let velocity = assets
-                .asset::<Settings>(SETTINGS_ASSET_PATH)
-                .projectile_velocity;
+            let settings = assets.asset::<Settings>(SETTINGS_ASSET_PATH);
+
+            let velocity = settings.projectile_velocity;
+            self.hide_hands_delay = settings.hide_hands_delay;
 
             Some(Projectile::new(self.pos, Vec2::new(velocity, -velocity)))
         } else {
@@ -78,13 +89,15 @@ impl Unit {
                 .unwrap_or_default(),
         );
 
-        assets.sprite(SPEAR_HANDS_ASSET_PATH).render(
-            canvas,
-            camera,
-            (self.pos - (1.0, 1.0) - self.ground_collision_point(assets))
-                .numcast()
-                .unwrap_or_default(),
-        );
+        if self.hide_hands_delay <= 0.0 {
+            assets.sprite(SPEAR_HANDS_ASSET_PATH).render(
+                canvas,
+                camera,
+                (self.pos - (1.0, 1.0) - self.ground_collision_point(assets))
+                    .numcast()
+                    .unwrap_or_default(),
+            );
+        }
     }
 
     /// Where the unit collides with the ground.
@@ -104,6 +117,8 @@ pub struct Settings {
     pub projectile_spawn_interval: f64,
     /// How fast a projectile is thrown.
     pub projectile_velocity: f64,
+    /// How long the hands are hidden after launching a projectile.
+    pub hide_hands_delay: f64,
 }
 
 impl Asset for Settings {

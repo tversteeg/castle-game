@@ -2,8 +2,8 @@ use assets_manager::{loader::TomlLoader, Asset};
 use serde::Deserialize;
 
 use crate::{
-    assets::Assets, camera::Camera, input::Input, projectile::Projectile, terrain::Terrain,
-    timer::Timer, unit::Unit, SIZE,
+    assets::Assets, camera::Camera, debug::DebugDraw, input::Input, projectile::Projectile,
+    terrain::Terrain, timer::Timer, unit::Unit, SIZE,
 };
 
 /// Handles everything related to the game.
@@ -22,6 +22,8 @@ pub struct GameState {
     camera: Camera,
     /// Maximum X position of the level.
     level_width: u32,
+    /// Debug information on the screen.
+    debug_state: DebugDraw,
 }
 
 impl GameState {
@@ -33,8 +35,10 @@ impl GameState {
         let projectiles = Vec::new();
         let level_width = terrain.width();
         let camera = Camera::default();
+        let debug_state = DebugDraw::default();
 
         Self {
+            debug_state,
             projectiles,
             assets,
             terrain,
@@ -65,6 +69,9 @@ impl GameState {
         self.projectiles
             .iter()
             .for_each(|projectile| projectile.render(canvas, &self.camera, self.assets));
+
+        // Render debug information
+        self.debug_state.render(canvas, self.assets);
     }
 
     /// Update a frame and handle user input.
@@ -107,6 +114,9 @@ impl GameState {
                 self.assets,
             ));
         }
+
+        // Update debug information
+        self.debug_state.update(input);
     }
 }
 

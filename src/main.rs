@@ -1,5 +1,6 @@
 mod assets;
 mod camera;
+mod debug;
 mod font;
 mod game;
 mod input;

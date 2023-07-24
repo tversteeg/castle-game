@@ -31,7 +31,7 @@ impl Projectile {
 
     /// Render the projectile.
     pub fn render(&self, canvas: &mut [u32], camera: &Camera, assets: &'static Assets) {
-        let rotation = self.vel.angle_between(Vec2::unit_y());
+        let rotation = self.vel.y.atan2(self.vel.x);
 
         assets.rotatable_sprite(ASSET_PATH).render(
             rotation,

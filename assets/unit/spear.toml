@@ -2,7 +2,8 @@
 walk_speed = 2.5
 
 # Interval in seconds for when a new projectile is thrown
-projectile_spawn_interval = 10
-
+projectile_spawn_interval = 13
 # How fast a projectile is thrown
-projectile_velocity = 60
+projectile_velocity = 70
+# How long the hands are hidden after launching a projectile in seconds
+hide_hands_delay = 9

@@ -8,4 +8,5 @@ pub struct Input {
     pub down_pressed: bool,
     pub left_pressed: bool,
     pub right_pressed: bool,
+    pub space_pressed: bool,
 }

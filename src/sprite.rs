@@ -107,13 +107,17 @@ impl RotatableSprite {
 
     /// Draw the nearest sprite based on the rotation with a camera offset.
     pub fn render(&self, rotation: f64, canvas: &mut [u32], camera: &Camera, offset: Vec2<i32>) {
-        // TODO: fix rotation
-        let index = (-rotation / TAU * self.0.len() as f64 + PI)
+        // Calculate rotation based on nearest point
+        let index = (rotation / TAU * self.0.len() as f64)
             .round()
             .rem_euclid(self.0.len() as f64) as usize;
 
         let sprite = &self.0[index];
-        sprite.render(canvas, camera, offset);
+
+        // Center the sprite
+        let center: Vec2<i32> = offset - (sprite.width() as i32 / 2, sprite.height() as i32 / 2);
+
+        sprite.render(canvas, camera, center);
     }
 }
 
