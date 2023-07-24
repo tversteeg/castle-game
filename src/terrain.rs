@@ -1,14 +1,12 @@
 use vek::{Extent2, Vec2};
 
-use crate::{assets::Assets, camera::Camera, SIZE};
+use crate::{assets::Assets, camera::Camera, sprite::Sprite, SIZE};
 
 /// Level asset path.
 const ASSET_PATH: &str = "level.grass-1";
 
 /// Destructible terrain buffer.
 pub struct Terrain {
-    /// Assets for the sprite.
-    assets: &'static Assets,
     /// Size of the terrain.
     size: Extent2<u32>,
     /// Array of the top collision point heights of the terrain.
@@ -19,26 +17,19 @@ impl Terrain {
     /// Load a terrain from image bytes.
     pub fn new(assets: &'static Assets) -> Self {
         let sprite = assets.sprite(ASSET_PATH);
-
         let size = Extent2::new(sprite.width(), sprite.height());
 
         // Create an empty vector so we can fill it with a method
         let top_heights = vec![0; size.w as usize];
 
-        let mut terrain = Self {
-            assets,
-            size,
-            top_heights,
-        };
-
-        terrain.recalculate_top_height();
-
+        let mut terrain = Self { size, top_heights };
+        terrain.recalculate_top_height(&sprite);
         terrain
     }
 
     /// Draw the terrain based on a camera offset.
-    pub fn render(&self, canvas: &mut [u32], camera: &Camera) {
-        self.assets
+    pub fn render(&self, canvas: &mut [u32], camera: &Camera, assets: &'static Assets) {
+        assets
             .sprite(ASSET_PATH)
             .render(canvas, camera, (0, self.y_offset()).into());
     }
@@ -64,9 +55,7 @@ impl Terrain {
     }
 
     /// Recalculate the collision top heights.
-    fn recalculate_top_height(&mut self) {
-        let sprite = self.assets.sprite(ASSET_PATH);
-
+    fn recalculate_top_height(&mut self, sprite: &Sprite) {
         // Loop over each X value
         self.top_heights
             .iter_mut()

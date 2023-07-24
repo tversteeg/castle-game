@@ -1,6 +1,10 @@
-use assets_manager::{AssetCache, AssetGuard};
+use assets_manager::{Asset, AssetCache, AssetGuard};
 
-use crate::{font::Font, game::Settings, sprite::Sprite};
+use crate::{
+    font::Font,
+    game::Settings,
+    sprite::{RotatableSprite, Sprite},
+};
 
 /// All external data.
 #[cfg(not(target_arch = "wasm32"))]
@@ -32,6 +36,11 @@ impl Assets {
         self.0.load_expect(path).read()
     }
 
+    /// Load a rotatable sprite.
+    pub fn rotatable_sprite(&self, path: &str) -> AssetGuard<RotatableSprite> {
+        self.0.load_expect(path).read()
+    }
+
     /// Load a font.
     pub fn font(&self, path: &str) -> AssetGuard<Font> {
         self.0.load_expect(path).read()
@@ -40,6 +49,14 @@ impl Assets {
     /// Load the settings.
     pub fn settings(&self) -> AssetGuard<Settings> {
         self.0.load_expect("settings").read()
+    }
+
+    /// Load an generic asset.
+    pub fn asset<T>(&self, path: &str) -> AssetGuard<T>
+    where
+        T: Asset,
+    {
+        self.0.load_expect(path).read()
     }
 
     /// Hot reload from disk if applicable.

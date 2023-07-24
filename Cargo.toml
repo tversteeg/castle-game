@@ -27,7 +27,7 @@ winit_input_helper = "0.14.1"
 rotsprite = "0.1.4"
 vek = "0.16.1"
 assets_manager = { version = "0.10.2", features = ["embedded", "hot-reloading", "toml", "png"], default-features = false }
-serde = "1.0.174"
+serde = "1.0.175"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1.29.1", features = ["macros", "sync", "rt-multi-thread"] }

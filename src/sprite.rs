@@ -1,8 +1,16 @@
-use std::borrow::Cow;
+use std::{
+    borrow::Cow,
+    f64::consts::{PI, TAU},
+    num::NonZeroU16,
+};
 
-use assets_manager::{loader::Loader, Asset};
+use assets_manager::{
+    loader::{Loader, TomlLoader},
+    AnyCache, Asset, BoxedError, Compound, SharedString,
+};
 use blit::{Blit, BlitBuffer, ToBlitBuffer};
 use image::ImageFormat;
+use serde::Deserialize;
 use vek::Vec2;
 
 use crate::{camera::Camera, SIZE};
@@ -11,16 +19,6 @@ use crate::{camera::Camera, SIZE};
 pub struct Sprite(BlitBuffer);
 
 impl Sprite {
-    /// Load a unit from image bytes.
-    pub fn from_bytes(sprite_bytes: &[u8]) -> Self {
-        let sprite = image::load_from_memory(sprite_bytes)
-            .unwrap()
-            .into_rgba8()
-            .to_blit_buffer_with_alpha(127);
-
-        Self(sprite)
-    }
-
     /// Draw the sprite based on a camera offset.
     pub fn render(&self, canvas: &mut [u32], camera: &Camera, offset: Vec2<i32>) {
         // Get the rendering options based on the camera offset
@@ -74,4 +72,72 @@ impl Loader<Sprite> for SpriteLoader {
 
         Ok(Sprite(sprite))
     }
+}
+
+/// Sprite pre-rendered with different rotations.
+pub struct RotatableSprite(Vec<Sprite>);
+
+impl RotatableSprite {
+    /// Create from another sprite with a set of rotations.
+    ///
+    /// Space between rotations is assumed to be equal in a full circle.
+    pub fn with_fill_circle(
+        sprite: Sprite,
+        rotations: NonZeroU16,
+        sprite_rotation_offset: f64,
+    ) -> Self {
+        let buffer = sprite.into_blit_buffer();
+
+        Self(
+            (0..rotations.get())
+                .map(|i| {
+                    let (width, _, buffer) = rotsprite::rotsprite(
+                        buffer.pixels(),
+                        &0,
+                        buffer.width() as usize,
+                        i as f64 * 360.0 / rotations.get() as f64 + sprite_rotation_offset,
+                    )
+                    .unwrap();
+
+                    Sprite(BlitBuffer::from_buffer(&buffer, width, 127))
+                })
+                .collect(),
+        )
+    }
+
+    /// Draw the nearest sprite based on the rotation with a camera offset.
+    pub fn render(&self, rotation: f64, canvas: &mut [u32], camera: &Camera, offset: Vec2<i32>) {
+        // TODO: fix rotation
+        let index = (-rotation / TAU * self.0.len() as f64 + PI)
+            .round()
+            .rem_euclid(self.0.len() as f64) as usize;
+
+        let sprite = &self.0[index];
+        sprite.render(canvas, camera, offset);
+    }
+}
+
+impl Compound for RotatableSprite {
+    fn load(cache: AnyCache, id: &SharedString) -> Result<Self, BoxedError> {
+        // Load the sprite
+        let sprite = cache.load_owned::<Sprite>(id)?;
+
+        // Load the metadata
+        let metadata = cache.load::<RotatableSpriteMetadata>(id)?.read();
+
+        Ok(Self::with_fill_circle(sprite, metadata.rotations, 0.0))
+    }
+}
+
+/// Font metadata to load.
+#[derive(Deserialize)]
+struct RotatableSpriteMetadata {
+    /// How many rotations are pre-rendered.
+    rotations: NonZeroU16,
+}
+
+impl Asset for RotatableSpriteMetadata {
+    const EXTENSION: &'static str = "toml";
+
+    type Loader = TomlLoader;
 }

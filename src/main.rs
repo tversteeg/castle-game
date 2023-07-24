@@ -1,9 +1,9 @@
 mod assets;
-mod buffer;
 mod camera;
 mod font;
 mod game;
 mod input;
+mod projectile;
 mod sprite;
 mod terrain;
 mod timer;

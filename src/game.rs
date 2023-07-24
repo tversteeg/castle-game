@@ -2,7 +2,8 @@ use assets_manager::{loader::TomlLoader, Asset};
 use serde::Deserialize;
 
 use crate::{
-    assets::Assets, camera::Camera, input::Input, terrain::Terrain, timer::Timer, unit::Unit, SIZE,
+    assets::Assets, camera::Camera, input::Input, projectile::Projectile, terrain::Terrain,
+    timer::Timer, unit::Unit, SIZE,
 };
 
 /// Handles everything related to the game.
@@ -15,6 +16,8 @@ pub struct GameState {
     unit_spawner: Timer,
     /// Units on the map.
     units: Vec<Unit>,
+    /// Projectiles flying around.
+    projectiles: Vec<Projectile>,
     /// Camera position based on the cursor.
     camera: Camera,
     /// Maximum X position of the level.
@@ -24,18 +27,15 @@ pub struct GameState {
 impl GameState {
     /// Construct the game state with default values.
     pub fn new(assets: &'static Assets) -> Self {
-        // Load the terrain
         let terrain = Terrain::new(assets);
-
-        // Load the embedded unit
         let units = Vec::new();
         let unit_spawner = Timer::new(assets.settings().unit_spawn_interval);
-
+        let projectiles = Vec::new();
         let level_width = terrain.width();
-
         let camera = Camera::default();
 
         Self {
+            projectiles,
             assets,
             terrain,
             units,
@@ -54,12 +54,17 @@ impl GameState {
             0,
         );
 
-        self.terrain.render(canvas, &self.camera);
+        self.terrain.render(canvas, &self.camera, self.assets);
 
         // Render all units
         self.units
             .iter()
-            .for_each(|unit| unit.render(canvas, &self.camera));
+            .for_each(|unit| unit.render(canvas, &self.camera, self.assets));
+
+        // Render all projectiles
+        self.projectiles
+            .iter()
+            .for_each(|projectile| projectile.render(canvas, &self.camera, self.assets));
     }
 
     /// Update a frame and handle user input.
@@ -84,9 +89,15 @@ impl GameState {
         }
 
         // Update all units
-        self.units
-            .iter_mut()
-            .for_each(|unit| unit.update(&self.terrain, dt));
+        self.units.iter_mut().for_each(|unit| {
+            if let Some(projectile) = unit.update(&self.terrain, dt, self.assets) {
+                self.projectiles.push(projectile);
+            }
+        });
+
+        // Update all projectiles
+        self.projectiles
+            .retain_mut(|projectile| !projectile.update(&self.terrain, dt, self.assets));
 
         // Update the spawn timer and spawn a unit when it ticks
         if self.unit_spawner.update(dt) {
@@ -108,8 +119,8 @@ pub struct Settings {
     pub pan_speed: f64,
     /// Interval in seconds for when a unit spawns.
     pub unit_spawn_interval: f64,
-    /// How many pixels a unit moves in a second.
-    pub unit_speed: f64,
+    /// Downward force on all projectiles.
+    pub projectile_gravity: f64,
 }
 
 impl Asset for Settings {

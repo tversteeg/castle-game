@@ -3,7 +3,8 @@ pan_edge_offset = 80
 # How many pixels per second the camera will pan
 pan_speed = 15
 
-# Interval in seconds for when a unit spawns.
-unit_spawn_interval = 5
-# How many pixels a unit moves in a second.
-unit_speed = 2.5
+# Interval in seconds for when a unit spawns
+unit_spawn_interval = 10
+
+# Downward force on all projectiles
+projectile_gravity = 3

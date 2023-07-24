@@ -1,0 +1,8 @@
+# How many pixels a unit moves in a second
+walk_speed = 2.5
+
+# Interval in seconds for when a new projectile is thrown
+projectile_spawn_interval = 10
+
+# How fast a projectile is thrown
+projectile_velocity = 60

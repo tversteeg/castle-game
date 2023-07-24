@@ -1,7 +1,13 @@
+use assets_manager::{loader::TomlLoader, Asset};
+use serde::Deserialize;
 use vek::Vec2;
 
-use crate::{assets::Assets, camera::Camera, terrain::Terrain};
+use crate::{
+    assets::Assets, camera::Camera, projectile::Projectile, terrain::Terrain, timer::Timer,
+};
 
+/// Unit settings asset path.
+const SETTINGS_ASSET_PATH: &str = "unit.spear";
 /// Unit base asset path.
 const BASE_ASSET_PATH: &str = "unit.base-1";
 /// Unit hands with spear asset path.
@@ -11,18 +17,34 @@ const SPEAR_HANDS_ASSET_PATH: &str = "unit.spear-hands-1";
 pub struct Unit {
     /// Absolute position.
     pos: Vec2<f64>,
-    /// Assets reference for rendering the sprites.
-    assets: &'static Assets,
+    /// Timer for throwing a spear.
+    projectile_timer: Timer,
 }
 
 impl Unit {
     /// Create a new unit.
     pub fn new(pos: Vec2<f64>, assets: &'static Assets) -> Self {
-        Self { assets, pos }
+        let projectile_timer = Timer::new(
+            assets
+                .asset::<Settings>(SETTINGS_ASSET_PATH)
+                .projectile_spawn_interval,
+        );
+
+        Self {
+            pos,
+            projectile_timer,
+        }
     }
 
     /// Move the unit.
-    pub fn update(&mut self, terrain: &Terrain, dt: f64) {
+    ///
+    /// When a projectile is returned one is spawned.
+    pub fn update(
+        &mut self,
+        terrain: &Terrain,
+        dt: f64,
+        assets: &'static Assets,
+    ) -> Option<Projectile> {
         if !terrain.point_collides(self.pos.numcast().unwrap_or_default()) {
             // No collision with the terrain, the unit falls down
             self.pos.y += 1.0;
@@ -31,33 +53,61 @@ impl Unit {
             self.pos.y -= 1.0;
         } else {
             // Collision with the terrain, the unit walks to the right
-            self.pos.x += self.assets.settings().unit_speed * dt;
+            self.pos.x += assets.asset::<Settings>(SETTINGS_ASSET_PATH).walk_speed * dt;
+        }
+
+        // Spawn a projectile if timer runs out
+        if self.projectile_timer.update(dt) {
+            let velocity = assets
+                .asset::<Settings>(SETTINGS_ASSET_PATH)
+                .projectile_velocity;
+
+            Some(Projectile::new(self.pos, Vec2::new(velocity, -velocity)))
+        } else {
+            None
         }
     }
 
     /// Draw the unit.
-    pub fn render(&self, canvas: &mut [u32], camera: &Camera) {
-        self.assets.sprite(BASE_ASSET_PATH).render(
+    pub fn render(&self, canvas: &mut [u32], camera: &Camera, assets: &'static Assets) {
+        assets.sprite(BASE_ASSET_PATH).render(
             canvas,
             camera,
-            (self.pos - self.ground_collision_point())
+            (self.pos - self.ground_collision_point(assets))
                 .numcast()
                 .unwrap_or_default(),
         );
 
-        self.assets.sprite(SPEAR_HANDS_ASSET_PATH).render(
+        assets.sprite(SPEAR_HANDS_ASSET_PATH).render(
             canvas,
             camera,
-            (self.pos - (1.0, 1.0) - self.ground_collision_point())
+            (self.pos - (1.0, 1.0) - self.ground_collision_point(assets))
                 .numcast()
                 .unwrap_or_default(),
         );
     }
 
     /// Where the unit collides with the ground.
-    fn ground_collision_point(&self) -> Vec2<f64> {
-        let sprite = self.assets.sprite(BASE_ASSET_PATH);
+    fn ground_collision_point(&self, assets: &'static Assets) -> Vec2<f64> {
+        let sprite = assets.sprite(BASE_ASSET_PATH);
 
         (sprite.width() as f64 / 2.0, sprite.height() as f64 - 2.0).into()
     }
+}
+
+/// Unit settings loaded from a file so it's easier to change them with hot-reloading.
+#[derive(Deserialize)]
+pub struct Settings {
+    /// How many pixels a unit moves in a second.
+    pub walk_speed: f64,
+    /// Interval in seconds for when a new projectile is thrown.
+    pub projectile_spawn_interval: f64,
+    /// How fast a projectile is thrown.
+    pub projectile_velocity: f64,
+}
+
+impl Asset for Settings {
+    const EXTENSION: &'static str = "toml";
+
+    type Loader = TomlLoader;
 }
