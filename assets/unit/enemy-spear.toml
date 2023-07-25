@@ -1,15 +1,15 @@
-allegiance = "player"
+allegiance = "enemy"
 
 # Sprites to render
-base_asset_path = "unit.base-1"
+base_asset_path = "unit.enemy-base-1"
 hands_asset_path = "unit.spear-hands-1"
 projectile_asset_path = "projectile.spear-1"
 
 # How many pixels a unit moves in a second
-walk_speed = 2.5
+walk_speed = -2.5
 
 # Interval in seconds for when a new projectile is thrown
-projectile_spawn_interval = 13
+projectile_spawn_interval = 10
 # How fast a projectile is thrown
 projectile_velocity = 70
 # How long the hands are hidden after launching a projectile in seconds

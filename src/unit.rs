@@ -1,4 +1,4 @@
-use assets_manager::{loader::TomlLoader, Asset};
+use assets_manager::{loader::TomlLoader, Asset, AssetGuard};
 use serde::Deserialize;
 use vek::Vec2;
 
@@ -6,15 +6,31 @@ use crate::{
     assets::Assets, camera::Camera, projectile::Projectile, terrain::Terrain, timer::Timer,
 };
 
-/// Unit settings asset path.
-const SETTINGS_ASSET_PATH: &str = "unit.spear";
-/// Unit base asset path.
-const BASE_ASSET_PATH: &str = "unit.base-1";
-/// Unit hands with spear asset path.
-const SPEAR_HANDS_ASSET_PATH: &str = "unit.spear-hands-1";
+/// All unit types.
+#[derive(Debug, Clone, Copy)]
+pub enum UnitType {
+    PlayerSpear,
+    EnemySpear,
+}
+
+impl UnitType {
+    /// Settings for to load for this type.
+    pub fn settings(self, assets: &Assets) -> AssetGuard<Settings> {
+        // Settings asset path
+        let path = match self {
+            Self::PlayerSpear => "unit.spear",
+            Self::EnemySpear => "unit.enemy-spear",
+        };
+
+        assets.asset(path)
+    }
+}
 
 /// Unit that can walk on the terrain.
+#[derive(Debug)]
 pub struct Unit {
+    /// Type of the unit, used to find the settings.
+    r#type: UnitType,
     /// Absolute position.
     pos: Vec2<f64>,
     /// Timer for throwing a spear.
@@ -25,16 +41,13 @@ pub struct Unit {
 
 impl Unit {
     /// Create a new unit.
-    pub fn new(pos: Vec2<f64>, assets: &'static Assets) -> Self {
-        let projectile_timer = Timer::new(
-            assets
-                .asset::<Settings>(SETTINGS_ASSET_PATH)
-                .projectile_spawn_interval,
-        );
+    pub fn new(pos: Vec2<f64>, r#type: UnitType, assets: &'static Assets) -> Self {
+        let projectile_timer = Timer::new(r#type.settings(assets).projectile_spawn_interval);
 
         let hide_hands_delay = 0.0;
 
         Self {
+            r#type,
             pos,
             projectile_timer,
             hide_hands_delay,
@@ -58,7 +71,7 @@ impl Unit {
             self.pos.y -= 1.0;
         } else {
             // Collision with the terrain, the unit walks to the right
-            self.pos.x += assets.asset::<Settings>(SETTINGS_ASSET_PATH).walk_speed * dt;
+            self.pos.x += self.r#type.settings(assets).walk_speed * dt;
         }
 
         // Update hands delay
@@ -68,7 +81,7 @@ impl Unit {
 
         // Spawn a projectile if timer runs out
         if self.projectile_timer.update(dt) {
-            let settings = assets.asset::<Settings>(SETTINGS_ASSET_PATH);
+            let settings = self.r#type.settings(assets);
 
             let velocity = settings.projectile_velocity;
             self.hide_hands_delay = settings.hide_hands_delay;
@@ -81,7 +94,9 @@ impl Unit {
 
     /// Draw the unit.
     pub fn render(&self, canvas: &mut [u32], camera: &Camera, assets: &'static Assets) {
-        assets.sprite(BASE_ASSET_PATH).render(
+        let settings = self.r#type.settings(assets);
+
+        assets.sprite(&settings.base_asset_path).render(
             canvas,
             camera,
             (self.pos - self.ground_collision_point(assets))
@@ -89,20 +104,22 @@ impl Unit {
                 .unwrap_or_default(),
         );
 
-        if self.hide_hands_delay <= 0.0 {
-            assets.sprite(SPEAR_HANDS_ASSET_PATH).render(
-                canvas,
-                camera,
-                (self.pos - (1.0, 1.0) - self.ground_collision_point(assets))
-                    .numcast()
-                    .unwrap_or_default(),
-            );
+        if let Some(hands_asset_path) = &settings.hands_asset_path {
+            if self.hide_hands_delay <= 0.0 {
+                assets.sprite(hands_asset_path).render(
+                    canvas,
+                    camera,
+                    (self.pos - (1.0, 1.0) - self.ground_collision_point(assets))
+                        .numcast()
+                        .unwrap_or_default(),
+                );
+            }
         }
     }
 
     /// Where the unit collides with the ground.
     fn ground_collision_point(&self, assets: &'static Assets) -> Vec2<f64> {
-        let sprite = assets.sprite(BASE_ASSET_PATH);
+        let sprite = assets.sprite(&self.r#type.settings(&assets).base_asset_path);
 
         (sprite.width() as f64 / 2.0, sprite.height() as f64 - 2.0).into()
     }
@@ -111,6 +128,16 @@ impl Unit {
 /// Unit settings loaded from a file so it's easier to change them with hot-reloading.
 #[derive(Deserialize)]
 pub struct Settings {
+    /// Asset path for the base.
+    ///
+    /// Usually this is the body.
+    pub base_asset_path: String,
+    /// Asset path for the hands.
+    pub hands_asset_path: Option<String>,
+    /// Asset path for the projectile.
+    pub projectile_asset_path: Option<String>,
+    /// Who the unit belongs to.
+    pub allegiance: Allegiance,
     /// How many pixels a unit moves in a second.
     pub walk_speed: f64,
     /// Interval in seconds for when a new projectile is thrown.
@@ -125,4 +152,14 @@ impl Asset for Settings {
     const EXTENSION: &'static str = "toml";
 
     type Loader = TomlLoader;
+}
+
+/// Player unit or enemy unit.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Allegiance {
+    /// Unit belongs to the player.
+    Player,
+    /// Unit is controlled by enemy AI.
+    Enemy,
 }

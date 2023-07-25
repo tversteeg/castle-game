@@ -1,10 +1,6 @@
 use vek::Vec2;
 
-use crate::{
-    assets::Assets,
-    camera::{self, Camera},
-    input::Input,
-};
+use crate::{assets::Assets, camera::Camera, input::Input};
 
 /// Draw things for debugging purposes.
 #[derive(Default)]

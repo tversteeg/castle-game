@@ -5,6 +5,7 @@ pan_speed = 15
 
 # Interval in seconds for when a unit spawns
 unit_spawn_interval = 10
+enemy_unit_spawn_interval = 12
 
 # Downward force on all projectiles
-projectile_gravity = 3
+projectile_gravity = 2.5

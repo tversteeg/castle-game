@@ -1,8 +1,4 @@
-use std::{
-    borrow::Cow,
-    f64::consts::{PI, TAU},
-    num::NonZeroU16,
-};
+use std::{borrow::Cow, f64::consts::TAU, num::NonZeroU16};
 
 use assets_manager::{
     loader::{Loader, TomlLoader},

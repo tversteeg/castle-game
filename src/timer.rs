@@ -1,4 +1,5 @@
 /// Simple timer.
+#[derive(Debug, Clone)]
 pub struct Timer {
     /// How long to wait in seconds.
     interval: f64,
