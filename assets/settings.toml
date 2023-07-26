@@ -9,3 +9,12 @@ enemy_unit_spawn_interval = 12
 
 # Downward force on all projectiles
 projectile_gravity = 2.5
+
+# Physics engine specific settings
+[physics]
+# How many substeps are taken in a single step
+substeps = 20
+# Gravity applied to everything
+gravity = 9.81
+# Damping applied to the velocity every timestep
+air_friction = 0.9998

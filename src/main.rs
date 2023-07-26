@@ -4,6 +4,7 @@ mod debug;
 mod font;
 mod game;
 mod input;
+mod physics;
 mod projectile;
 mod random;
 mod sprite;

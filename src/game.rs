@@ -6,6 +6,7 @@ use crate::{
     camera::Camera,
     debug::DebugDraw,
     input::Input,
+    physics::Settings as PhysicsSettings,
     projectile::Projectile,
     terrain::Terrain,
     timer::Timer,
@@ -45,7 +46,7 @@ impl GameState {
         let projectiles = Vec::new();
         let level_width = terrain.width();
         let camera = Camera::default();
-        let debug_state = DebugDraw::default();
+        let debug_state = DebugDraw::new(assets);
 
         Self {
             debug_state,
@@ -140,7 +141,7 @@ impl GameState {
         }
 
         // Update debug information
-        self.debug_state.update(input);
+        self.debug_state.update(input, dt, self.assets);
     }
 }
 
@@ -157,6 +158,8 @@ pub struct Settings {
     pub enemy_unit_spawn_interval: f64,
     /// Downward force on all projectiles.
     pub projectile_gravity: f64,
+    /// Physics settings.
+    pub physics: PhysicsSettings,
 }
 
 impl Asset for Settings {
