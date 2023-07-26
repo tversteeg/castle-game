@@ -5,6 +5,7 @@ mod font;
 mod game;
 mod input;
 mod projectile;
+mod random;
 mod sprite;
 mod terrain;
 mod timer;

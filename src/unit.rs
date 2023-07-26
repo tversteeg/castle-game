@@ -3,7 +3,8 @@ use serde::Deserialize;
 use vek::Vec2;
 
 use crate::{
-    assets::Assets, camera::Camera, projectile::Projectile, terrain::Terrain, timer::Timer,
+    assets::Assets, camera::Camera, projectile::Projectile, random::RandomRangeF64,
+    terrain::Terrain, timer::Timer,
 };
 
 /// All unit types.
@@ -83,7 +84,7 @@ impl Unit {
         if self.projectile_timer.update(dt) {
             let settings = self.r#type.settings(assets);
 
-            let velocity = settings.projectile_velocity;
+            let velocity = settings.projectile_velocity.value();
             self.hide_hands_delay = settings.hide_hands_delay;
 
             Some(Projectile::new(self.pos, Vec2::new(velocity, -velocity)))
@@ -143,7 +144,7 @@ pub struct Settings {
     /// Interval in seconds for when a new projectile is thrown.
     pub projectile_spawn_interval: f64,
     /// How fast a projectile is thrown.
-    pub projectile_velocity: f64,
+    pub projectile_velocity: RandomRangeF64,
     /// How long the hands are hidden after launching a projectile.
     pub hide_hands_delay: f64,
 }

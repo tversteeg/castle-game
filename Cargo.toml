@@ -31,6 +31,7 @@ serde = "1.0.175"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1.29.1", features = ["macros", "sync", "rt-multi-thread"] }
+fastrand = "2.0.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3.64", features = ["CanvasRenderingContext2d", "Document", "Element", "HtmlCanvasElement", "ImageData", "Window"] }
@@ -38,6 +39,7 @@ wasm-bindgen = "0.2.87"
 wasm-bindgen-futures = "0.4.37"
 console_log = { version = "1.0.0", features = ["wasm-bindgen", "color"] }
 console_error_panic_hook = "0.1.7"
+fastrand = { version = "2.0.0", default-features = false, features = ["js"] }
 
 [workspace]
 members = ["run-wasm"]
