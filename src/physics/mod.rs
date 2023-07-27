@@ -2,6 +2,7 @@
 //!
 //! Based on: https://matthias-research.github.io/pages/publications/PBDBodies.pdf
 
+pub mod collision;
 pub mod constraint;
 pub mod rigidbody;
 
