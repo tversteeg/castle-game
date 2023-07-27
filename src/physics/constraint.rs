@@ -1,6 +1,11 @@
+use std::collections::HashMap;
+
 use vek::Vec2;
 
 use super::{RigidBody, RigidBodyIndex};
+
+/// Constraint index type.
+pub type ConstraintIndex = u32;
 
 /// XPBD constraint between one or more rigidbodies.
 pub trait Constraint<const RIGIDBODY_COUNT: usize> {
@@ -10,22 +15,22 @@ pub trait Constraint<const RIGIDBODY_COUNT: usize> {
     /// Normalized vectors pointing to the least-optimal solution for solving the constraint.
     fn gradients(
         &self,
-        rigidbodies_pos: [Vec2<f64>; RIGIDBODY_COUNT],
-    ) -> [Vec2<f64>; RIGIDBODY_COUNT];
+        rigidbodies_pos: [Vec2<f32>; RIGIDBODY_COUNT],
+    ) -> [Vec2<f32>; RIGIDBODY_COUNT];
 
     /// Error value, when the value is zero it's resolved and the constraint isn't active.
-    fn constraint(&self, rigidbodies_pos: [Vec2<f64>; RIGIDBODY_COUNT]) -> f64;
+    fn constraint(&self, rigidbodies_pos: [Vec2<f32>; RIGIDBODY_COUNT]) -> f32;
 
     /// Factor of how fast the distance is resolved.
     ///
     /// Inverse of stiffness.
-    fn compliance(&self) -> f64;
+    fn compliance(&self) -> f32;
 
     /// Current stored lambda.
-    fn lambda(&self) -> f64;
+    fn lambda(&self) -> f32;
 
     /// Set the lambda.
-    fn set_lambda(&mut self, lambda: f64);
+    fn set_lambda(&mut self, lambda: f32);
 
     /// Solve the constraint.
     ///
@@ -34,17 +39,17 @@ pub trait Constraint<const RIGIDBODY_COUNT: usize> {
     //// Returns the global lambda with the added local lambda.
     // TODO: make the Vec stack-allocated by referencing the rigidbodies directly
     // TODO: reduce amount of zip operations
-    fn solve(&mut self, rigidbodies: &mut [RigidBody], dt: f64) {
+    fn solve(&mut self, rigidbodies: &mut HashMap<RigidBodyIndex, RigidBody>, dt: f32) {
         let rigidbodies_pos = self
             .rigidbodies()
-            .map(|rigidbody_index| rigidbodies[rigidbody_index as usize].position());
+            .map(|rigidbody_index| rigidbodies[&rigidbody_index].position());
 
         let rigidbodies_inv_mass = self
             .rigidbodies()
-            .map(|rigidbody_index| rigidbodies[rigidbody_index as usize].inverse_mass());
+            .map(|rigidbody_index| rigidbodies[&rigidbody_index].inverse_mass());
 
         // All massess combined
-        let sum_inv_mass: f64 = rigidbodies_inv_mass.iter().sum();
+        let sum_inv_mass: f32 = rigidbodies_inv_mass.iter().sum();
         if sum_inv_mass == 0.0 {
             // Nothing to do since there's no mass
             return;
@@ -59,7 +64,7 @@ pub trait Constraint<const RIGIDBODY_COUNT: usize> {
             .iter()
             .zip(gradients)
             .map(|(inv_mass, gradient)| inv_mass * gradient.magnitude_squared())
-            .sum::<f64>();
+            .sum::<f32>();
 
         if w_sum == 0.0 {
             // Avoid divisions by zero
@@ -83,7 +88,7 @@ pub trait Constraint<const RIGIDBODY_COUNT: usize> {
         correction_vectors.iter().zip(self.rigidbodies()).for_each(
             |(correction_vector, rigidbody_index)| {
                 let rigidbody = rigidbodies
-                    .get_mut(*rigidbody_index as usize)
+                    .get_mut(rigidbody_index)
                     .expect("RigidBody index mismatch");
 
                 // Apply the rotation
@@ -112,25 +117,25 @@ pub trait Constraint<const RIGIDBODY_COUNT: usize> {
 /// Constraint that always tries to keep rigidbodies at a certain distance from each other.
 #[derive(Debug, Clone)]
 pub struct DistanceConstraint {
-    /// Indices of the rigidbodies.
-    rigidbodies: [RigidBodyIndex; 2],
-    /// Distance the contstraint tries to resolve to.
-    rest_dist: f64,
+    /// Distance the constraint tries to resolve to.
+    rest_dist: f32,
     /// Factor of how fast the distance is resolved.
     ///
     /// Inverse of stiffness.
-    compliance: f64,
+    compliance: f32,
+    /// Indices of the rigidbodies.
+    rigidbodies: [RigidBodyIndex; 2],
     /// Lambda value.
     ///
     /// Must be reset every frame.
-    lambda: f64,
+    lambda: f32,
 }
 
 impl DistanceConstraint {
     /// Constrain two rigidbodies with a spring so they can't be try to resolve the distance between them.
     ///
     /// RigidBodys must be indices.
-    pub fn new(rigidbodies: [RigidBodyIndex; 2], rest_dist: f64, compliance: f64) -> Self {
+    pub fn new(rigidbodies: [RigidBodyIndex; 2], rest_dist: f32, compliance: f32) -> Self {
         let lambda = 0.0;
 
         Self {
@@ -143,7 +148,7 @@ impl DistanceConstraint {
 }
 
 impl Constraint<2> for DistanceConstraint {
-    fn gradients(&self, rigidbodies_pos: [Vec2<f64>; 2]) -> [Vec2<f64>; 2] {
+    fn gradients(&self, rigidbodies_pos: [Vec2<f32>; 2]) -> [Vec2<f32>; 2] {
         // Vector pointing away from the other rigidbody
         let delta = rigidbodies_pos[0] - rigidbodies_pos[1];
         // Normalize or zero
@@ -152,7 +157,7 @@ impl Constraint<2> for DistanceConstraint {
         [dir, -dir]
     }
 
-    fn constraint(&self, rigidbodies_pos: [Vec2<f64>; 2]) -> f64 {
+    fn constraint(&self, rigidbodies_pos: [Vec2<f32>; 2]) -> f32 {
         // Difference between rest distance and actual distance
         let dist = rigidbodies_pos[0].distance(rigidbodies_pos[1]);
 
@@ -163,15 +168,75 @@ impl Constraint<2> for DistanceConstraint {
         &self.rigidbodies
     }
 
-    fn compliance(&self) -> f64 {
+    fn compliance(&self) -> f32 {
         self.compliance
     }
 
-    fn lambda(&self) -> f64 {
+    fn lambda(&self) -> f32 {
         self.lambda
     }
 
-    fn set_lambda(&mut self, lambda: f64) {
+    fn set_lambda(&mut self, lambda: f32) {
+        self.lambda = lambda;
+    }
+}
+
+/// Constraint that stops the rigid bodies from touching the ground.
+#[derive(Debug, Clone)]
+pub struct GroundConstraint {
+    /// Y value of the ground.
+    height: f32,
+    /// Index of the rigidbody.
+    rigidbody: [RigidBodyIndex; 1],
+    /// Lambda value.
+    ///
+    /// Must be reset every frame.
+    lambda: f32,
+}
+
+impl GroundConstraint {
+    /// Stop the rigid body from falling through the ground.
+    pub fn new(rigidbody: RigidBodyIndex, height: f32) -> Self {
+        let lambda = 0.0;
+        let rigidbody = [rigidbody];
+
+        Self {
+            lambda,
+            rigidbody,
+            height,
+        }
+    }
+}
+
+impl Constraint<1> for GroundConstraint {
+    fn gradients(&self, _rigidbodies_pos: [Vec2<f32>; 1]) -> [Vec2<f32>; 1] {
+        // Always point down
+        [Vec2::unit_y()]
+    }
+
+    fn constraint(&self, rigidbodies_pos: [Vec2<f32>; 1]) -> f32 {
+        if rigidbodies_pos[0].y < self.height {
+            // Not touching the ground, don't apply force
+            0.0
+        } else {
+            rigidbodies_pos[0].y - self.height
+        }
+    }
+
+    fn rigidbodies(&self) -> &[RigidBodyIndex; 1] {
+        &self.rigidbody
+    }
+
+    fn compliance(&self) -> f32 {
+        // The ground is not very flexible
+        0.0
+    }
+
+    fn lambda(&self) -> f32 {
+        self.lambda
+    }
+
+    fn set_lambda(&mut self, lambda: f32) {
         self.lambda = lambda;
     }
 }

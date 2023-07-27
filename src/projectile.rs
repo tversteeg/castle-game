@@ -8,21 +8,21 @@ const ASSET_PATH: &str = "projectile.spear-1";
 /// Projectile that can fly.
 pub struct Projectile {
     /// Absolute position.
-    pos: Vec2<f64>,
+    pos: Vec2<f32>,
     /// Velocity.
-    vel: Vec2<f64>,
+    vel: Vec2<f32>,
 }
 
 impl Projectile {
     /// Create a new unit.
-    pub fn new(pos: Vec2<f64>, vel: Vec2<f64>) -> Self {
+    pub fn new(pos: Vec2<f32>, vel: Vec2<f32>) -> Self {
         Self { pos, vel }
     }
 
     /// Move the projectile.
     ///
     /// Returns whether the projectile should be removed.
-    pub fn update(&mut self, terrain: &Terrain, dt: f64, assets: &'static Assets) -> bool {
+    pub fn update(&mut self, terrain: &Terrain, dt: f32, assets: &'static Assets) -> bool {
         self.pos += self.vel * dt;
         self.vel.y += assets.settings().projectile_gravity;
 

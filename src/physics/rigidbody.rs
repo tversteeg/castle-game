@@ -6,40 +6,40 @@ use crate::assets::Assets;
 pub type RigidBodyIndex = u32;
 
 /// Represents any physics object that can have constraints applied.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct RigidBody {
     /// Global position.
-    pos: Vec2<f64>,
+    pos: Vec2<f32>,
     /// Previous position.
-    prev_pos: Vec2<f64>,
+    prev_pos: Vec2<f32>,
     /// Velocity.
-    vel: Vec2<f64>,
+    vel: Vec2<f32>,
     /// Orientation in radians.
-    rot: f64,
+    rot: f32,
     /// Previous orientation.
-    prev_rot: f64,
+    prev_rot: f32,
     /// Angular velocity.
-    ang_vel: f64,
+    ang_vel: f32,
     /// Inertia tensor, corresponds to mass in rotational terms.
-    inertia: f64,
+    inertia: f32,
     /// External forces.
-    ext_force: Vec2<f64>,
+    ext_force: Vec2<f32>,
     // External torque.
-    ext_torque: f64,
+    ext_torque: f32,
     /// Inverse of the mass.
-    inv_mass: f64,
+    inv_mass: f32,
 }
 
 impl RigidBody {
     /// Construct a new rigidbody without movements.
     ///
     /// Gravity is applied as an external force.
-    pub fn new(pos: Vec2<f64>, mass: f64, assets: &Assets) -> Self {
+    pub fn new(pos: Vec2<f32>, mass: f32, assets: &Assets) -> Self {
         Self::with_external_force(pos, Vec2::new(0.0, assets.settings().physics.gravity), mass)
     }
 
     /// Construct a new rigidbody with acceleration.
-    pub fn with_external_force(pos: Vec2<f64>, ext_force: Vec2<f64>, mass: f64) -> Self {
+    pub fn with_external_force(pos: Vec2<f32>, ext_force: Vec2<f32>, mass: f32) -> Self {
         let inv_mass = mass.recip();
         let prev_pos = pos;
         let vel = Vec2::default();
@@ -64,7 +64,7 @@ impl RigidBody {
     }
 
     /// Perform a single (sub-)step with a deltatime.
-    pub fn step(&mut self, dt: f64) {
+    pub fn integrate(&mut self, dt: f32) {
         if self.inv_mass == 0.0 {
             return;
         }
@@ -84,7 +84,7 @@ impl RigidBody {
     }
 
     /// Last part of a single (sub-)step.
-    pub fn step_finalize(&mut self, damping: f64, dt: f64) {
+    pub fn solve(&mut self, damping: f32, dt: f32) {
         self.vel = ((self.pos - self.prev_pos) * damping) / dt;
 
         // Construct the previous rotation from a sinus and cosinus to invert it
@@ -96,17 +96,17 @@ impl RigidBody {
     }
 
     /// Apply a force by moving the position, which will trigger velocity increments.
-    pub fn apply_force(&mut self, force: Vec2<f64>) {
+    pub fn apply_force(&mut self, force: Vec2<f32>) {
         self.pos += force;
     }
 
     /// Apply a rotational force in radians.
-    pub fn apply_rotational_force(&mut self, force: f64) {
+    pub fn apply_rotational_force(&mut self, force: f32) {
         self.rot += force;
     }
 
     /// Set global position.
-    pub fn set_position(&mut self, pos: Vec2<f64>, force: bool) {
+    pub fn set_position(&mut self, pos: Vec2<f32>, force: bool) {
         self.pos = pos;
         if !force {
             self.prev_pos = pos;
@@ -115,22 +115,22 @@ impl RigidBody {
     }
 
     /// Global position.
-    pub fn position(&self) -> Vec2<f64> {
+    pub fn position(&self) -> Vec2<f32> {
         self.pos
     }
 
     /// Rotation in radians.
-    pub fn rotation(&self) -> f64 {
+    pub fn rotation(&self) -> f32 {
         self.rot
     }
 
     /// Inverse of the mass.
-    pub fn inverse_mass(&self) -> f64 {
+    pub fn inverse_mass(&self) -> f32 {
         self.inv_mass
     }
 
     /// Inertia tensor, corresponds to mass in rotational terms.
-    pub fn inertia(&self) -> f64 {
+    pub fn inertia(&self) -> f32 {
         self.inertia
     }
 }

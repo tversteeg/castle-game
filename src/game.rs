@@ -46,7 +46,7 @@ impl GameState {
         let projectiles = Vec::new();
         let level_width = terrain.width();
         let camera = Camera::default();
-        let debug_state = DebugDraw::new(assets);
+        let debug_state = DebugDraw::new();
 
         Self {
             debug_state,
@@ -62,7 +62,7 @@ impl GameState {
     }
 
     /// Draw a frame.
-    pub fn render(&mut self, canvas: &mut [u32], frame_time: f64) {
+    pub fn render(&mut self, canvas: &mut [u32], frame_time: f32) {
         self.assets.font("font.torus-sans").render(
             canvas,
             &format!("Castle Game: {frame_time}"),
@@ -87,7 +87,7 @@ impl GameState {
     }
 
     /// Update a frame and handle user input.
-    pub fn update(&mut self, input: &Input, dt: f64) {
+    pub fn update(&mut self, input: &Input, dt: f32) {
         let settings = self.assets.settings();
 
         // Move the camera based on the mouse position
@@ -96,14 +96,14 @@ impl GameState {
                 -settings.pan_speed * dt,
                 0.0,
                 0.0,
-                (self.level_width - SIZE.w as u32) as f64,
+                (self.level_width - SIZE.w as u32) as f32,
             );
         } else if input.mouse_pos.x >= SIZE.w as i32 - settings.pan_edge_offset {
             self.camera.pan(
                 settings.pan_speed * dt,
                 0.0,
                 0.0,
-                (self.level_width - SIZE.w as u32) as f64,
+                (self.level_width - SIZE.w as u32) as f32,
             );
         }
 
@@ -122,7 +122,7 @@ impl GameState {
         if self.unit_spawner.update(dt) {
             // Spawn a unit at the upper edge of the terrain image
             self.units.push(Unit::new(
-                (10.0, self.terrain.y_offset() as f64).into(),
+                (10.0, self.terrain.y_offset() as f32).into(),
                 UnitType::PlayerSpear,
                 self.assets,
             ));
@@ -131,8 +131,8 @@ impl GameState {
             // Spawn a unit at the upper edge of the terrain image
             self.units.push(Unit::new(
                 (
-                    self.level_width as f64 - 10.0,
-                    self.terrain.y_offset() as f64,
+                    self.level_width as f32 - 10.0,
+                    self.terrain.y_offset() as f32,
                 )
                     .into(),
                 UnitType::EnemySpear,
@@ -151,13 +151,13 @@ pub struct Settings {
     /// Distance from the edge at which the camera will pan.
     pub pan_edge_offset: i32,
     /// How many pixels per second the camera will pan.
-    pub pan_speed: f64,
+    pub pan_speed: f32,
     /// Interval in seconds for when a unit spawns.
-    pub unit_spawn_interval: f64,
+    pub unit_spawn_interval: f32,
     /// Interval in seconds for when an enemy unit spawns.
-    pub enemy_unit_spawn_interval: f64,
+    pub enemy_unit_spawn_interval: f32,
     /// Downward force on all projectiles.
-    pub projectile_gravity: f64,
+    pub projectile_gravity: f32,
     /// Physics settings.
     pub physics: PhysicsSettings,
 }

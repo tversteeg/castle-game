@@ -3,7 +3,7 @@ use serde::Deserialize;
 use vek::Vec2;
 
 use crate::{
-    assets::Assets, camera::Camera, projectile::Projectile, random::RandomRangeF64,
+    assets::Assets, camera::Camera, projectile::Projectile, random::RandomRangeF32,
     terrain::Terrain, timer::Timer,
 };
 
@@ -33,16 +33,16 @@ pub struct Unit {
     /// Type of the unit, used to find the settings.
     r#type: UnitType,
     /// Absolute position.
-    pos: Vec2<f64>,
+    pos: Vec2<f32>,
     /// Timer for throwing a spear.
     projectile_timer: Timer,
     /// How long to hide the hands after a spear is thrown.
-    hide_hands_delay: f64,
+    hide_hands_delay: f32,
 }
 
 impl Unit {
     /// Create a new unit.
-    pub fn new(pos: Vec2<f64>, r#type: UnitType, assets: &'static Assets) -> Self {
+    pub fn new(pos: Vec2<f32>, r#type: UnitType, assets: &'static Assets) -> Self {
         let projectile_timer = Timer::new(r#type.settings(assets).projectile_spawn_interval);
 
         let hide_hands_delay = 0.0;
@@ -61,7 +61,7 @@ impl Unit {
     pub fn update(
         &mut self,
         terrain: &Terrain,
-        dt: f64,
+        dt: f32,
         assets: &'static Assets,
     ) -> Option<Projectile> {
         if !terrain.point_collides(self.pos.numcast().unwrap_or_default()) {
@@ -119,10 +119,10 @@ impl Unit {
     }
 
     /// Where the unit collides with the ground.
-    fn ground_collision_point(&self, assets: &'static Assets) -> Vec2<f64> {
+    fn ground_collision_point(&self, assets: &'static Assets) -> Vec2<f32> {
         let sprite = assets.sprite(&self.r#type.settings(&assets).base_asset_path);
 
-        (sprite.width() as f64 / 2.0, sprite.height() as f64 - 2.0).into()
+        (sprite.width() as f32 / 2.0, sprite.height() as f32 - 2.0).into()
     }
 }
 
@@ -140,13 +140,13 @@ pub struct Settings {
     /// Who the unit belongs to.
     pub allegiance: Allegiance,
     /// How many pixels a unit moves in a second.
-    pub walk_speed: f64,
+    pub walk_speed: f32,
     /// Interval in seconds for when a new projectile is thrown.
-    pub projectile_spawn_interval: f64,
+    pub projectile_spawn_interval: f32,
     /// How fast a projectile is thrown.
-    pub projectile_velocity: RandomRangeF64,
+    pub projectile_velocity: RandomRangeF32,
     /// How long the hands are hidden after launching a projectile.
-    pub hide_hands_delay: f64,
+    pub hide_hands_delay: f32,
 }
 
 impl Asset for Settings {

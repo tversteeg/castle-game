@@ -6,14 +6,14 @@ use blit::BlitOptions;
 #[derive(Default)]
 pub struct Camera {
     /// X position.
-    x: f64,
+    x: f32,
     /// Y position.
-    y: f64,
+    y: f32,
 }
 
 impl Camera {
     /// Pan the camera.
-    pub fn pan(&mut self, x: f64, y: f64, min_x: f64, max_x: f64) {
+    pub fn pan(&mut self, x: f32, y: f32, min_x: f32, max_x: f32) {
         self.x = (self.x + x).clamp(min_x, max_x);
         self.y += y;
     }

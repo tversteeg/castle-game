@@ -1,4 +1,4 @@
-use std::{borrow::Cow, f64::consts::TAU, num::NonZeroU16};
+use std::{borrow::Cow, f32::consts::TAU, num::NonZeroU16};
 
 use assets_manager::{
     loader::{Loader, TomlLoader},
@@ -80,7 +80,7 @@ impl RotatableSprite {
     pub fn with_fill_circle(
         sprite: Sprite,
         rotations: NonZeroU16,
-        sprite_rotation_offset: f64,
+        sprite_rotation_offset: f32,
     ) -> Self {
         let buffer = sprite.into_blit_buffer();
 
@@ -91,7 +91,7 @@ impl RotatableSprite {
                         buffer.pixels(),
                         &0,
                         buffer.width() as usize,
-                        i as f64 * 360.0 / rotations.get() as f64 + sprite_rotation_offset,
+                        i as f64 * 360.0 / rotations.get() as f64 + sprite_rotation_offset as f64,
                     )
                     .unwrap();
 
@@ -102,11 +102,11 @@ impl RotatableSprite {
     }
 
     /// Draw the nearest sprite based on the rotation with a camera offset.
-    pub fn render(&self, rotation: f64, canvas: &mut [u32], camera: &Camera, offset: Vec2<i32>) {
+    pub fn render(&self, rotation: f32, canvas: &mut [u32], camera: &Camera, offset: Vec2<i32>) {
         // Calculate rotation based on nearest point
-        let index = (rotation / TAU * self.0.len() as f64)
+        let index = (rotation / TAU * self.0.len() as f32)
             .round()
-            .rem_euclid(self.0.len() as f64) as usize;
+            .rem_euclid(self.0.len() as f32) as usize;
 
         let sprite = &self.0[index];
 
