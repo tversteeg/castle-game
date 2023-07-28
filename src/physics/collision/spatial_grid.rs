@@ -49,8 +49,14 @@ where
     // TODO: wait for either `.map` or `std::array::from_fn` to become const generic to make this const generic.
     pub fn new() -> Self {
         assert!(STEP >= 4);
-        assert_eq!(WIDTH % STEP, 0);
-        assert_eq!(HEIGHT % STEP, 0);
+        assert!(
+            WIDTH % STEP == 0,
+            "WIDTH {WIDTH} is not dividable by STEP {STEP}"
+        );
+        assert!(
+            HEIGHT % STEP == 0,
+            "HEIGHT {HEIGHT} is not dividable by STEP {STEP}"
+        );
         assert_eq!(SIZE, (Self::STEPPED_WIDTH * Self::STEPPED_HEIGHT) as usize);
 
         let buckets = std::array::from_fn(|_| ArrayVec::new_const());
@@ -163,7 +169,7 @@ where
         // Draw a grid of how many items are in the buckets
         for (index, bucket) in self.buckets.iter().enumerate() {
             if index % Self::STEPPED_WIDTH as usize == 0 {
-                write!(f, "\n")?;
+                writeln!(f)?;
             }
 
             if bucket.is_empty() {
@@ -174,6 +180,22 @@ where
         }
 
         Ok(())
+    }
+}
+
+impl<
+        I,
+        const WIDTH: u16,
+        const HEIGHT: u16,
+        const STEP: u16,
+        const BUCKET: usize,
+        const SIZE: usize,
+    > Debug for SpatialGrid<I, WIDTH, HEIGHT, STEP, BUCKET, SIZE>
+where
+    I: Debug + Copy + Eq + Hash,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "self")
     }
 }
 

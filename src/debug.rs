@@ -12,6 +12,9 @@ use crate::{
     SIZE,
 };
 
+/// Physics grid step size.
+const PHYSICS_GRID_STEP: u16 = 10;
+
 /// Draw things for debugging purposes.
 pub struct DebugDraw {
     /// Previous keyboard state.
@@ -21,9 +24,19 @@ pub struct DebugDraw {
     /// Mouse position.
     mouse: Vec2<i32>,
     /// Physics engine debug.
-    physics: Simulator,
+    ///
+    /// All physics happen within the screen space.
+    physics: Simulator<
+        { SIZE.w as u16 },
+        { SIZE.h as u16 },
+        PHYSICS_GRID_STEP,
+        4,
+        { (SIZE.w / PHYSICS_GRID_STEP as usize) * (SIZE.h / PHYSICS_GRID_STEP as usize) },
+    >,
     /// Physics rigidbodies.
     rigidbodies: Vec<RigidBodyIndex>,
+    /// Rigidbodies with collisions.
+    rigidbodies_with_collisions: Vec<RigidBodyIndex>,
 }
 
 impl DebugDraw {
@@ -34,6 +47,7 @@ impl DebugDraw {
         let physics = Simulator::new();
         let screen = 0;
         let rigidbodies = Vec::new();
+        let rigidbodies_with_collisions = Vec::new();
 
         Self {
             screen,
@@ -41,6 +55,7 @@ impl DebugDraw {
             mouse,
             physics,
             rigidbodies,
+            rigidbodies_with_collisions,
         }
     }
 
@@ -70,19 +85,30 @@ impl DebugDraw {
         self.physics
             .apply_global_force(Vec2::new(0.0, assets.settings().projectile_gravity * dt));
 
-        if self.screen == 1 {
-            // Make the first rigidbody follow the mouse
-            self.physics.set_position(
-                self.rigidbodies[0],
-                self.mouse.numcast().unwrap_or_default(),
-            );
+        // Make the first rigidbody follow the mouse
+        self.physics.set_position(
+            self.rigidbodies[0],
+            self.mouse.numcast().unwrap_or_default(),
+        );
 
-            self.physics
-                .apply_rotational_force(self.rigidbodies[0], 0.01);
-        }
+        self.rigidbodies
+            .iter()
+            .enumerate()
+            .for_each(|(index, rigidbody)| {
+                self.physics
+                    .apply_rotational_force(*rigidbody, 0.01 * index as f32)
+            });
 
         // Update the physics.
         self.physics.step(dt, assets);
+
+        // Keep track of all collisions in an ugly way
+        self.rigidbodies_with_collisions = self
+            .physics
+            .colliding_rigid_bodies()
+            .into_iter()
+            .flat_map(|(a, b)| std::iter::once(a).chain(std::iter::once(b)))
+            .collect();
     }
 
     /// Draw things for debugging purposes.
@@ -106,7 +132,12 @@ impl DebugDraw {
                 );
 
                 // Draw AABR
-                self.aabr(self.physics.aabr(*rigidbody), canvas, 0xFF00FF00);
+                //self.aabr(self.physics.aabr(*rigidbody), canvas, 0xFF00FF00);
+            }
+
+            for rigidbody in self.rigidbodies_with_collisions.iter() {
+                // Draw AABR
+                self.aabr(self.physics.aabr(*rigidbody), canvas, 0xFFFF0000);
             }
         } else if self.screen == 3 {
             // Draw rotating sprites

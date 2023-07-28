@@ -1,5 +1,7 @@
 use vek::{Aabr, Extent2, Vec2};
 
+use super::sat::{CollisionResponse, NarrowCollision, Projection};
+
 /// Orientable rectangle.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Rectangle {
@@ -28,5 +30,104 @@ impl Rectangle {
         let max = pos + size;
 
         Aabr { min, max }
+    }
+
+    /// Calculate the 4 corner points.
+    pub fn corners(&self, pos: Vec2<f32>, rot: f32) -> [Vec2<f32>; 4] {
+        let (sin, cos) = rot.sin_cos();
+
+        let w_sin = self.half_size.w * sin;
+        let w_cos = self.half_size.w * cos;
+        let h_sin = self.half_size.h * sin;
+        let h_cos = self.half_size.h * cos;
+
+        [
+            pos + Vec2::new(-w_cos + h_sin, -w_sin - h_cos),
+            pos + Vec2::new(w_cos + h_sin, w_sin - h_cos),
+            pos + Vec2::new(w_cos - h_sin, w_sin + h_cos),
+            pos + Vec2::new(-w_cos - h_sin, -w_sin + h_cos),
+        ]
+    }
+
+    /// Get the two perpendicular axes for each side.
+    pub fn perp_axes(rot: f32) -> [Vec2<f32>; 2] {
+        let (sin, cos) = rot.sin_cos();
+        // Normalized direction vector
+        let vec1 = Vec2::new(cos, sin);
+        // Perpendicular to the above
+        let vec2 = Vec2::new(-vec1.y, vec1.x);
+
+        [vec1, vec2]
+    }
+}
+
+impl NarrowCollision for Rectangle {
+    fn collide_rectangle(
+        &self,
+        pos: Vec2<f32>,
+        rot: f32,
+        other_rect: Rectangle,
+        other_pos: Vec2<f32>,
+        other_rot: f32,
+    ) -> Option<CollisionResponse> {
+        // Get the perp axes of both
+        let (a_axes, b_axes) = (Rectangle::perp_axes(rot), Rectangle::perp_axes(other_rot));
+
+        // Get the corners for both
+        let a_corners = self.corners(pos, rot);
+        let b_corners = other_rect.corners(other_pos, other_rot);
+
+        // Check if we have a collision
+        for axis in a_axes.into_iter().chain(b_axes.into_iter()) {
+            let proj1 = Projection::project(a_corners, axis);
+            let proj2 = Projection::project(b_corners, axis);
+
+            if proj1.separated(proj2) {
+                // There is an axis in between, no collision is possible
+                return None;
+            }
+        }
+
+        // Collision found, no axes overlap
+
+        Some(CollisionResponse {})
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use vek::{Extent2, Vec2};
+
+    use crate::physics::collision::sat::{CollisionResponse, NarrowCollision};
+
+    use super::Rectangle;
+
+    /// Test different grid constructions.
+    #[test]
+    fn test_collision() {
+        // Create two identical rectangles
+        let a = Rectangle::new(Extent2::new(50.0, 100.0));
+        let b = a;
+
+        // Rotate one by 45 degrees
+        let (rot_a, rot_b) = (45.0f32.to_radians(), 0.0);
+        let (pos_a, pos_b) = (Vec2::new(50.0, 50.0), Vec2::new(100.0, 120.0));
+
+        // There shouldn't be a collision
+        assert_eq!(a.collide_rectangle(pos_a, rot_a, b, pos_b, rot_b), None);
+
+        // Changing the rotations should create a collision
+        let (rot_a, rot_b) = (80.0f32.to_radians(), -45.0f32.to_radians());
+        assert_eq!(
+            a.collide_rectangle(pos_a, rot_a, b, pos_b, rot_b),
+            Some(CollisionResponse {})
+        );
+
+        // Now lets move the second one closer to hit the first one
+        let pos_b = Vec2::new(80.0, 120.0);
+        assert_eq!(
+            a.collide_rectangle(pos_a, rot_a, b, pos_b, rot_b),
+            Some(CollisionResponse {})
+        );
     }
 }

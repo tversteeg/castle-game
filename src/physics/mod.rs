@@ -14,13 +14,20 @@ use vek::{Aabr, Vec2};
 use crate::assets::Assets;
 
 use self::{
+    collision::spatial_grid::SpatialGrid,
     constraint::{Constraint, ConstraintIndex, DistanceConstraint, GroundConstraint},
     rigidbody::{RigidBody, RigidBodyIndex},
 };
 
 /// Physics simulation state.
 #[derive(Debug)]
-pub struct Simulator {
+pub struct Simulator<
+    const WIDTH: u16,
+    const HEIGHT: u16,
+    const STEP: u16,
+    const BUCKET: usize,
+    const SIZE: usize,
+> {
     /// List of all rigidbodies, accessed by index.
     rigidbodies: HashMap<RigidBodyIndex, RigidBody>,
     /// Rigid body key start.
@@ -33,9 +40,18 @@ pub struct Simulator {
     ground_constraints: HashMap<ConstraintIndex, GroundConstraint>,
     /// Ground constraints body key start.
     ground_constraints_key: ConstraintIndex,
+    /// Collision grid structure.
+    collision_grid: SpatialGrid<RigidBodyIndex, WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
 }
 
-impl Simulator {
+impl<
+        const WIDTH: u16,
+        const HEIGHT: u16,
+        const STEP: u16,
+        const BUCKET: usize,
+        const SIZE: usize,
+    > Simulator<WIDTH, HEIGHT, STEP, BUCKET, SIZE>
+{
     /// Create the new state.
     pub fn new() -> Self {
         let rigidbodies = HashMap::new();
@@ -44,6 +60,7 @@ impl Simulator {
         let dist_constraints_key = 0;
         let ground_constraints = HashMap::new();
         let ground_constraints_key = 0;
+        let collision_grid = SpatialGrid::new();
 
         Self {
             rigidbodies,
@@ -52,6 +69,7 @@ impl Simulator {
             dist_constraints_key,
             ground_constraints,
             ground_constraints_key,
+            collision_grid,
         }
     }
 
@@ -172,6 +190,37 @@ impl Simulator {
     /// Axis-aligned bounding rectangle of a a rigidbody.
     pub fn aabr(&self, rigidbody: RigidBodyIndex) -> Aabr<f32> {
         self.rigidbodies[&rigidbody].aabr()
+    }
+
+    /// Calculate all pairs of indices for colliding rigid bodies.
+    ///
+    /// It's done in two steps main:
+    ///
+    /// Broad-phase:
+    /// 1. Put all rigid body bounding rectangles in a spatial grid
+    /// 2. Flush the grid again returning all colliding pairs
+    /// TODO: move the first pass of putting everything in the grid to the a separate function, updating the objects manually after that
+    ///
+    /// Narrow-phase:
+    /// 1. Separating axis theorem to determine the collisions.
+    pub fn colliding_rigid_bodies(&mut self) -> Vec<(RigidBodyIndex, RigidBodyIndex)> {
+        // First put all rigid bodies in the spatial grid
+        self.rigidbodies.iter().for_each(|(index, rigidbody)| {
+            self.collision_grid.store_aabb(
+                rigidbody.position().as_(),
+                rigidbody.aabr().size().as_(),
+                *index,
+            )
+        });
+
+        // Then flush it to get the rough list of collision pairs
+        let collision_pairs = self.collision_grid.flush();
+
+        // Narrow-phase with SAT
+        collision_pairs
+            .into_iter()
+            .filter(|(a, b)| self.rigidbodies[&a].collides(&self.rigidbodies[&b]))
+            .collect()
     }
 }
 
