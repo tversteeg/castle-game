@@ -1,13 +1,15 @@
-use vek::Vec2;
+use vek::{Aabr, Extent2, Vec2};
 
 use crate::{
     assets::Assets,
     camera::Camera,
     input::Input,
     physics::{
+        collision::shape::Rectangle,
         rigidbody::{RigidBody, RigidBodyIndex},
         Simulator,
     },
+    SIZE,
 };
 
 /// Draw things for debugging purposes.
@@ -74,6 +76,9 @@ impl DebugDraw {
                 self.rigidbodies[0],
                 self.mouse.numcast().unwrap_or_default(),
             );
+
+            self.physics
+                .apply_rotational_force(self.rigidbodies[0], 0.01);
         }
 
         // Update the physics.
@@ -99,6 +104,9 @@ impl DebugDraw {
                     canvas,
                     assets,
                 );
+
+                // Draw AABR
+                self.aabr(self.physics.aabr(*rigidbody), canvas, 0xFF00FF00);
             }
         } else if self.screen == 3 {
             // Draw rotating sprites
@@ -117,14 +125,22 @@ impl DebugDraw {
     fn setup_physics_scene_1(&mut self, assets: &Assets) {
         self.physics = Simulator::new();
 
+        // Shape is based on the size of the image
+        let sprite = assets.sprite("projectile.spear-1");
+        let shape = Rectangle::new(Extent2::new(sprite.width() as f32, sprite.height() as f32));
+
         // Create some test rigidbodies
         let mut x = 50.0;
         self.rigidbodies = [(); 5]
             .iter()
             .map(|_| {
                 x += 10.0;
-                self.physics
-                    .add_rigidbody(RigidBody::new(Vec2::new(x, 10.0), 1.0, assets))
+                self.physics.add_rigidbody(RigidBody::new(
+                    Vec2::new(SIZE.w as f32 / 2.0 + x, SIZE.h as f32 / 2.0),
+                    1.0,
+                    shape,
+                    assets,
+                ))
             })
             .collect();
 
@@ -142,6 +158,10 @@ impl DebugDraw {
     fn setup_physics_scene_2(&mut self, assets: &Assets) {
         self.physics = Simulator::new();
 
+        // Shape is based on the size of the image
+        let sprite = assets.sprite("object.crate-1");
+        let shape = Rectangle::new(Extent2::new(sprite.width() as f32, sprite.height() as f32));
+
         // Create a nice pyramid
         self.rigidbodies = [
             (60.0, 40.0),
@@ -154,7 +174,7 @@ impl DebugDraw {
         .iter()
         .map(|pos| {
             self.physics
-                .add_rigidbody(RigidBody::new((*pos).into(), 1.0, assets))
+                .add_rigidbody(RigidBody::new((*pos).into(), 1.0, shape, assets))
         })
         .collect();
 
@@ -203,5 +223,20 @@ impl DebugDraw {
         assets
             .font("font.torus-sans")
             .render(canvas, text, pos.x, pos.y);
+    }
+
+    /// Draw a bounding rectangle.
+    fn aabr(&self, aabr: Aabr<f32>, canvas: &mut [u32], color: u32) {
+        let aabr: Aabr<usize> = aabr.as_();
+
+        for y in aabr.min.y.clamp(0, SIZE.h)..aabr.max.y.clamp(0, SIZE.h) {
+            canvas[aabr.min.x + y * SIZE.h] = color;
+            canvas[aabr.max.x + y * SIZE.h] = color;
+        }
+
+        for x in aabr.min.x.clamp(0, SIZE.w)..aabr.max.x.clamp(0, SIZE.w) {
+            canvas[x + aabr.min.y * SIZE.w] = color;
+            canvas[x + aabr.max.y * SIZE.w] = color;
+        }
     }
 }

@@ -9,7 +9,7 @@ pub mod rigidbody;
 use std::collections::HashMap;
 
 use serde::Deserialize;
-use vek::Vec2;
+use vek::{Aabr, Vec2};
 
 use crate::assets::Assets;
 
@@ -142,6 +142,14 @@ impl Simulator {
             .apply_force(force);
     }
 
+    /// Apply a rotational force on a rigidbody.
+    pub fn apply_rotational_force(&mut self, rigidbody: RigidBodyIndex, force: f32) {
+        self.rigidbodies
+            .get_mut(&rigidbody)
+            .expect("Rigid body doesn't exist anymore")
+            .apply_rotational_force(force);
+    }
+
     /// Apply a force on all rigidbodies.
     ///
     /// Useful for gravity.
@@ -159,6 +167,11 @@ impl Simulator {
     /// Rotation of a rigidbody as radians.
     pub fn rotation(&self, rigidbody: RigidBodyIndex) -> f32 {
         self.rigidbodies[&rigidbody].rotation()
+    }
+
+    /// Axis-aligned bounding rectangle of a a rigidbody.
+    pub fn aabr(&self, rigidbody: RigidBodyIndex) -> Aabr<f32> {
+        self.rigidbodies[&rigidbody].aabr()
     }
 }
 
