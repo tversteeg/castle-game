@@ -105,14 +105,31 @@ impl DebugDraw {
         // Keep track of all collisions in an ugly way
         self.rigidbodies_with_collisions = self
             .physics
-            .colliding_rigid_bodies()
-            .into_iter()
+            .colliding_rigid_bodies_iter()
             .flat_map(|(a, b, _)| std::iter::once(a).chain(std::iter::once(b)))
             .collect();
     }
 
     /// Draw things for debugging purposes.
     pub fn render(&self, canvas: &mut [u32], assets: &Assets) {
+        if self.screen == 0 {
+            return;
+        }
+
+        // Draw which screen we are on
+        self.text(
+            match self.screen {
+                1 => "Rope physics",
+                2 => "Box collisions",
+                3 => "Sprite rotations",
+                4 => "SAT collision detection",
+                _ => "Undefined",
+            },
+            Vec2::new(20, 30),
+            canvas,
+            assets,
+        );
+
         if self.screen == 1 || self.screen == 2 {
             // Draw physics sprites
             for rigidbody in self.rigidbodies.iter() {

@@ -15,7 +15,9 @@ use crate::assets::Assets;
 
 use self::{
     collision::{sat::CollisionResponse, spatial_grid::SpatialGrid},
-    constraint::{Constraint, ConstraintIndex, DistanceConstraint, GroundConstraint},
+    constraint::{
+        Constraint, ConstraintIndex, DistanceConstraint, GroundConstraint, PenetrationConstraint,
+    },
     rigidbody::{RigidBody, RigidBodyIndex},
 };
 
@@ -87,9 +89,6 @@ impl<
         reset_constraints(&mut self.ground_constraints);
 
         for _ in 0..substeps {
-            // Resolve collisions
-            self.handle_collisions();
-
             // Update posititons and velocity of all rigidbodies
             self.rigidbodies
                 .iter_mut()
@@ -98,6 +97,14 @@ impl<
             // Apply constraints for the different types
             apply_constraints(&mut self.dist_constraints, &mut self.rigidbodies, sub_dt);
             apply_constraints(&mut self.ground_constraints, &mut self.rigidbodies, sub_dt);
+
+            // Resolve collisions into new constraints
+            let penetration_constraints = self.handle_collisions();
+            apply_constraints_iter(
+                penetration_constraints.into_iter(),
+                &mut self.rigidbodies,
+                sub_dt,
+            );
 
             // Finalize velocity based on position offset
             self.rigidbodies
@@ -206,9 +213,9 @@ impl<
     ///
     /// Narrow-phase:
     /// 1. Separating axis theorem to determine the collisions.
-    pub fn colliding_rigid_bodies(
+    pub fn colliding_rigid_bodies_iter(
         &mut self,
-    ) -> Vec<(RigidBodyIndex, RigidBodyIndex, CollisionResponse)> {
+    ) -> impl Iterator<Item = (RigidBodyIndex, RigidBodyIndex, CollisionResponse)> + '_ {
         // First put all rigid bodies in the spatial grid
         self.rigidbodies.iter().for_each(|(index, rigidbody)| {
             self.collision_grid.store_aabb(
@@ -222,24 +229,18 @@ impl<
         let collision_pairs = self.collision_grid.flush();
 
         // Narrow-phase with SAT
-        collision_pairs
-            .into_iter()
-            .filter_map(|(a, b)| {
-                self.rigidbodies[&a]
-                    .collides(&self.rigidbodies[&b])
-                    .map(|response| (a, b, response))
-            })
-            .collect()
+        collision_pairs.into_iter().filter_map(|(a, b)| {
+            self.rigidbodies[&a]
+                .collides(&self.rigidbodies[&b])
+                .map(|response| (a, b, response))
+        })
     }
 
-    /// Resolve collisions.
-    fn handle_collisions(&mut self) {
-        self.colliding_rigid_bodies()
-            .into_iter()
-            .for_each(|(a, b, response)| {
-                self.apply_force(a, response.mtv);
-                self.apply_force(b, -response.mtv);
-            });
+    /// Convert collisions to a list of constraints.
+    fn handle_collisions(&mut self) -> Vec<PenetrationConstraint> {
+        self.colliding_rigid_bodies_iter()
+            .map(|(a, b, response)| PenetrationConstraint::new([a, b], response))
+            .collect()
     }
 }
 
@@ -265,6 +266,18 @@ fn apply_constraints<T, const RIGIDBODY_COUNT: usize>(
         // Solve the constraints
         constraint.solve(rigidbodies, dt);
     }
+}
+
+/// Apply a type of constraints as an iterator to all rigidbodies.
+fn apply_constraints_iter<T, const RIGIDBODY_COUNT: usize>(
+    constraints_iter: impl Iterator<Item = T>,
+    rigidbodies: &mut HashMap<RigidBodyIndex, RigidBody>,
+    dt: f32,
+) where
+    T: Constraint<RIGIDBODY_COUNT>,
+{
+    // Solve the constraints
+    constraints_iter.for_each(|mut constraint| constraint.solve(rigidbodies, dt));
 }
 
 /// Physics settings loaded from a file so it's easier to change them with hot-reloading.

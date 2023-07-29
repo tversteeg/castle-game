@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use vek::Vec2;
 
-use super::{RigidBody, RigidBodyIndex};
+use super::{collision::sat::CollisionResponse, RigidBody, RigidBodyIndex};
 
 /// Constraint index type.
 pub type ConstraintIndex = u32;
@@ -230,6 +230,64 @@ impl Constraint<1> for GroundConstraint {
     fn compliance(&self) -> f32 {
         // The ground is not very flexible
         0.0
+    }
+
+    fn lambda(&self) -> f32 {
+        self.lambda
+    }
+
+    fn set_lambda(&mut self, lambda: f32) {
+        self.lambda = lambda;
+    }
+}
+
+/// Short-lived collision constraint for resolving collisions.
+#[derive(Debug, Clone)]
+pub struct PenetrationConstraint {
+    /// Collision response.
+    response: CollisionResponse,
+    /// Indices of the rigidbodies.
+    rigidbodies: [RigidBodyIndex; 2],
+    /// Lambda value.
+    ///
+    /// Must be reset every frame.
+    lambda: f32,
+}
+
+impl PenetrationConstraint {
+    /// Constrain two rigidbodies with a spring so they can't be try to resolve the distance between them.
+    ///
+    /// RigidBodys must be indices.
+    pub fn new(rigidbodies: [RigidBodyIndex; 2], response: CollisionResponse) -> Self {
+        let lambda = 0.0;
+
+        Self {
+            lambda,
+            rigidbodies,
+            response,
+        }
+    }
+}
+
+impl Constraint<2> for PenetrationConstraint {
+    fn gradients(&self, _rigidbodies_pos: [Vec2<f32>; 2]) -> [Vec2<f32>; 2] {
+        // MTV vector from the collision normalized
+        let mtv_normalized = self.response.mtv.normalized();
+
+        [-mtv_normalized, mtv_normalized]
+    }
+
+    fn constraint(&self, _rigidbodies_pos: [Vec2<f32>; 2]) -> f32 {
+        // MTV vector length which is how far we need to travel to resolve the collision
+        self.response.mtv.magnitude()
+    }
+
+    fn rigidbodies(&self) -> &[RigidBodyIndex; 2] {
+        &self.rigidbodies
+    }
+
+    fn compliance(&self) -> f32 {
+        0.00001
     }
 
     fn lambda(&self) -> f32 {
