@@ -14,7 +14,7 @@ use vek::{Aabr, Vec2};
 use crate::assets::Assets;
 
 use self::{
-    collision::spatial_grid::SpatialGrid,
+    collision::{sat::CollisionResponse, spatial_grid::SpatialGrid},
     constraint::{Constraint, ConstraintIndex, DistanceConstraint, GroundConstraint},
     rigidbody::{RigidBody, RigidBodyIndex},
 };
@@ -87,6 +87,9 @@ impl<
         reset_constraints(&mut self.ground_constraints);
 
         for _ in 0..substeps {
+            // Resolve collisions
+            self.handle_collisions();
+
             // Update posititons and velocity of all rigidbodies
             self.rigidbodies
                 .iter_mut()
@@ -203,7 +206,9 @@ impl<
     ///
     /// Narrow-phase:
     /// 1. Separating axis theorem to determine the collisions.
-    pub fn colliding_rigid_bodies(&mut self) -> Vec<(RigidBodyIndex, RigidBodyIndex)> {
+    pub fn colliding_rigid_bodies(
+        &mut self,
+    ) -> Vec<(RigidBodyIndex, RigidBodyIndex, CollisionResponse)> {
         // First put all rigid bodies in the spatial grid
         self.rigidbodies.iter().for_each(|(index, rigidbody)| {
             self.collision_grid.store_aabb(
@@ -219,8 +224,22 @@ impl<
         // Narrow-phase with SAT
         collision_pairs
             .into_iter()
-            .filter(|(a, b)| self.rigidbodies[&a].collides(&self.rigidbodies[&b]))
+            .filter_map(|(a, b)| {
+                self.rigidbodies[&a]
+                    .collides(&self.rigidbodies[&b])
+                    .map(|response| (a, b, response))
+            })
             .collect()
+    }
+
+    /// Resolve collisions.
+    fn handle_collisions(&mut self) {
+        self.colliding_rigid_bodies()
+            .into_iter()
+            .for_each(|(a, b, response)| {
+                self.apply_force(a, response.mtv);
+                self.apply_force(b, -response.mtv);
+            });
     }
 }
 

@@ -5,7 +5,7 @@ use crate::{
     camera::Camera,
     input::Input,
     physics::{
-        collision::shape::Rectangle,
+        collision::{sat::NarrowCollision, shape::Rectangle},
         rigidbody::{RigidBody, RigidBodyIndex},
         Simulator,
     },
@@ -68,7 +68,7 @@ impl DebugDraw {
             match self.screen {
                 1 => self.setup_physics_scene_1(assets),
                 2 => self.setup_physics_scene_2(assets),
-                3 => (),
+                3 | 4 => (),
                 _ => self.screen = 0,
             }
         }
@@ -107,7 +107,7 @@ impl DebugDraw {
             .physics
             .colliding_rigid_bodies()
             .into_iter()
-            .flat_map(|(a, b)| std::iter::once(a).chain(std::iter::once(b)))
+            .flat_map(|(a, b, _)| std::iter::once(a).chain(std::iter::once(b)))
             .collect();
     }
 
@@ -148,6 +148,23 @@ impl DebugDraw {
                     canvas,
                     assets,
                 );
+            }
+        } else if self.screen == 4 {
+            let sprite_path = "object.crate-1";
+            // Draw two rectangles colliding
+            let sprite = assets.sprite(sprite_path);
+            let shape = Rectangle::new(Extent2::new(sprite.width() as f32, sprite.height() as f32));
+
+            let (pos_a, pos_b) = (Vec2::new(SIZE.w as i32 / 2, SIZE.h as i32 / 2), self.mouse);
+            let (rot_a, rot_b) = (45f32.to_radians(), 90f32.to_radians());
+            self.render_rotatable_sprite(pos_a, rot_a, sprite_path, canvas, assets);
+            self.render_rotatable_sprite(pos_b, rot_b, sprite_path, canvas, assets);
+
+            if let Some(response) =
+                shape.collide_rectangle(pos_a.as_(), rot_a, shape, pos_b.as_(), rot_b)
+            {
+                self.vector(response.contact.as_(), response.mtv, canvas, assets);
+                //self.circle(response.contact.as_(), canvas, 0xFFFF0000);
             }
         }
     }
@@ -269,5 +286,25 @@ impl DebugDraw {
             canvas[x + aabr.min.y * SIZE.w] = color;
             canvas[x + aabr.max.y * SIZE.w] = color;
         }
+    }
+
+    /// Draw a tiny circle.
+    fn circle(&self, pos: Vec2<i32>, canvas: &mut [u32], color: u32) {
+        self.point(pos, canvas, color);
+        self.point(pos + Vec2::new(0, 1), canvas, color);
+        self.point(pos + Vec2::new(1, 0), canvas, color);
+        self.point(pos + Vec2::new(0, -1), canvas, color);
+        self.point(pos + Vec2::new(-1, 0), canvas, color);
+    }
+
+    /// Draw a single point.
+    fn point(&self, pos: Vec2<i32>, canvas: &mut [u32], color: u32) {
+        let pos = pos.as_::<usize>();
+        canvas[pos.x + pos.y * SIZE.w] = color;
+    }
+
+    /// Draw a debug direction vector.
+    fn vector(&self, pos: Vec2<i32>, dir: Vec2<f32>, canvas: &mut [u32], assets: &Assets) {
+        self.render_rotatable_sprite(pos, dir.y.atan2(dir.x), "debug.vector", canvas, assets)
     }
 }

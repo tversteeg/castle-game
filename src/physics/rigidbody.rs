@@ -2,7 +2,10 @@ use vek::{Aabr, Vec2};
 
 use crate::assets::Assets;
 
-use super::collision::{sat::NarrowCollision, shape::Rectangle};
+use super::collision::{
+    sat::{CollisionResponse, NarrowCollision},
+    shape::Rectangle,
+};
 
 /// Rigidbody index type.
 pub type RigidBodyIndex = u32;
@@ -155,9 +158,8 @@ impl RigidBody {
     }
 
     /// Check if it collides with another rigidbody.
-    pub fn collides(&self, other: &RigidBody) -> bool {
+    pub fn collides(&self, other: &RigidBody) -> Option<CollisionResponse> {
         self.shape
             .collide_rectangle(self.pos, self.rot, other.shape, other.pos, other.rot)
-            .is_some()
     }
 }

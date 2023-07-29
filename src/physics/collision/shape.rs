@@ -33,7 +33,7 @@ impl Rectangle {
     }
 
     /// Calculate the 4 corner points.
-    pub fn corners(&self, pos: Vec2<f32>, rot: f32) -> [Vec2<f32>; 4] {
+    pub fn vertices(&self, pos: Vec2<f32>, rot: f32) -> [Vec2<f32>; 4] {
         let (sin, cos) = rot.sin_cos();
 
         let w_sin = self.half_size.w * sin;
@@ -49,8 +49,8 @@ impl Rectangle {
         ]
     }
 
-    /// Get the two perpendicular axes for each side.
-    pub fn perp_axes(rot: f32) -> [Vec2<f32>; 2] {
+    /// Get the normal axes for each side.
+    pub fn normal_axes(rot: f32) -> [Vec2<f32>; 2] {
         let (sin, cos) = rot.sin_cos();
         // Normalized direction vector
         let vec1 = Vec2::new(cos, sin);
@@ -71,26 +71,65 @@ impl NarrowCollision for Rectangle {
         other_rot: f32,
     ) -> Option<CollisionResponse> {
         // Get the perp axes of both
-        let (a_axes, b_axes) = (Rectangle::perp_axes(rot), Rectangle::perp_axes(other_rot));
+        let (a_axes, b_axes) = (
+            Rectangle::normal_axes(rot),
+            Rectangle::normal_axes(other_rot),
+        );
 
         // Get the corners for both
-        let a_corners = self.corners(pos, rot);
-        let b_corners = other_rect.corners(other_pos, other_rot);
+        let a_vertices = self.vertices(pos, rot);
+        let b_vertices = other_rect.vertices(other_pos, other_rot);
+
+        // Keep track of the axis with the smallest overlap
+        let mut smallest_overlap = std::f32::INFINITY;
+        // The value here doesn't matter because it will always be overwritten
+        let mut smallest_axis = Vec2::default();
+        // The closest vertex to the collision point
+        let mut contact = Vec2::default();
 
         // Check if we have a collision
-        for axis in a_axes.into_iter().chain(b_axes.into_iter()) {
-            let proj1 = Projection::project(a_corners, axis);
-            let proj2 = Projection::project(b_corners, axis);
+        for (index, axis) in a_axes.into_iter().chain(b_axes.into_iter()).enumerate() {
+            let proj1 = Projection::project(a_vertices, axis);
+            let proj2 = Projection::project(b_vertices, axis);
 
             if proj1.separated(proj2) {
                 // There is an axis in between, no collision is possible
                 return None;
+            } else {
+                // PERF: is it faster to do this else here or rerun the loop later when a collision is found?
+                let overlap = proj1.overlap(proj2);
+                if overlap < smallest_overlap {
+                    smallest_overlap = overlap;
+
+                    // Check to which shape the axis belongs
+                    if index < a_axes.len() {
+                        // Axis belongs to object A
+                        if proj1.max <= proj2.max {
+                            smallest_axis = -axis;
+                            contact = proj2.min_vertex;
+                        } else {
+                            smallest_axis = axis;
+                            contact = proj2.max_vertex;
+                        }
+                    } else {
+                        // Axis belongs to object B
+                        if proj1.max < proj2.max {
+                            smallest_axis = -axis;
+                            contact = proj1.max_vertex;
+                        } else {
+                            smallest_axis = axis;
+                            contact = proj1.min_vertex;
+                        }
+                    }
+                }
             }
         }
 
-        // Collision found, no axes overlap
+        // Collision found, all axes overlap
 
-        Some(CollisionResponse {})
+        let mtv = smallest_axis * smallest_overlap;
+
+        Some(CollisionResponse { mtv, contact })
     }
 }
 
@@ -98,7 +137,7 @@ impl NarrowCollision for Rectangle {
 mod tests {
     use vek::{Extent2, Vec2};
 
-    use crate::physics::collision::sat::{CollisionResponse, NarrowCollision};
+    use crate::physics::collision::sat::NarrowCollision;
 
     use super::Rectangle;
 
@@ -118,16 +157,10 @@ mod tests {
 
         // Changing the rotations should create a collision
         let (rot_a, rot_b) = (80.0f32.to_radians(), -45.0f32.to_radians());
-        assert_eq!(
-            a.collide_rectangle(pos_a, rot_a, b, pos_b, rot_b),
-            Some(CollisionResponse {})
-        );
+        assert!(a.collide_rectangle(pos_a, rot_a, b, pos_b, rot_b).is_some());
 
         // Now lets move the second one closer to hit the first one
         let pos_b = Vec2::new(80.0, 120.0);
-        assert_eq!(
-            a.collide_rectangle(pos_a, rot_a, b, pos_b, rot_b),
-            Some(CollisionResponse {})
-        );
+        assert!(a.collide_rectangle(pos_a, rot_a, b, pos_b, rot_b).is_some());
     }
 }
