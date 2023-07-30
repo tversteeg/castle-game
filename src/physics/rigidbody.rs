@@ -97,6 +97,38 @@ impl RigidBody {
         }
     }
 
+    /// Construct a fixed rigidbody with infinite mass and no gravity.
+    pub fn fixed(pos: Vec2<f32>, shape: Rectangle) -> Self {
+        let inv_mass = 0.0;
+
+        let prev_pos = pos;
+        let vel = Vec2::zero();
+        let rot = Rotation::default();
+        let prev_rot = Rotation::default();
+        let ang_vel = 0.0;
+        let inertia = 0.0;
+        let lin_damping = 0.0;
+        let ang_damping = 0.0;
+        let ext_force = Vec2::zero();
+        let ext_torque = 0.0;
+
+        Self {
+            pos,
+            shape,
+            prev_pos,
+            vel,
+            rot,
+            prev_rot,
+            ang_vel,
+            inertia,
+            lin_damping,
+            ang_damping,
+            ext_force,
+            ext_torque,
+            inv_mass,
+        }
+    }
+
     /// Perform a single (sub-)step with a deltatime.
     pub fn integrate(&mut self, dt: f32) {
         if self.inv_mass == 0.0 {

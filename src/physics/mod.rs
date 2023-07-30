@@ -16,8 +16,8 @@ use crate::assets::Assets;
 use self::{
     collision::{sat::CollisionResponse, spatial_grid::SpatialGrid},
     constraint::{
-        distance::DistanceConstraint, ground::GroundConstraint, penetration::PenetrationConstraint,
-        Constraint, ConstraintIndex,
+        distance::DistanceConstraint, penetration::PenetrationConstraint, Constraint,
+        ConstraintIndex,
     },
     rigidbody::{RigidBody, RigidBodyIndex},
 };
@@ -39,10 +39,6 @@ pub struct Simulator<
     dist_constraints: HashMap<ConstraintIndex, DistanceConstraint>,
     /// Dist constraints body key start.
     dist_constraints_key: ConstraintIndex,
-    /// All ground constraints.
-    ground_constraints: HashMap<ConstraintIndex, GroundConstraint>,
-    /// Ground constraints body key start.
-    ground_constraints_key: ConstraintIndex,
     /// Collision grid structure.
     collision_grid: SpatialGrid<RigidBodyIndex, WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
 }
@@ -61,8 +57,6 @@ impl<
         let rigidbodies_key = 0;
         let dist_constraints = HashMap::new();
         let dist_constraints_key = 0;
-        let ground_constraints = HashMap::new();
-        let ground_constraints_key = 0;
         let collision_grid = SpatialGrid::new();
 
         Self {
@@ -70,8 +64,6 @@ impl<
             rigidbodies_key,
             dist_constraints,
             dist_constraints_key,
-            ground_constraints,
-            ground_constraints_key,
             collision_grid,
         }
     }
@@ -86,7 +78,6 @@ impl<
 
         // Reset every constraint for calculating the sub-steps since they are iterative
         reset_constraints(&mut self.dist_constraints);
-        reset_constraints(&mut self.ground_constraints);
 
         // Do a broad phase collision check to get possible colliding pairs
         let broad_phase = self.collision_broad_phase_vec();
@@ -99,7 +90,6 @@ impl<
 
             // Apply constraints for the different types
             apply_constraints(&mut self.dist_constraints, &mut self.rigidbodies, sub_dt);
-            apply_constraints(&mut self.ground_constraints, &mut self.rigidbodies, sub_dt);
 
             // Do a narrow-phase collision check
             let collisions = self.collision_narrow_phase_vec(&broad_phase);
@@ -141,21 +131,6 @@ impl<
         );
 
         self.dist_constraints_key
-    }
-
-    /// Add a ground constraint for a rigidbody.
-    pub fn add_ground_constraint(
-        &mut self,
-        rigidbody: RigidBodyIndex,
-        ground_height: f32,
-    ) -> ConstraintIndex {
-        self.ground_constraints_key += 1;
-        self.ground_constraints.insert(
-            self.ground_constraints_key,
-            GroundConstraint::new(rigidbody, ground_height),
-        );
-
-        self.ground_constraints_key
     }
 
     /// Move a rigidbody to a specific position.

@@ -1,5 +1,4 @@
 pub mod distance;
-pub mod ground;
 pub mod penetration;
 
 use std::collections::HashMap;

@@ -71,6 +71,8 @@ where
         // Resulting unique pairs
         let mut pairs = HashSet::new();
 
+        println!("{self}");
+
         for bucket in self.buckets.iter_mut() {
             // Combine all items in the bucket
             bucket
@@ -98,18 +100,8 @@ where
         let x_start = pos.x / STEP;
         let y_start = pos.y / STEP;
 
-        // Ignore rectangles at the edges
-        if x_start == 0 || y_start == 0 {
-            return;
-        }
-
-        let x_end = (pos.x.saturating_add(size.w)) / STEP;
-        let y_end = (pos.y.saturating_add(size.h)) / STEP;
-
-        // Ignore rectangles at the edges
-        if x_end >= Self::STEPPED_WIDTH || y_end >= Self::STEPPED_HEIGHT {
-            return;
-        }
+        let x_end = (pos.x.saturating_add(size.w)).min(WIDTH - 1) / STEP;
+        let y_end = (pos.y.saturating_add(size.h)).min(HEIGHT - 1) / STEP;
 
         for y in y_start..=y_end {
             for x in x_start..=x_end {

@@ -253,10 +253,10 @@ impl DebugDraw {
             .collect();
 
         // Don't let them fall through the ground
-        self.rigidbodies.iter().for_each(|rigidbody| {
-            self.physics
-                .add_ground_constraint(*rigidbody, SIZE.h as f32 / 2.0 + 50.0);
-        })
+        self.physics.add_rigidbody(RigidBody::fixed(
+            Vec2::new(SIZE.w as f32 / 2.0, SIZE.h as f32),
+            Rectangle::new(Extent2::new(SIZE.w as f32, SIZE.h as f32 / 2.0)),
+        ));
     }
 
     /// Draw a rotatable sprite pointing towards the mouse.
