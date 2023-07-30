@@ -1,6 +1,8 @@
+use std::fmt::Display;
+
 use vek::{Aabr, Vec2};
 
-use crate::assets::Assets;
+use crate::{assets::Assets, math::Rotation};
 
 use super::collision::{
     sat::{CollisionResponse, NarrowCollision},
@@ -20,13 +22,19 @@ pub struct RigidBody {
     /// Velocity.
     vel: Vec2<f32>,
     /// Orientation in radians.
-    rot: f32,
+    rot: Rotation,
     /// Previous orientation.
-    prev_rot: f32,
+    prev_rot: Rotation,
     /// Angular velocity.
     ang_vel: f32,
     /// Inertia tensor, corresponds to mass in rotational terms.
+    ///
+    /// Torque needed for an angulare acceleration.
     inertia: f32,
+    /// Linear damping.
+    lin_damping: f32,
+    /// Angular damping.
+    ang_damping: f32,
     /// External forces.
     ext_force: Vec2<f32>,
     // External torque.
@@ -45,6 +53,7 @@ impl RigidBody {
         Self::with_external_force(
             pos,
             Vec2::new(0.0, assets.settings().physics.gravity),
+            assets.settings().physics.air_friction,
             mass,
             shape,
         )
@@ -54,17 +63,22 @@ impl RigidBody {
     pub fn with_external_force(
         pos: Vec2<f32>,
         ext_force: Vec2<f32>,
+        damping: f32,
         mass: f32,
         shape: Rectangle,
     ) -> Self {
         let inv_mass = mass.recip();
         let prev_pos = pos;
         let vel = Vec2::default();
-        let inertia = 1.0;
         let ang_vel = 0.0;
-        let rot = 0.0;
-        let prev_rot = 0.0;
+        let lin_damping = damping;
+        let ang_damping = damping;
+        let rot = Rotation::default();
+        let prev_rot = rot;
         let ext_torque = 0.0;
+
+        // https://en.wikipedia.org/wiki/List_of_moments_of_inertia
+        let inertia = mass * (shape.width().powi(2) + shape.height().powi(2)) / 12.0;
 
         Self {
             vel,
@@ -72,11 +86,13 @@ impl RigidBody {
             prev_pos,
             ext_force,
             ext_torque,
+            lin_damping,
             inv_mass,
             inertia,
             rot,
             prev_rot,
             ang_vel,
+            ang_damping,
             shape,
         }
     }
@@ -89,28 +105,34 @@ impl RigidBody {
 
         // Position update
         self.prev_pos = self.pos;
+
+        // Apply damping if applicable
+        if self.lin_damping != 1.0 {
+            self.vel *= 1.0 / (1.0 + dt * self.lin_damping);
+        }
+
+        // Apply external forces
         self.vel += dt * self.ext_force / self.inv_mass.recip();
         self.pos += dt * self.vel;
 
         // Rotation update
         self.prev_rot = self.rot;
-        // TODO: do something with the inertia tensor
 
-        // TODO: fix difference between rotations
-        //self.ang_vel += dt * self.inertia.recip() * self.ext_torque;
-        //self.rot += dt * self.ang_vel;
+        // Apply damping if applicable
+        if self.ang_damping != 1.0 {
+            self.ang_vel *= 1.0 / (1.0 + dt * self.ang_damping);
+        }
+
+        self.ang_vel += dt * self.inverse_inertia() * self.ext_torque;
+        self.rot += dt * self.ang_vel;
     }
 
     /// Last part of a single (sub-)step.
-    pub fn solve(&mut self, damping: f32, dt: f32) {
-        self.vel = ((self.pos - self.prev_pos) * damping) / dt;
+    pub fn solve(&mut self, dt: f32) {
+        self.vel = (self.pos - self.prev_pos) / dt;
 
-        // Construct the previous rotation from a sinus and cosinus to invert it
-        let (sin, cos) = self.prev_rot.sin_cos();
-        // Reconstruct as radians but inverted
-        let prev_rot_inv = (-sin).atan2(cos);
-
-        self.ang_vel = (self.rot * prev_rot_inv) / dt;
+        self.ang_vel = (self.rot - self.prev_rot).to_radians() / dt;
+        self.ang_vel = self.ang_vel.clamp(-0.1, 0.1);
     }
 
     /// Apply a force by moving the position, which will trigger velocity increments.
@@ -139,7 +161,23 @@ impl RigidBody {
 
     /// Rotation in radians.
     pub fn rotation(&self) -> f32 {
-        self.rot
+        self.rot.to_radians()
+    }
+
+    /// Calculate generalized inverse mass at a relative point along the normal vector.
+    pub fn inverse_mass_at_relative_point(&self, point: Vec2<f32>, normal: Vec2<f32>) -> f32 {
+        // Perpendicular dot product of `point` with `normal`
+        let perp_dot = (point.x * normal.y) - (point.y * normal.x);
+
+        self.inv_mass + self.inverse_inertia() * perp_dot.powi(2)
+    }
+
+    /// Calculate the update in rotation when a position change is applied at a specific point.
+    pub fn delta_rotation_at_point(&self, point: Vec2<f32>, impulse: Vec2<f32>) -> f32 {
+        // Perpendicular dot product of `point` with `normal`
+        let perp_dot = (point.x * impulse.y) - (point.y * impulse.x);
+
+        self.inverse_inertia() * perp_dot
     }
 
     /// Inverse of the mass.
@@ -152,14 +190,39 @@ impl RigidBody {
         self.inertia
     }
 
+    /// Inverse of the inertia tensor.
+    pub fn inverse_inertia(&self) -> f32 {
+        self.inertia.recip()
+    }
+
     /// Axis-aligned bounding rectangle.
     pub fn aabr(&self) -> Aabr<f32> {
-        self.shape.aabr(self.pos, self.rot)
+        self.shape.aabr(self.pos, self.rot.to_radians())
     }
 
     /// Check if it collides with another rigidbody.
     pub fn collides(&self, other: &RigidBody) -> Option<CollisionResponse> {
         self.shape
             .collide_rectangle(self.pos, self.rot, other.shape, other.pos, other.rot)
+    }
+
+    /// Rotate a point in local space.
+    pub fn rotate(&self, point: Vec2<f32>) -> Vec2<f32> {
+        self.rot.rotate(point)
+    }
+
+    /// Calculate the world position of a relative point on this body without rotation in mind.
+    pub fn local_to_world(&self, point: Vec2<f32>) -> Vec2<f32> {
+        // Then translate it to the position
+        self.pos + self.rotate(point)
+    }
+}
+
+impl Display for RigidBody {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "vel: ({}, {})", self.vel.x.round(), self.vel.y.round())?;
+        writeln!(f, "ang_vel: {}", self.ang_vel.round())?;
+
+        Ok(())
     }
 }

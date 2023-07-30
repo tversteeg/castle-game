@@ -17,4 +17,4 @@ substeps = 20
 # Gravity applied to everything
 gravity = 9.81
 # Damping applied to the velocity every timestep
-air_friction = 0.9998
+air_friction = 0.95

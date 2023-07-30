@@ -1,9 +1,12 @@
+#![feature(map_many_mut)]
+
 mod assets;
 mod camera;
 mod debug;
 mod font;
 mod game;
 mod input;
+mod math;
 mod physics;
 mod projectile;
 mod random;

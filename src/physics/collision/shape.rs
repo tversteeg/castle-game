@@ -1,5 +1,7 @@
 use vek::{Aabr, Extent2, Vec2};
 
+use crate::math::Rotation;
+
 use super::sat::{CollisionResponse, NarrowCollision, Projection};
 
 /// Orientable rectangle.
@@ -33,13 +35,11 @@ impl Rectangle {
     }
 
     /// Calculate the 4 corner points.
-    pub fn vertices(&self, pos: Vec2<f32>, rot: f32) -> [Vec2<f32>; 4] {
-        let (sin, cos) = rot.sin_cos();
-
-        let w_sin = self.half_size.w * sin;
-        let w_cos = self.half_size.w * cos;
-        let h_sin = self.half_size.h * sin;
-        let h_cos = self.half_size.h * cos;
+    pub fn vertices(&self, pos: Vec2<f32>, rot: Rotation) -> [Vec2<f32>; 4] {
+        let w_sin = self.half_size.w * rot.sin();
+        let w_cos = self.half_size.w * rot.cos();
+        let h_sin = self.half_size.h * rot.sin();
+        let h_cos = self.half_size.h * rot.cos();
 
         [
             pos + Vec2::new(-w_cos + h_sin, -w_sin - h_cos),
@@ -50,14 +50,33 @@ impl Rectangle {
     }
 
     /// Get the normal axes for each side.
-    pub fn normal_axes(rot: f32) -> [Vec2<f32>; 2] {
-        let (sin, cos) = rot.sin_cos();
+    pub fn normal_axes(rot: Rotation) -> [Vec2<f32>; 2] {
         // Normalized direction vector
-        let vec1 = Vec2::new(cos, sin);
+        let vec1 = rot.as_dir();
         // Perpendicular to the above
         let vec2 = Vec2::new(-vec1.y, vec1.x);
 
         [vec1, vec2]
+    }
+
+    /// Width of the shape.
+    pub fn width(&self) -> f32 {
+        self.half_size.w * 2.0
+    }
+
+    /// Width of the shape / 2.
+    pub fn half_width(&self) -> f32 {
+        self.half_size.w
+    }
+
+    /// Height of the shape.
+    pub fn height(&self) -> f32 {
+        self.half_size.h * 2.0
+    }
+
+    /// Height of the shape / 2.
+    pub fn half_height(&self) -> f32 {
+        self.half_size.h
     }
 }
 
@@ -65,10 +84,10 @@ impl NarrowCollision for Rectangle {
     fn collide_rectangle(
         &self,
         pos: Vec2<f32>,
-        rot: f32,
+        rot: Rotation,
         other_rect: Rectangle,
         other_pos: Vec2<f32>,
-        other_rot: f32,
+        other_rot: Rotation,
     ) -> Option<CollisionResponse> {
         // Get the perp axes of both
         let (a_axes, b_axes) = (
@@ -137,7 +156,7 @@ impl NarrowCollision for Rectangle {
 mod tests {
     use vek::{Extent2, Vec2};
 
-    use crate::physics::collision::sat::NarrowCollision;
+    use crate::{math::Rotation, physics::collision::sat::NarrowCollision};
 
     use super::Rectangle;
 
@@ -149,14 +168,14 @@ mod tests {
         let b = a;
 
         // Rotate one by 45 degrees
-        let (rot_a, rot_b) = (45.0f32.to_radians(), 0.0);
+        let (rot_a, rot_b) = (Rotation::from_degrees(45.0), Rotation::from_degrees(0.0));
         let (pos_a, pos_b) = (Vec2::new(50.0, 50.0), Vec2::new(100.0, 120.0));
 
         // There shouldn't be a collision
         assert_eq!(a.collide_rectangle(pos_a, rot_a, b, pos_b, rot_b), None);
 
         // Changing the rotations should create a collision
-        let (rot_a, rot_b) = (80.0f32.to_radians(), -45.0f32.to_radians());
+        let (rot_a, rot_b) = (Rotation::from_degrees(80.0), Rotation::from_degrees(-45.0));
         assert!(a.collide_rectangle(pos_a, rot_a, b, pos_b, rot_b).is_some());
 
         // Now lets move the second one closer to hit the first one

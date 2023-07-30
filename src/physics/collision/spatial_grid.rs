@@ -64,10 +64,10 @@ where
         Self { buckets }
     }
 
-    /// Flush all buckets returning a list of all matching pairs.
+    /// Flush all buckets returning an iterator of all matching pairs.
     ///
     /// The list of matching pairs doesn't contain the same pairs twice.
-    pub fn flush(&mut self) -> Vec<(I, I)> {
+    pub fn flush(&mut self) -> impl Iterator<Item = (I, I)> {
         // Resulting unique pairs
         let mut pairs = HashSet::new();
 
@@ -86,7 +86,7 @@ where
                 });
         }
 
-        pairs.into_iter().collect()
+        pairs.into_iter()
     }
 
     /// Store an entity AABB rectangle.
@@ -94,18 +94,22 @@ where
     /// This will fill all buckets that are colliding with this rectangle.
     ///
     /// Drops an entity when the bucket is full.
-    ///
-    /// Panics when the object is outside of the size of the grid.
     pub fn store_aabb(&mut self, pos: Vec2<u16>, size: Extent2<u16>, id: I) {
         let x_start = pos.x / STEP;
         let y_start = pos.y / STEP;
-        debug_assert!(x_start < Self::STEPPED_WIDTH);
-        debug_assert!(y_start < Self::STEPPED_HEIGHT);
 
-        let x_end = (pos.x + size.w) / STEP;
-        let y_end = (pos.y + size.h) / STEP;
-        debug_assert!(x_end < Self::STEPPED_WIDTH);
-        debug_assert!(y_end < Self::STEPPED_HEIGHT);
+        // Ignore rectangles at the edges
+        if x_start == 0 || y_start == 0 {
+            return;
+        }
+
+        let x_end = (pos.x.saturating_add(size.w)) / STEP;
+        let y_end = (pos.y.saturating_add(size.h)) / STEP;
+
+        // Ignore rectangles at the edges
+        if x_end >= Self::STEPPED_WIDTH || y_end >= Self::STEPPED_HEIGHT {
+            return;
+        }
 
         for y in y_start..=y_end {
             for x in x_start..=x_end {
@@ -222,7 +226,7 @@ mod tests {
         grid.store_entity(Vec2::new(0, 0), 2);
 
         // Get the entities back as a pair by flushing all buckets
-        let pairs = grid.flush();
+        let pairs = grid.flush().collect::<Vec<_>>();
         assert_eq!(pairs, [(0, 1)]);
 
         // Store 3 entities in the same bucket, the order here matters for which one is left of the tuple and which one right
@@ -231,7 +235,7 @@ mod tests {
         grid.store_entity(Vec2::new(16 + 3, 16), 2);
 
         // Get the entities back as pairs by flushing all buckets
-        let pairs = grid.flush();
+        let pairs = grid.flush().collect::<Vec<_>>();
         assert!(pairs.contains(&(0, 1)));
         assert!(pairs.contains(&(0, 2)));
         assert!(pairs.contains(&(1, 2)));
@@ -243,7 +247,7 @@ mod tests {
         grid.store_entity(Vec2::new(0, 0), 2);
 
         // Get the entities back as pairs by flushing all buckets
-        let pairs = grid.flush();
+        let pairs = grid.flush().collect::<Vec<_>>();
         assert!(!pairs.contains(&(0, 2)));
     }
 
@@ -261,16 +265,9 @@ mod tests {
         // Spawn multiple overlapping rectangles
         grid.store_aabb(Vec2::new(10, 10), Extent2::new(80, 20), 0);
         grid.store_aabb(Vec2::new(10, 29), Extent2::new(20, 70), 1);
-        grid.store_aabb(Vec2::new(0, 80), Extent2::new(99, 5), 2);
-        grid.store_aabb(Vec2::new(95, 0), Extent2::new(1, 99), 3);
-        grid.store_aabb(Vec2::new(50, 0), Extent2::new(1, 99), 4);
 
         // Get the entities back as pairs by flushing all buckets
-        let pairs = grid.flush();
+        let pairs = grid.flush().collect::<Vec<_>>();
         assert!(pairs.contains(&(0, 1)));
-        assert!(pairs.contains(&(0, 3)));
-        assert!(pairs.contains(&(1, 2)));
-        assert!(pairs.contains(&(2, 3)));
-        assert!(pairs.contains(&(2, 4)));
     }
 }

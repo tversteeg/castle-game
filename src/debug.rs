@@ -4,6 +4,7 @@ use crate::{
     assets::Assets,
     camera::Camera,
     input::Input,
+    math::Rotation,
     physics::{
         collision::{sat::NarrowCollision, shape::Rectangle},
         rigidbody::{RigidBody, RigidBodyIndex},
@@ -81,23 +82,11 @@ impl DebugDraw {
         // Store the mouse state
         self.mouse = input.mouse_pos;
 
-        // Apply gravity
-        self.physics
-            .apply_global_force(Vec2::new(0.0, assets.settings().projectile_gravity * dt));
-
         // Make the first rigidbody follow the mouse
         self.physics.set_position(
             self.rigidbodies[0],
             self.mouse.numcast().unwrap_or_default(),
         );
-
-        self.rigidbodies
-            .iter()
-            .enumerate()
-            .for_each(|(index, rigidbody)| {
-                self.physics
-                    .apply_rotational_force(*rigidbody, 0.01 * index as f32)
-            });
 
         // Update the physics.
         self.physics.step(dt, assets);
@@ -105,7 +94,8 @@ impl DebugDraw {
         // Keep track of all collisions in an ugly way
         self.rigidbodies_with_collisions = self
             .physics
-            .colliding_rigid_bodies_iter()
+            .colliding_rigid_bodies()
+            .into_iter()
             .flat_map(|(a, b, _)| std::iter::once(a).chain(std::iter::once(b)))
             .collect();
     }
@@ -133,12 +123,11 @@ impl DebugDraw {
         if self.screen == 1 || self.screen == 2 {
             // Draw physics sprites
             for rigidbody in self.rigidbodies.iter() {
-                let pos = self.physics.position(*rigidbody);
-                let rot = self.physics.rotation(*rigidbody);
+                let rigidbody = self.physics.rigidbody(*rigidbody);
 
                 self.render_rotatable_sprite(
-                    pos.numcast().unwrap_or_default(),
-                    rot,
+                    rigidbody.position().as_(),
+                    rigidbody.rotation(),
                     if self.screen == 1 {
                         "projectile.spear-1"
                     } else {
@@ -148,13 +137,27 @@ impl DebugDraw {
                     assets,
                 );
 
+                self.text(
+                    &format!("{rigidbody}"),
+                    rigidbody.position().as_(),
+                    canvas,
+                    assets,
+                );
+
                 // Draw AABR
                 //self.aabr(self.physics.aabr(*rigidbody), canvas, 0xFF00FF00);
             }
 
+            // Draw collisions
             for rigidbody in self.rigidbodies_with_collisions.iter() {
                 // Draw AABR
                 self.aabr(self.physics.aabr(*rigidbody), canvas, 0xFFFF0000);
+            }
+
+            // Draw attachment positions
+            for (a, b) in self.physics.debug_info_constraints() {
+                self.circle(a.as_(), canvas, 0xFFFF0000);
+                self.circle(b.as_(), canvas, 0xFFFF00FF);
             }
         } else if self.screen == 3 {
             // Draw rotating sprites
@@ -177,9 +180,13 @@ impl DebugDraw {
             self.render_rotatable_sprite(pos_a, rot_a, sprite_path, canvas, assets);
             self.render_rotatable_sprite(pos_b, rot_b, sprite_path, canvas, assets);
 
-            if let Some(response) =
-                shape.collide_rectangle(pos_a.as_(), rot_a, shape, pos_b.as_(), rot_b)
-            {
+            if let Some(response) = shape.collide_rectangle(
+                pos_a.as_(),
+                Rotation::from_radians(rot_a),
+                shape,
+                pos_b.as_(),
+                Rotation::from_radians(rot_b),
+            ) {
                 self.vector(response.contact.as_(), response.mtv, canvas, assets);
                 //self.circle(response.contact.as_(), canvas, 0xFFFF0000);
             }
@@ -198,11 +205,12 @@ impl DebugDraw {
         let mut x = 50.0;
         self.rigidbodies = [(); 5]
             .iter()
-            .map(|_| {
-                x += 10.0;
+            .enumerate()
+            .map(|(i, _)| {
+                x += 30.0;
                 self.physics.add_rigidbody(RigidBody::new(
                     Vec2::new(SIZE.w as f32 / 2.0 + x, SIZE.h as f32 / 2.0),
-                    1.0,
+                    if i == 0 { std::f32::INFINITY } else { 1.0 },
                     shape,
                     assets,
                 ))
@@ -211,9 +219,13 @@ impl DebugDraw {
 
         // Connect each rigidbody with the previous to create a rope
         for i in 1..self.rigidbodies.len() {
+            // Offset the attachments to prevent collisions
             self.physics.add_distance_constraint(
-                [self.rigidbodies[i - 1], self.rigidbodies[i]],
-                30.0,
+                self.rigidbodies[i - 1],
+                Vec2::new(-shape.half_width() - 10.0, 0.0),
+                self.rigidbodies[i],
+                Vec2::new(shape.half_width() + 10.0, 0.0),
+                5.0,
                 0.0001,
             );
         }
@@ -228,24 +240,22 @@ impl DebugDraw {
         let shape = Rectangle::new(Extent2::new(sprite.width() as f32, sprite.height() as f32));
 
         // Create a nice pyramid
-        self.rigidbodies = [
-            (60.0, 40.0),
-            (50.0, 60.0),
-            (80.0, 60.0),
-            (40.0, 80.0),
-            (60.0, 80.0),
-            (90.0, 80.0),
-        ]
-        .iter()
-        .map(|pos| {
-            self.physics
-                .add_rigidbody(RigidBody::new((*pos).into(), 1.0, shape, assets))
-        })
-        .collect();
+        self.rigidbodies = [(0, -20), (-10, 0), (10, 0), (-20, 20), (0, 20), (20, 20)]
+            .iter()
+            .map(|(x, y)| {
+                self.physics.add_rigidbody(RigidBody::new(
+                    (Vec2::new(*x, *y) + Vec2::new(SIZE.w as i32 / 2, SIZE.h as i32 / 2)).as_(),
+                    1.0,
+                    shape,
+                    assets,
+                ))
+            })
+            .collect();
 
         // Don't let them fall through the ground
         self.rigidbodies.iter().for_each(|rigidbody| {
-            self.physics.add_ground_constraint(*rigidbody, 200.0);
+            self.physics
+                .add_ground_constraint(*rigidbody, SIZE.h as f32 / 2.0 + 50.0);
         })
     }
 
@@ -317,6 +327,11 @@ impl DebugDraw {
     /// Draw a single point.
     fn point(&self, pos: Vec2<i32>, canvas: &mut [u32], color: u32) {
         let pos = pos.as_::<usize>();
+
+        if pos.x >= SIZE.w || pos.y >= SIZE.h {
+            return;
+        }
+
         canvas[pos.x + pos.y * SIZE.w] = color;
     }
 

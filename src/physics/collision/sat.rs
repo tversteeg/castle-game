@@ -2,6 +2,8 @@
 
 use vek::Vec2;
 
+use crate::math::Rotation;
+
 use super::shape::Rectangle;
 
 /// Make a shape implement collision detection with other shapes.
@@ -14,10 +16,10 @@ pub trait NarrowCollision {
     fn collide_rectangle(
         &self,
         pos: Vec2<f32>,
-        rot: f32,
+        rot: Rotation,
         other_rect: Rectangle,
         other_pos: Vec2<f32>,
-        other_rot: f32,
+        other_rot: Rotation,
     ) -> Option<CollisionResponse>;
 }
 
