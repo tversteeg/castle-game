@@ -85,7 +85,7 @@ impl<
         let broad_phase = {
             puffin::profile_scope!("Narrow phase collision detection");
             // Do a broad phase collision check to get possible colliding pairs
-            self.collision_broad_phase_vec()
+            self.collision_broad_phase_vec(dt)
         };
 
         for _ in 0..substeps {
@@ -207,7 +207,7 @@ impl<
         puffin::profile_function!();
 
         // Broad phase
-        let broad_phase = self.collision_broad_phase_vec();
+        let broad_phase = self.collision_broad_phase_vec(0.0);
 
         // Narrow phase
         self.collision_narrow_phase_vec(&broad_phase)
@@ -229,16 +229,13 @@ impl<
     /// Do a broad-phase collision pass to get possible pairs.
     ///
     /// Returns a list of pairs that might collide.
-    fn collision_broad_phase_vec(&mut self) -> Vec<(RigidBodyIndex, RigidBodyIndex)> {
+    fn collision_broad_phase_vec(&mut self, dt: f32) -> Vec<(RigidBodyIndex, RigidBodyIndex)> {
         puffin::profile_function!();
 
         // First put all rigid bodies in the spatial grid
         self.rigidbodies.iter().for_each(|(index, rigidbody)| {
-            self.collision_grid.store_aabb(
-                rigidbody.position().as_(),
-                rigidbody.aabr().size().as_(),
-                *index,
-            )
+            self.collision_grid
+                .store_aabr(rigidbody.predicted_aabr(dt).as_(), *index)
         });
 
         // Then flush it to get the rough list of collision pairs

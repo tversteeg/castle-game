@@ -291,7 +291,10 @@ impl DebugDraw {
 
     /// Draw a bounding rectangle.
     fn aabr(&self, aabr: Aabr<f32>, canvas: &mut [u32], color: u32) {
-        let aabr: Aabr<usize> = aabr.as_();
+        let aabr: Aabr<usize> = aabr.as_().intersection(Aabr {
+            min: Vec2::zero(),
+            max: Vec2::new(SIZE.w - 1, SIZE.h - 1),
+        });
 
         for y in aabr.min.y.clamp(0, SIZE.h)..aabr.max.y.clamp(0, SIZE.h) {
             canvas[aabr.min.x + y * SIZE.h] = color;

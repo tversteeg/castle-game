@@ -6,7 +6,7 @@ use std::{
 
 use arrayvec::ArrayVec;
 use itertools::Itertools;
-use vek::{Extent2, Vec2};
+use vek::{Aabr, Extent2, Vec2};
 
 /// Spatial hash grid with fixed buckets divided over an area so potential collision pairs can be found quickly.
 ///
@@ -93,22 +93,21 @@ where
         pairs.into_iter()
     }
 
-    /// Store an entity AABB rectangle.
+    /// Store an entity AABR rectangle.
     ///
     /// This will fill all buckets that are colliding with this rectangle.
     ///
     /// Drops an entity when the bucket is full.
-    pub fn store_aabb(&mut self, pos: Vec2<u16>, size: Extent2<u16>, id: I) {
+    pub fn store_aabr(&mut self, aabr: Aabr<u16>, id: I) {
         puffin::profile_function!();
 
-        let x_start = pos.x / STEP;
-        let y_start = pos.y / STEP;
+        let start = aabr.min / STEP;
+        let mut end = aabr.max / STEP;
+        end.x = end.x.min(Self::STEPPED_WIDTH - 1);
+        end.y = end.y.min(Self::STEPPED_WIDTH - 1);
 
-        let x_end = (pos.x.saturating_add(size.w)).min(WIDTH - 1) / STEP;
-        let y_end = (pos.y.saturating_add(size.h)).min(HEIGHT - 1) / STEP;
-
-        for y in y_start..=y_end {
-            for x in x_start..=x_end {
+        for y in start.y..=end.y {
+            for x in start.x..=end.x {
                 self.add_to_bucket(x + y * Self::STEPPED_WIDTH, id);
             }
         }
@@ -259,8 +258,8 @@ mod tests {
         let mut grid = SpatialGrid::<u8, WIDTH, HEIGHT, STEP, BUCKET, SIZE>::new();
 
         // Spawn multiple overlapping rectangles
-        grid.store_aabb(Vec2::new(10, 10), Extent2::new(80, 20), 0);
-        grid.store_aabb(Vec2::new(10, 29), Extent2::new(20, 70), 1);
+        grid.store_aabr(Vec2::new(10, 10), Extent2::new(80, 20), 0);
+        grid.store_aabr(Vec2::new(10, 29), Extent2::new(20, 70), 1);
 
         // Get the entities back as pairs by flushing all buckets
         let pairs = grid.flush().collect::<Vec<_>>();

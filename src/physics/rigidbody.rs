@@ -9,6 +9,9 @@ use super::collision::{
     shape::Rectangle,
 };
 
+/// How far away we predict the impulses to move us for checking the collision during the next full deltatime.
+const PREDICTED_POSITION_MULTIPLIER: f32 = 2.0;
+
 /// Rigidbody index type.
 pub type RigidBodyIndex = u32;
 
@@ -232,6 +235,22 @@ impl RigidBody {
     /// Axis-aligned bounding rectangle.
     pub fn aabr(&self) -> Aabr<f32> {
         self.shape.aabr(self.pos, self.rot.to_radians())
+    }
+
+    /// Axis-aligned bounding rectangle with a predicted future position added.
+    ///
+    /// WARNING: `dt` is not from the substep but from the full physics step.
+    pub fn predicted_aabr(&self, dt: f32) -> Aabr<f32> {
+        // Start with the future aabr
+        let mut aabr = self.shape.aabr(
+            self.pos + self.vel * PREDICTED_POSITION_MULTIPLIER * dt,
+            self.rot.to_radians(),
+        );
+
+        // Add the current aabr
+        aabr.expand_to_contain(self.aabr());
+
+        aabr
     }
 
     /// Check if it collides with another rigidbody.
