@@ -286,7 +286,7 @@ impl DebugDraw {
 
     /// Render text.
     fn text(&self, text: &str, pos: Vec2<i32>, canvas: &mut [u32]) {
-        crate::font("font.torus-sans").render(canvas, text, pos.x, pos.y);
+        crate::font("font.debug").render(canvas, text, pos.x, pos.y);
     }
 
     /// Draw a bounding rectangle.
