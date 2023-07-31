@@ -13,7 +13,7 @@ projectile_gravity = 2.5
 # Physics engine specific settings
 [physics]
 # How many substeps are taken in a single step
-substeps = 20
+substeps = 12
 # Gravity applied to everything
 gravity = 9.81
 # Damping applied to the velocity every timestep

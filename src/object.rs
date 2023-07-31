@@ -1,4 +1,4 @@
-use std::{borrow::Cow, ops::Deref};
+use std::ops::Deref;
 
 use assets_manager::{
     loader::{Loader, TomlLoader},

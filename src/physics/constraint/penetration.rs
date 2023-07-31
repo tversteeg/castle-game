@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use hashbrown::HashMap;
 use vek::Vec2;
 
 use crate::physics::{
@@ -43,17 +42,11 @@ impl PenetrationConstraint {
 
 impl Constraint for PenetrationConstraint {
     fn solve(&mut self, rigidbodies: &mut HashMap<RigidBodyIndex, RigidBody>, dt: f32) {
-        let [mut a, mut b] = rigidbodies
+        let [a, b] = rigidbodies
             .get_many_mut([&self.a, &self.b])
             .expect("Couldn't get rigidbodies for penetration constraint");
 
-        self.apply(
-            &mut a,
-            self.response.contact,
-            &mut b,
-            self.response.contact,
-            dt,
-        );
+        self.apply(a, self.response.contact, b, self.response.contact, dt);
     }
     fn lambda(&self) -> f32 {
         self.lambda

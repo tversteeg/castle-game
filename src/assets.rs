@@ -1,10 +1,6 @@
-use assets_manager::{Asset, AssetCache, AssetGuard, Compound};
+use assets_manager::{AssetCache, AssetGuard, Compound};
 
-use crate::{
-    font::Font,
-    game::Settings,
-    sprite::{RotatableSprite, Sprite},
-};
+use crate::game::Settings;
 
 /// All external data.
 #[cfg(not(target_arch = "wasm32"))]

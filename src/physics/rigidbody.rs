@@ -146,7 +146,7 @@ impl RigidBody {
         }
 
         // Apply external forces
-        self.vel += dt * self.ext_force / self.inv_mass.recip();
+        self.vel += (dt * self.ext_force) / self.inv_mass.recip();
         self.pos += dt * self.vel;
 
         // Rotation update

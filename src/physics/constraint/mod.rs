@@ -1,11 +1,10 @@
 pub mod distance;
 pub mod penetration;
 
-use std::collections::HashMap;
-
+use hashbrown::HashMap;
 use vek::Vec2;
 
-use super::{collision::sat::CollisionResponse, RigidBody, RigidBodyIndex};
+use super::{RigidBody, RigidBodyIndex};
 
 /// Constraint index type.
 pub type ConstraintIndex = u32;

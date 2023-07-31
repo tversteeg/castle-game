@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use hashbrown::HashMap;
 use vek::Vec2;
 
 use crate::physics::rigidbody::{RigidBody, RigidBodyIndex};
@@ -87,11 +86,11 @@ impl DistanceConstraint {
 
 impl Constraint for DistanceConstraint {
     fn solve(&mut self, rigidbodies: &mut HashMap<RigidBodyIndex, RigidBody>, dt: f32) {
-        let [mut a, mut b] = rigidbodies
+        let [a, b] = rigidbodies
             .get_many_mut([&self.a, &self.b])
             .expect("Couldn't get rigidbodies for distance constraint");
 
-        self.apply(&mut a, self.a_attachment, &mut b, self.b_attachment, dt);
+        self.apply(a, self.a_attachment, b, self.b_attachment, dt);
     }
 
     fn lambda(&self) -> f32 {

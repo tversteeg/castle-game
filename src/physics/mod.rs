@@ -6,11 +6,10 @@ pub mod collision;
 pub mod constraint;
 pub mod rigidbody;
 
-use std::collections::HashMap;
+use hashbrown::HashMap;
 
 use serde::Deserialize;
-use vek::{Aabr, Vec2};
-use web_time::Duration;
+use vek::Vec2;
 
 use self::{
     collision::{sat::CollisionResponse, spatial_grid::SpatialGrid},
@@ -77,33 +76,56 @@ impl<
         // Deltatime for each sub-step
         let sub_dt = dt / substeps as f32;
 
-        // Reset every constraint for calculating the sub-steps since they are iterative
-        reset_constraints(&mut self.dist_constraints);
+        {
+            puffin::profile_scope!("Reset constraints");
+            // Reset every constraint for calculating the sub-steps since they are iterative
+            reset_constraints(&mut self.dist_constraints);
+        }
 
-        // Do a broad phase collision check to get possible colliding pairs
-        let broad_phase = self.collision_broad_phase_vec();
+        let broad_phase = {
+            puffin::profile_scope!("Narrow phase collision detection");
+            // Do a broad phase collision check to get possible colliding pairs
+            self.collision_broad_phase_vec()
+        };
 
         for _ in 0..substeps {
             puffin::profile_scope!("Substep");
 
-            // Update posititons and velocity of all rigidbodies
-            self.rigidbodies
-                .iter_mut()
-                .for_each(|(_, rigidbody)| rigidbody.integrate(sub_dt));
+            {
+                puffin::profile_scope!("Integrate rigidbodies");
 
-            // Apply constraints for the different types
-            apply_constraints(&mut self.dist_constraints, &mut self.rigidbodies, sub_dt);
+                // Update posititons and velocity of all rigidbodies
+                self.rigidbodies
+                    .iter_mut()
+                    .for_each(|(_, rigidbody)| rigidbody.integrate(sub_dt));
+            }
 
-            // Do a narrow-phase collision check
-            let collisions = self.collision_narrow_phase_vec(&broad_phase);
-            // Resolve collisions into new constraints
-            let mut penetration_constraints = self.handle_collisions(&collisions);
-            apply_constraints_vec(&mut penetration_constraints, &mut self.rigidbodies, sub_dt);
+            {
+                puffin::profile_scope!("Apply distance constraints");
+                // Apply constraints for the different types
+                apply_constraints(&mut self.dist_constraints, &mut self.rigidbodies, sub_dt);
+            }
 
-            // Finalize velocity based on position offset
-            self.rigidbodies
-                .iter_mut()
-                .for_each(|(_, rigidbody)| rigidbody.solve(sub_dt));
+            let mut penetration_constraints = {
+                puffin::profile_scope!("Narrow phase collision detection");
+                // Do a narrow-phase collision check
+                let collisions = self.collision_narrow_phase_vec(&broad_phase);
+                // Resolve collisions into new constraints
+                self.handle_collisions(&collisions)
+            };
+
+            {
+                puffin::profile_scope!("Apply penetration constraints");
+                apply_constraints_vec(&mut penetration_constraints, &mut self.rigidbodies, sub_dt);
+            }
+
+            {
+                puffin::profile_scope!("Solve rigidbodies");
+                // Finalize velocity based on position offset
+                self.rigidbodies
+                    .iter_mut()
+                    .for_each(|(_, rigidbody)| rigidbody.solve(sub_dt));
+            }
         }
     }
 
@@ -162,24 +184,11 @@ impl<
 
     /// Reference to a rigid body.
     pub fn rigidbody(&self, rigidbody: RigidBodyIndex) -> &RigidBody {
+        puffin::profile_function!();
+
         self.rigidbodies
             .get(&rigidbody)
             .expect("Rigid body does not exist")
-    }
-
-    /// Global position of a rigidbody.
-    pub fn position(&self, rigidbody: RigidBodyIndex) -> Vec2<f32> {
-        self.rigidbodies[&rigidbody].position()
-    }
-
-    /// Rotation of a rigidbody as radians.
-    pub fn rotation(&self, rigidbody: RigidBodyIndex) -> f32 {
-        self.rigidbodies[&rigidbody].rotation()
-    }
-
-    /// Axis-aligned bounding rectangle of a a rigidbody.
-    pub fn aabr(&self, rigidbody: RigidBodyIndex) -> Aabr<f32> {
-        self.rigidbodies[&rigidbody].aabr()
     }
 
     /// Calculate all pairs of indices for colliding rigid bodies.
@@ -241,7 +250,7 @@ impl<
     /// Returns a list of pairs with collision information.
     fn collision_narrow_phase_vec(
         &mut self,
-        collision_pairs: &Vec<(RigidBodyIndex, RigidBodyIndex)>,
+        collision_pairs: &[(RigidBodyIndex, RigidBodyIndex)],
     ) -> Vec<(RigidBodyIndex, RigidBodyIndex, CollisionResponse)> {
         puffin::profile_function!();
 
@@ -249,8 +258,8 @@ impl<
         collision_pairs
             .iter()
             .filter_map(|(a, b)| {
-                self.rigidbodies[&a]
-                    .collides(&self.rigidbodies[&b])
+                self.rigidbodies[a]
+                    .collides(&self.rigidbodies[b])
                     .map(|response| (*a, *b, response))
             })
             .collect()
@@ -258,6 +267,8 @@ impl<
 
     /// Debug information for all constraints.
     pub fn debug_info_constraints(&self) -> Vec<(Vec2<f32>, Vec2<f32>)> {
+        puffin::profile_function!();
+
         self.dist_constraints
             .iter()
             .map(|(_, dist_constraint)| dist_constraint.attachments_world(&self.rigidbodies))
@@ -295,7 +306,7 @@ fn apply_constraints<T>(
 
 /// Apply a type of constraints as an iterator to all rigidbodies.
 fn apply_constraints_vec<T>(
-    constraints: &mut Vec<T>,
+    constraints: &mut [T],
     rigidbodies: &mut HashMap<RigidBodyIndex, RigidBody>,
     dt: f32,
 ) where

@@ -66,6 +66,8 @@ impl DebugDraw {
 
     /// Update the debug state.
     pub fn update(&mut self, input: &Input, dt: f32) {
+        puffin::profile_function!();
+
         // When space is released
         if !input.space_pressed && self.previous_space_pressed {
             self.screen += 1;
@@ -106,6 +108,8 @@ impl DebugDraw {
 
     /// Draw things for debugging purposes.
     pub fn render(&self, canvas: &mut [u32]) {
+        puffin::profile_function!();
+
         if self.screen == 0 {
             return;
         }
@@ -144,7 +148,11 @@ impl DebugDraw {
             // Draw collisions
             for rigidbody in self.rigidbodies_with_collisions.iter() {
                 // Draw AABR
-                self.aabr(self.physics.aabr(*rigidbody), canvas, 0xFFFF0000);
+                self.aabr(
+                    self.physics.rigidbody(*rigidbody).aabr(),
+                    canvas,
+                    0xFFFF0000,
+                );
             }
 
             // Draw attachment positions
@@ -196,7 +204,7 @@ impl DebugDraw {
         self.rigidbodies = [(); 5]
             .iter()
             .enumerate()
-            .map(|(i, _)| {
+            .map(|(_i, _)| {
                 x += 30.0;
                 self.physics.add_rigidbody(
                     object.rigidbody(Vec2::new(SIZE.w as f32 / 2.0 + x, SIZE.h as f32 / 2.0)),

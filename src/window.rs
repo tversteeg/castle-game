@@ -13,7 +13,7 @@ use crate::input::Input;
 pub async fn run<G, U, R>(
     game_state: G,
     size: Extent2<usize>,
-    fps: u32,
+    updates_per_second: u32,
     mut update: U,
     mut render: R,
 ) -> Result<()>
@@ -62,9 +62,15 @@ where
         event_loop,
         window,
         (game_state, pixels, Input::default()),
-        fps,
-        (fps as f64).recip(),
-        move |g| update(&mut g.game.0, &g.game.2, 0.1),
+        updates_per_second,
+        0.1,
+        move |g| {
+            update(
+                &mut g.game.0,
+                &g.game.2,
+                (updates_per_second as f32).recip(),
+            )
+        },
         move |g| {
             let frame_time = g.last_frame_time();
             render(&mut g.game.0, &mut buffer, frame_time as f32);

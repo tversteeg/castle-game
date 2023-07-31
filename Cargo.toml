@@ -30,6 +30,7 @@ assets_manager = { version = "0.10.2", features = ["embedded", "hot-reloading", 
 serde = "1.0.179"
 arrayvec = "0.7.4"
 itertools = "0.11.0"
+hashbrown = "0.14.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1.29.1", features = ["macros", "sync", "rt-multi-thread"] }
@@ -44,7 +45,7 @@ wasm-bindgen-futures = "0.4.37"
 console_log = { version = "1.0.0", features = ["wasm-bindgen", "color"] }
 console_error_panic_hook = "0.1.7"
 fastrand = { version = "2.0.0", default-features = false, features = ["js"] }
-profiling = "1.0.8"
+puffin = "0.16.0"
 
 [workspace]
 members = ["run-wasm"]

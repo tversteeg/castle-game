@@ -1,5 +1,3 @@
-#![feature(map_many_mut)]
-
 mod assets;
 mod camera;
 mod debug;
@@ -20,7 +18,7 @@ mod window;
 use std::sync::OnceLock;
 
 use assets::Assets;
-use assets_manager::{Asset, AssetGuard, Compound};
+use assets_manager::{AssetGuard, Compound};
 use font::Font;
 use game::{GameState, Settings};
 use miette::Result;
@@ -31,8 +29,8 @@ use vek::Extent2;
 
 /// Window size.
 pub const SIZE: Extent2<usize> = Extent2::new(360, 360);
-/// Frames per second of the render loop.
-const FPS: u32 = 60;
+/// Updates per second of the update loop.
+const UPDATES_PER_SECOND: u32 = 60;
 
 /// The assets as a 'static reference.
 pub static ASSETS: OnceLock<Assets> = OnceLock::new();
@@ -84,7 +82,7 @@ async fn run() -> Result<()> {
     window::run(
         state,
         SIZE,
-        FPS,
+        UPDATES_PER_SECOND,
         |g, input, dt| {
             puffin::profile_scope!("Update");
 
@@ -127,7 +125,7 @@ fn main() {
         // Run puffin HTTP profiling server
         let server_addr = format!("0.0.0.0:{}", puffin_http::DEFAULT_PORT);
         let _puffin_server = puffin_http::Server::new(&server_addr).unwrap();
-        println!("Puffin profiling server running at '{server_addr}':\n\tpuffin_viewer --url 127.0.0.1:{}", puffin_http::DEFAULT_PORT);
+        println!("Puffin profiling server running at '{server_addr}', view with:\n\tpuffin_viewer --url 127.0.0.1:{}", puffin_http::DEFAULT_PORT);
 
         // Enable profiling
         puffin::set_scopes_on(true);
