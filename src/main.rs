@@ -7,6 +7,7 @@ mod font;
 mod game;
 mod input;
 mod math;
+mod object;
 mod physics;
 mod projectile;
 mod random;
@@ -19,8 +20,11 @@ mod window;
 use std::sync::OnceLock;
 
 use assets::Assets;
-use game::GameState;
+use assets_manager::{Asset, AssetGuard, Compound};
+use font::Font;
+use game::{GameState, Settings};
 use miette::Result;
+use sprite::{RotatableSprite, Sprite};
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::runtime::Runtime;
 use vek::Extent2;
@@ -31,7 +35,43 @@ pub const SIZE: Extent2<usize> = Extent2::new(360, 360);
 const FPS: u32 = 60;
 
 /// The assets as a 'static reference.
-static ASSETS: OnceLock<Assets> = OnceLock::new();
+pub static ASSETS: OnceLock<Assets> = OnceLock::new();
+
+/// Load an generic asset.
+pub fn asset<T>(path: &str) -> AssetGuard<T>
+where
+    T: Compound,
+{
+    puffin::profile_function!();
+
+    ASSETS
+        .get()
+        .expect("Asset handling not initialized yet")
+        .asset(path)
+}
+
+/// Load the global settings.
+pub fn settings() -> AssetGuard<'static, Settings> {
+    ASSETS
+        .get()
+        .expect("Asset handling not initialized yet")
+        .settings()
+}
+
+/// Load a sprite.
+pub fn sprite(path: &str) -> AssetGuard<Sprite> {
+    crate::asset(path)
+}
+
+/// Load a rotatable sprite.
+pub fn rotatable_sprite(path: &str) -> AssetGuard<RotatableSprite> {
+    crate::asset(path)
+}
+
+/// Load a font.
+pub fn font(path: &str) -> AssetGuard<Font> {
+    crate::asset(path)
+}
 
 async fn run() -> Result<()> {
     // Initialize the asset loader
@@ -39,21 +79,32 @@ async fn run() -> Result<()> {
     assets.enable_hot_reloading();
 
     // Construct the game
-    let state = GameState::new(assets);
+    let state = GameState::new();
 
     window::run(
         state,
         SIZE,
         FPS,
         |g, input, dt| {
+            puffin::profile_scope!("Update");
+
             // Update the game
             g.update(input, dt);
+
+            puffin::GlobalProfiler::lock().new_frame();
         },
         |g, buffer, frame_time| {
-            buffer.fill(0);
+            {
+                puffin::profile_scope!("Clear pixels");
+                buffer.fill(0);
+            }
 
-            // Draw the game
-            g.render(buffer, frame_time);
+            {
+                puffin::profile_scope!("Render");
+
+                // Draw the game
+                g.render(buffer, frame_time);
+            }
         },
     )
     .await?;
@@ -73,6 +124,14 @@ fn main() {
 
     #[cfg(not(target_arch = "wasm32"))]
     {
+        // Run puffin HTTP profiling server
+        let server_addr = format!("0.0.0.0:{}", puffin_http::DEFAULT_PORT);
+        let _puffin_server = puffin_http::Server::new(&server_addr).unwrap();
+        println!("Puffin profiling server running at '{server_addr}':\n\tpuffin_viewer --url 127.0.0.1:{}", puffin_http::DEFAULT_PORT);
+
+        // Enable profiling
+        puffin::set_scopes_on(true);
+
         let rt = Runtime::new().unwrap();
         rt.block_on(async { run().await.unwrap() });
     }

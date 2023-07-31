@@ -10,8 +10,7 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 use vek::{Aabr, Vec2};
-
-use crate::assets::Assets;
+use web_time::Duration;
 
 use self::{
     collision::{sat::CollisionResponse, spatial_grid::SpatialGrid},
@@ -69,8 +68,10 @@ impl<
     }
 
     /// Simulate a single step.
-    pub fn step(&mut self, dt: f32, assets: &Assets) {
-        let settings = &assets.settings().physics;
+    pub fn step(&mut self, dt: f32) {
+        puffin::profile_function!(format!("{dt}"));
+
+        let settings = &crate::settings().physics;
         let substeps = settings.substeps;
 
         // Deltatime for each sub-step
@@ -83,6 +84,8 @@ impl<
         let broad_phase = self.collision_broad_phase_vec();
 
         for _ in 0..substeps {
+            puffin::profile_scope!("Substep");
+
             // Update posititons and velocity of all rigidbodies
             self.rigidbodies
                 .iter_mut()
@@ -192,6 +195,8 @@ impl<
     pub fn colliding_rigid_bodies(
         &mut self,
     ) -> Vec<(RigidBodyIndex, RigidBodyIndex, CollisionResponse)> {
+        puffin::profile_function!();
+
         // Broad phase
         let broad_phase = self.collision_broad_phase_vec();
 
@@ -204,6 +209,8 @@ impl<
         &mut self,
         collisions: &[(RigidBodyIndex, RigidBodyIndex, CollisionResponse)],
     ) -> Vec<PenetrationConstraint> {
+        puffin::profile_function!();
+
         collisions
             .iter()
             .map(|(a, b, response)| PenetrationConstraint::new([*a, *b], response.clone()))
@@ -214,6 +221,8 @@ impl<
     ///
     /// Returns a list of pairs that might collide.
     fn collision_broad_phase_vec(&mut self) -> Vec<(RigidBodyIndex, RigidBodyIndex)> {
+        puffin::profile_function!();
+
         // First put all rigid bodies in the spatial grid
         self.rigidbodies.iter().for_each(|(index, rigidbody)| {
             self.collision_grid.store_aabb(
@@ -234,6 +243,8 @@ impl<
         &mut self,
         collision_pairs: &Vec<(RigidBodyIndex, RigidBodyIndex)>,
     ) -> Vec<(RigidBodyIndex, RigidBodyIndex, CollisionResponse)> {
+        puffin::profile_function!();
+
         // Narrow-phase with SAT
         collision_pairs
             .iter()
@@ -259,6 +270,8 @@ fn reset_constraints<T>(constraints: &mut HashMap<ConstraintIndex, T>)
 where
     T: Constraint,
 {
+    puffin::profile_function!();
+
     for (_, constraint) in constraints.iter_mut() {
         constraint.reset();
     }
@@ -272,6 +285,8 @@ fn apply_constraints<T>(
 ) where
     T: Constraint,
 {
+    puffin::profile_function!();
+
     for (_, constraint) in constraints.iter_mut() {
         // Solve the constraints
         constraint.solve(rigidbodies, dt);
@@ -286,6 +301,8 @@ fn apply_constraints_vec<T>(
 ) where
     T: Constraint,
 {
+    puffin::profile_function!();
+
     // Solve the constraints
     constraints
         .iter_mut()

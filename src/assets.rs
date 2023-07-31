@@ -1,4 +1,4 @@
-use assets_manager::{Asset, AssetCache, AssetGuard};
+use assets_manager::{Asset, AssetCache, AssetGuard, Compound};
 
 use crate::{
     font::Font,
@@ -31,21 +31,6 @@ impl Assets {
         Self(asset_cache)
     }
 
-    /// Load a sprite.
-    pub fn sprite(&self, path: &str) -> AssetGuard<Sprite> {
-        self.0.load_expect(path).read()
-    }
-
-    /// Load a rotatable sprite.
-    pub fn rotatable_sprite(&self, path: &str) -> AssetGuard<RotatableSprite> {
-        self.0.load_expect(path).read()
-    }
-
-    /// Load a font.
-    pub fn font(&self, path: &str) -> AssetGuard<Font> {
-        self.0.load_expect(path).read()
-    }
-
     /// Load the settings.
     pub fn settings(&self) -> AssetGuard<Settings> {
         self.0.load_expect("settings").read()
@@ -54,7 +39,7 @@ impl Assets {
     /// Load an generic asset.
     pub fn asset<T>(&self, path: &str) -> AssetGuard<T>
     where
-        T: Asset,
+        T: Compound,
     {
         self.0.load_expect(path).read()
     }

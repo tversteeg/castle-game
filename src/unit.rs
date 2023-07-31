@@ -3,8 +3,7 @@ use serde::Deserialize;
 use vek::Vec2;
 
 use crate::{
-    assets::Assets, camera::Camera, projectile::Projectile, random::RandomRangeF32,
-    terrain::Terrain, timer::Timer,
+    camera::Camera, projectile::Projectile, random::RandomRangeF32, terrain::Terrain, timer::Timer,
 };
 
 /// All unit types.
@@ -15,15 +14,15 @@ pub enum UnitType {
 }
 
 impl UnitType {
-    /// Settings for to load for this type.
-    pub fn settings(self, assets: &Assets) -> AssetGuard<Settings> {
+    /// Settings path to load for this type.
+    pub fn settings(&self) -> AssetGuard<Settings> {
         // Settings asset path
         let path = match self {
             Self::PlayerSpear => "unit.spear",
             Self::EnemySpear => "unit.enemy-spear",
         };
 
-        assets.asset(path)
+        crate::asset(path)
     }
 }
 
@@ -42,8 +41,8 @@ pub struct Unit {
 
 impl Unit {
     /// Create a new unit.
-    pub fn new(pos: Vec2<f32>, r#type: UnitType, assets: &'static Assets) -> Self {
-        let projectile_timer = Timer::new(r#type.settings(assets).projectile_spawn_interval);
+    pub fn new(pos: Vec2<f32>, r#type: UnitType) -> Self {
+        let projectile_timer = Timer::new(r#type.settings().projectile_spawn_interval);
 
         let hide_hands_delay = 0.0;
 
@@ -58,12 +57,9 @@ impl Unit {
     /// Move the unit.
     ///
     /// When a projectile is returned one is spawned.
-    pub fn update(
-        &mut self,
-        terrain: &Terrain,
-        dt: f32,
-        assets: &'static Assets,
-    ) -> Option<Projectile> {
+    pub fn update(&mut self, terrain: &Terrain, dt: f32) -> Option<Projectile> {
+        puffin::profile_function!();
+
         if !terrain.point_collides(self.pos.numcast().unwrap_or_default()) {
             // No collision with the terrain, the unit falls down
             self.pos.y += 1.0;
@@ -72,7 +68,8 @@ impl Unit {
             self.pos.y -= 1.0;
         } else {
             // Collision with the terrain, the unit walks to the right
-            self.pos.x += self.r#type.settings(assets).walk_speed * dt;
+            let walk_speed = self.settings().walk_speed;
+            self.pos.x += walk_speed * dt;
         }
 
         // Update hands delay
@@ -82,10 +79,10 @@ impl Unit {
 
         // Spawn a projectile if timer runs out
         if self.projectile_timer.update(dt) {
-            let settings = self.r#type.settings(assets);
+            let hide_hands_delay = self.settings().hide_hands_delay;
+            self.hide_hands_delay = hide_hands_delay;
 
-            let velocity = settings.projectile_velocity.value();
-            self.hide_hands_delay = settings.hide_hands_delay;
+            let velocity = self.settings().projectile_velocity.value();
 
             Some(Projectile::new(self.pos, Vec2::new(velocity, -velocity)))
         } else {
@@ -94,23 +91,25 @@ impl Unit {
     }
 
     /// Draw the unit.
-    pub fn render(&self, canvas: &mut [u32], camera: &Camera, assets: &'static Assets) {
-        let settings = self.r#type.settings(assets);
+    pub fn render(&self, canvas: &mut [u32], camera: &Camera) {
+        puffin::profile_function!();
 
-        assets.sprite(&settings.base_asset_path).render(
+        let settings = self.settings();
+
+        crate::sprite(&settings.base_asset_path).render(
             canvas,
             camera,
-            (self.pos - self.ground_collision_point(assets))
+            (self.pos - self.ground_collision_point())
                 .numcast()
                 .unwrap_or_default(),
         );
 
         if let Some(hands_asset_path) = &settings.hands_asset_path {
             if self.hide_hands_delay <= 0.0 {
-                assets.sprite(hands_asset_path).render(
+                crate::sprite(hands_asset_path).render(
                     canvas,
                     camera,
-                    (self.pos - (1.0, 1.0) - self.ground_collision_point(assets))
+                    (self.pos - (1.0, 1.0) - self.ground_collision_point())
                         .numcast()
                         .unwrap_or_default(),
                 );
@@ -119,10 +118,16 @@ impl Unit {
     }
 
     /// Where the unit collides with the ground.
-    fn ground_collision_point(&self, assets: &'static Assets) -> Vec2<f32> {
-        let sprite = assets.sprite(&self.r#type.settings(&assets).base_asset_path);
+    fn ground_collision_point(&self) -> Vec2<f32> {
+        let base_asset_path = &self.settings().base_asset_path;
+        let sprite = crate::sprite(base_asset_path);
 
         (sprite.width() as f32 / 2.0, sprite.height() as f32 - 2.0).into()
+    }
+
+    /// The settings for this unit.
+    fn settings(&self) -> AssetGuard<Settings> {
+        self.r#type.settings()
     }
 }
 

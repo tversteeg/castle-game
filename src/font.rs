@@ -17,6 +17,8 @@ impl Font {
     /// Load a font from image bytes.
     /// Render text on a pixel buffer.
     pub fn render(&self, canvas: &mut [u32], text: &str, start_x: i32, mut y: i32) {
+        puffin::profile_function!();
+
         // First character in the image
         let char_start = '!';
         let char_end = '~';

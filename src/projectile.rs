@@ -1,6 +1,6 @@
 use vek::Vec2;
 
-use crate::{assets::Assets, camera::Camera, terrain::Terrain};
+use crate::{camera::Camera, terrain::Terrain};
 
 /// Spear asset path.
 const ASSET_PATH: &str = "projectile.spear-1";
@@ -22,18 +22,22 @@ impl Projectile {
     /// Move the projectile.
     ///
     /// Returns whether the projectile should be removed.
-    pub fn update(&mut self, terrain: &Terrain, dt: f32, assets: &'static Assets) -> bool {
+    pub fn update(&mut self, terrain: &Terrain, dt: f32) -> bool {
+        puffin::profile_function!();
+
         self.pos += self.vel * dt;
-        self.vel.y += assets.settings().projectile_gravity;
+        self.vel.y += crate::settings().projectile_gravity;
 
         terrain.point_collides(self.pos.numcast().unwrap_or_default())
     }
 
     /// Render the projectile.
-    pub fn render(&self, canvas: &mut [u32], camera: &Camera, assets: &'static Assets) {
+    pub fn render(&self, canvas: &mut [u32], camera: &Camera) {
+        puffin::profile_function!();
+
         let rotation = self.vel.y.atan2(self.vel.x);
 
-        assets.rotatable_sprite(ASSET_PATH).render(
+        crate::rotatable_sprite(ASSET_PATH).render(
             rotation,
             canvas,
             camera,

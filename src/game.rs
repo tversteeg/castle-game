@@ -2,7 +2,6 @@ use assets_manager::{loader::TomlLoader, Asset};
 use serde::Deserialize;
 
 use crate::{
-    assets::Assets,
     camera::Camera,
     debug::DebugDraw,
     input::Input,
@@ -16,8 +15,6 @@ use crate::{
 
 /// Handles everything related to the game.
 pub struct GameState {
-    /// Reference to all assets.
-    assets: &'static Assets,
     /// First level ground.
     terrain: Terrain,
     /// Timer for when a unit should spawn.
@@ -38,11 +35,11 @@ pub struct GameState {
 
 impl GameState {
     /// Construct the game state with default values.
-    pub fn new(assets: &'static Assets) -> Self {
-        let terrain = Terrain::new(assets);
+    pub fn new() -> Self {
+        let terrain = Terrain::new();
         let units = Vec::new();
-        let unit_spawner = Timer::new(assets.settings().unit_spawn_interval);
-        let enemy_unit_spawner = Timer::new(assets.settings().enemy_unit_spawn_interval);
+        let unit_spawner = Timer::new(crate::settings().unit_spawn_interval);
+        let enemy_unit_spawner = Timer::new(crate::settings().enemy_unit_spawn_interval);
         let projectiles = Vec::new();
         let level_width = terrain.width();
         let camera = Camera::default();
@@ -51,7 +48,6 @@ impl GameState {
         Self {
             debug_state,
             projectiles,
-            assets,
             terrain,
             units,
             unit_spawner,
@@ -63,32 +59,27 @@ impl GameState {
 
     /// Draw a frame.
     pub fn render(&mut self, canvas: &mut [u32], frame_time: f32) {
-        self.assets.font("font.torus-sans").render(
-            canvas,
-            &format!("Castle Game: {frame_time}"),
-            0,
-            0,
-        );
+        crate::font("font.torus-sans").render(canvas, &format!("Castle Game: {frame_time}"), 0, 0);
 
-        self.terrain.render(canvas, &self.camera, self.assets);
+        self.terrain.render(canvas, &self.camera);
 
         // Render all units
         self.units
             .iter()
-            .for_each(|unit| unit.render(canvas, &self.camera, self.assets));
+            .for_each(|unit| unit.render(canvas, &self.camera));
 
         // Render all projectiles
         self.projectiles
             .iter()
-            .for_each(|projectile| projectile.render(canvas, &self.camera, self.assets));
+            .for_each(|projectile| projectile.render(canvas, &self.camera));
 
         // Render debug information
-        self.debug_state.render(canvas, self.assets);
+        self.debug_state.render(canvas);
     }
 
     /// Update a frame and handle user input.
     pub fn update(&mut self, input: &Input, dt: f32) {
-        let settings = self.assets.settings();
+        let settings = crate::settings();
 
         // Move the camera based on the mouse position
         if input.mouse_pos.x <= settings.pan_edge_offset {
@@ -109,14 +100,14 @@ impl GameState {
 
         // Update all units
         self.units.iter_mut().for_each(|unit| {
-            if let Some(projectile) = unit.update(&self.terrain, dt, self.assets) {
+            if let Some(projectile) = unit.update(&self.terrain, dt) {
                 self.projectiles.push(projectile);
             }
         });
 
         // Update all projectiles
         self.projectiles
-            .retain_mut(|projectile| !projectile.update(&self.terrain, dt, self.assets));
+            .retain_mut(|projectile| !projectile.update(&self.terrain, dt));
 
         // Update the spawn timers and spawn a unit when it ticks
         if self.unit_spawner.update(dt) {
@@ -124,7 +115,6 @@ impl GameState {
             self.units.push(Unit::new(
                 (10.0, self.terrain.y_offset() as f32).into(),
                 UnitType::PlayerSpear,
-                self.assets,
             ));
         }
         if self.enemy_unit_spawner.update(dt) {
@@ -136,12 +126,11 @@ impl GameState {
                 )
                     .into(),
                 UnitType::EnemySpear,
-                self.assets,
             ));
         }
 
         // Update debug information
-        self.debug_state.update(input, dt, self.assets);
+        self.debug_state.update(input, dt);
     }
 }
 

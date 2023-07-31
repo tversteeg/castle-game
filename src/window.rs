@@ -63,25 +63,29 @@ where
         window,
         (game_state, pixels, Input::default()),
         fps,
-        0.1,
+        (fps as f64).recip(),
         move |g| update(&mut g.game.0, &g.game.2, 0.1),
         move |g| {
             let frame_time = g.last_frame_time();
             render(&mut g.game.0, &mut buffer, frame_time as f32);
 
-            // Blit draws the pixels in RGBA format, but the pixels crate expects BGRA, so convert it
-            g.game
-                .1
-                .frame_mut()
-                .chunks_exact_mut(4)
-                .zip(buffer.iter())
-                .for_each(|(target, source)| {
-                    let source = source.to_ne_bytes();
-                    target[0] = source[2];
-                    target[1] = source[1];
-                    target[2] = source[0];
-                    target[3] = source[3];
-                });
+            {
+                puffin::profile_scope!("Convert pixels for window");
+
+                // Blit draws the pixels in RGBA format, but the pixels crate expects BGRA, so convert it
+                g.game
+                    .1
+                    .frame_mut()
+                    .chunks_exact_mut(4)
+                    .zip(buffer.iter())
+                    .for_each(|(target, source)| {
+                        let source = source.to_ne_bytes();
+                        target[0] = source[2];
+                        target[1] = source[1];
+                        target[2] = source[0];
+                        target[3] = source[3];
+                    });
+            }
 
             // Render the pixel buffer
             if let Err(err) = g.game.1.render() {

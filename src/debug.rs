@@ -1,10 +1,10 @@
 use vek::{Aabr, Extent2, Vec2};
 
 use crate::{
-    assets::Assets,
     camera::Camera,
     input::Input,
     math::Rotation,
+    object::ObjectSettings,
     physics::{
         collision::{sat::NarrowCollision, shape::Rectangle},
         rigidbody::{RigidBody, RigidBodyIndex},
@@ -15,6 +15,10 @@ use crate::{
 
 /// Physics grid step size.
 const PHYSICS_GRID_STEP: u16 = 10;
+
+/// Asset paths.
+const SPEAR: &str = "projectile.spear-1";
+const CRATE: &str = "object.crate-1";
 
 /// Draw things for debugging purposes.
 pub struct DebugDraw {
@@ -61,14 +65,14 @@ impl DebugDraw {
     }
 
     /// Update the debug state.
-    pub fn update(&mut self, input: &Input, dt: f32, assets: &Assets) {
+    pub fn update(&mut self, input: &Input, dt: f32) {
         // When space is released
         if !input.space_pressed && self.previous_space_pressed {
             self.screen += 1;
 
             match self.screen {
-                1 => self.setup_physics_scene_1(assets),
-                2 => self.setup_physics_scene_2(assets),
+                1 => self.setup_physics_scene_1(),
+                2 => self.setup_physics_scene_2(),
                 3 | 4 => (),
                 _ => self.screen = 0,
             }
@@ -89,7 +93,7 @@ impl DebugDraw {
         );
 
         // Update the physics.
-        self.physics.step(dt, assets);
+        self.physics.step(dt);
 
         // Keep track of all collisions in an ugly way
         self.rigidbodies_with_collisions = self
@@ -101,7 +105,7 @@ impl DebugDraw {
     }
 
     /// Draw things for debugging purposes.
-    pub fn render(&self, canvas: &mut [u32], assets: &Assets) {
+    pub fn render(&self, canvas: &mut [u32]) {
         if self.screen == 0 {
             return;
         }
@@ -117,7 +121,6 @@ impl DebugDraw {
             },
             Vec2::new(20, 30),
             canvas,
-            assets,
         );
 
         if self.screen == 1 || self.screen == 2 {
@@ -128,21 +131,11 @@ impl DebugDraw {
                 self.render_rotatable_sprite(
                     rigidbody.position().as_(),
                     rigidbody.rotation(),
-                    if self.screen == 1 {
-                        "projectile.spear-1"
-                    } else {
-                        "object.crate-1"
-                    },
+                    if self.screen == 1 { SPEAR } else { CRATE },
                     canvas,
-                    assets,
                 );
 
-                self.text(
-                    &format!("{rigidbody}"),
-                    rigidbody.position().as_(),
-                    canvas,
-                    assets,
-                );
+                self.text(&format!("{rigidbody}"), rigidbody.position().as_(), canvas);
 
                 // Draw AABR
                 //self.aabr(self.physics.aabr(*rigidbody), canvas, 0xFF00FF00);
@@ -161,24 +154,22 @@ impl DebugDraw {
             }
         } else if self.screen == 3 {
             // Draw rotating sprites
-            for (index, asset) in ["projectile.spear-1", "object.crate-1"].iter().enumerate() {
+            for (index, asset) in [SPEAR, CRATE].iter().enumerate() {
                 self.render_rotatable_to_mouse_sprite(
                     Vec2::new(50, 50 + index as i32 * 50),
                     asset,
                     canvas,
-                    assets,
                 );
             }
         } else if self.screen == 4 {
-            let sprite_path = "object.crate-1";
             // Draw two rectangles colliding
-            let sprite = assets.sprite(sprite_path);
+            let sprite = crate::sprite(CRATE);
             let shape = Rectangle::new(Extent2::new(sprite.width() as f32, sprite.height() as f32));
 
             let (pos_a, pos_b) = (Vec2::new(SIZE.w as i32 / 2, SIZE.h as i32 / 2), self.mouse);
             let (rot_a, rot_b) = (45f32.to_radians(), 90f32.to_radians());
-            self.render_rotatable_sprite(pos_a, rot_a, sprite_path, canvas, assets);
-            self.render_rotatable_sprite(pos_b, rot_b, sprite_path, canvas, assets);
+            self.render_rotatable_sprite(pos_a, rot_a, CRATE, canvas);
+            self.render_rotatable_sprite(pos_b, rot_b, CRATE, canvas);
 
             if let Some(response) = shape.collide_rectangle(
                 pos_a.as_(),
@@ -187,19 +178,18 @@ impl DebugDraw {
                 pos_b.as_(),
                 Rotation::from_radians(rot_b),
             ) {
-                self.vector(response.contact.as_(), response.mtv, canvas, assets);
+                self.vector(response.contact.as_(), response.mtv, canvas);
                 //self.circle(response.contact.as_(), canvas, 0xFFFF0000);
             }
         }
     }
 
     /// Setup a new physics scene with a rope structure.
-    fn setup_physics_scene_1(&mut self, assets: &Assets) {
+    fn setup_physics_scene_1(&mut self) {
         self.physics = Simulator::new();
 
         // Shape is based on the size of the image
-        let sprite = assets.sprite("projectile.spear-1");
-        let shape = Rectangle::new(Extent2::new(sprite.width() as f32, sprite.height() as f32));
+        let object = crate::asset::<ObjectSettings>(SPEAR);
 
         // Create some test rigidbodies
         let mut x = 50.0;
@@ -208,12 +198,9 @@ impl DebugDraw {
             .enumerate()
             .map(|(i, _)| {
                 x += 30.0;
-                self.physics.add_rigidbody(RigidBody::new(
-                    Vec2::new(SIZE.w as f32 / 2.0 + x, SIZE.h as f32 / 2.0),
-                    if i == 0 { std::f32::INFINITY } else { 1.0 },
-                    shape,
-                    assets,
-                ))
+                self.physics.add_rigidbody(
+                    object.rigidbody(Vec2::new(SIZE.w as f32 / 2.0 + x, SIZE.h as f32 / 2.0)),
+                )
             })
             .collect();
 
@@ -222,9 +209,9 @@ impl DebugDraw {
             // Offset the attachments to prevent collisions
             self.physics.add_distance_constraint(
                 self.rigidbodies[i - 1],
-                Vec2::new(-shape.half_width() - 10.0, 0.0),
+                Vec2::new(-object.width() / 2.0 - 10.0, 0.0),
                 self.rigidbodies[i],
-                Vec2::new(shape.half_width() + 10.0, 0.0),
+                Vec2::new(object.width() / 2.0 + 10.0, 0.0),
                 5.0,
                 0.0001,
             );
@@ -232,11 +219,11 @@ impl DebugDraw {
     }
 
     /// Setup a new physics scene with boxes.
-    fn setup_physics_scene_2(&mut self, assets: &Assets) {
+    fn setup_physics_scene_2(&mut self) {
         self.physics = Simulator::new();
 
         // Shape is based on the size of the image
-        let sprite = assets.sprite("object.crate-1");
+        let sprite = crate::sprite(CRATE);
         let shape = Rectangle::new(Extent2::new(sprite.width() as f32, sprite.height() as f32));
 
         // Create a nice pyramid
@@ -247,7 +234,6 @@ impl DebugDraw {
                     (Vec2::new(*x, *y) + Vec2::new(SIZE.w as i32 / 2, SIZE.h as i32 / 2)).as_(),
                     1.0,
                     shape,
-                    assets,
                 ))
             })
             .collect();
@@ -266,16 +252,14 @@ impl DebugDraw {
         rotation: f32,
         sprite_path: &str,
         canvas: &mut [u32],
-        assets: &Assets,
     ) {
-        let sprite = assets.rotatable_sprite(sprite_path);
+        let sprite = crate::rotatable_sprite(sprite_path);
 
         sprite.render(rotation, canvas, &Camera::default(), pos);
         self.text(
             &format!("{}", rotation.to_degrees().round()),
             pos + Vec2::new(0, 10),
             canvas,
-            assets,
         );
     }
 
@@ -285,19 +269,16 @@ impl DebugDraw {
         pos: Vec2<i32>,
         sprite_path: &str,
         canvas: &mut [u32],
-        assets: &Assets,
     ) {
         // Draw rotating sprites
         let delta: Vec2<f32> = (self.mouse - pos).numcast().unwrap_or_default();
         let rot = delta.y.atan2(delta.x);
-        self.render_rotatable_sprite(pos, rot, sprite_path, canvas, assets);
+        self.render_rotatable_sprite(pos, rot, sprite_path, canvas);
     }
 
     /// Render text.
-    fn text(&self, text: &str, pos: Vec2<i32>, canvas: &mut [u32], assets: &Assets) {
-        assets
-            .font("font.torus-sans")
-            .render(canvas, text, pos.x, pos.y);
+    fn text(&self, text: &str, pos: Vec2<i32>, canvas: &mut [u32]) {
+        crate::font("font.torus-sans").render(canvas, text, pos.x, pos.y);
     }
 
     /// Draw a bounding rectangle.
@@ -336,7 +317,7 @@ impl DebugDraw {
     }
 
     /// Draw a debug direction vector.
-    fn vector(&self, pos: Vec2<i32>, dir: Vec2<f32>, canvas: &mut [u32], assets: &Assets) {
-        self.render_rotatable_sprite(pos, dir.y.atan2(dir.x), "debug.vector", canvas, assets)
+    fn vector(&self, pos: Vec2<i32>, dir: Vec2<f32>, canvas: &mut [u32]) {
+        self.render_rotatable_sprite(pos, dir.y.atan2(dir.x), "debug.vector", canvas)
     }
 }

@@ -48,6 +48,8 @@ where
     /// Construct a new grid.
     // TODO: wait for either `.map` or `std::array::from_fn` to become const generic to make this const generic.
     pub fn new() -> Self {
+        puffin::profile_function!();
+
         assert!(STEP >= 4);
         assert!(
             WIDTH % STEP == 0,
@@ -68,10 +70,10 @@ where
     ///
     /// The list of matching pairs doesn't contain the same pairs twice.
     pub fn flush(&mut self) -> impl Iterator<Item = (I, I)> {
+        puffin::profile_function!();
+
         // Resulting unique pairs
         let mut pairs = HashSet::new();
-
-        println!("{self}");
 
         for bucket in self.buckets.iter_mut() {
             // Combine all items in the bucket
@@ -97,6 +99,8 @@ where
     ///
     /// Drops an entity when the bucket is full.
     pub fn store_aabb(&mut self, pos: Vec2<u16>, size: Extent2<u16>, id: I) {
+        puffin::profile_function!();
+
         let x_start = pos.x / STEP;
         let y_start = pos.y / STEP;
 

@@ -12,11 +12,14 @@ use vek::Vec2;
 use crate::{camera::Camera, SIZE};
 
 /// Sprite that can be drawn on the  canvas.
+#[derive(Debug)]
 pub struct Sprite(BlitBuffer);
 
 impl Sprite {
     /// Draw the sprite based on a camera offset.
     pub fn render(&self, canvas: &mut [u32], camera: &Camera, offset: Vec2<i32>) {
+        puffin::profile_function!();
+
         // Get the rendering options based on the camera offset
         let mut blit_options = camera.to_blit_options();
 
@@ -71,6 +74,7 @@ impl Loader<Sprite> for SpriteLoader {
 }
 
 /// Sprite pre-rendered with different rotations.
+#[derive(Debug)]
 pub struct RotatableSprite(Vec<Sprite>);
 
 impl RotatableSprite {
@@ -129,7 +133,7 @@ impl Compound for RotatableSprite {
     }
 }
 
-/// Font metadata to load.
+/// Rotatable sprite metadata to load.
 #[derive(Deserialize)]
 struct RotatableSpriteMetadata {
     /// How many rotations are pre-rendered.

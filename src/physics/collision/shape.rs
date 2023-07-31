@@ -89,6 +89,8 @@ impl NarrowCollision for Rectangle {
         other_pos: Vec2<f32>,
         other_rot: Rotation,
     ) -> Option<CollisionResponse> {
+        puffin::profile_function!();
+
         // Get the perp axes of both
         let (a_axes, b_axes) = (
             Rectangle::normal_axes(rot),

@@ -48,6 +48,8 @@ pub struct Projection {
 impl Projection {
     /// Project a polygon shape on an axis.
     pub fn project<const SIZE: usize>(vertices: [Vec2<f32>; SIZE], axis: Vec2<f32>) -> Self {
+        puffin::profile_function!();
+
         // Start by projecting the first so we don't have to check for infinite
         let mut min = axis.dot(vertices[0]);
         let mut max = min;

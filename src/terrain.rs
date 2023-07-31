@@ -1,6 +1,6 @@
 use vek::{Extent2, Vec2};
 
-use crate::{assets::Assets, camera::Camera, sprite::Sprite, SIZE};
+use crate::{camera::Camera, sprite::Sprite, SIZE};
 
 /// Level asset path.
 const ASSET_PATH: &str = "level.grass-1";
@@ -15,8 +15,8 @@ pub struct Terrain {
 
 impl Terrain {
     /// Load a terrain from image bytes.
-    pub fn new(assets: &'static Assets) -> Self {
-        let sprite = assets.sprite(ASSET_PATH);
+    pub fn new() -> Self {
+        let sprite = crate::sprite(ASSET_PATH);
         let size = Extent2::new(sprite.width(), sprite.height());
 
         // Create an empty vector so we can fill it with a method
@@ -28,10 +28,10 @@ impl Terrain {
     }
 
     /// Draw the terrain based on a camera offset.
-    pub fn render(&self, canvas: &mut [u32], camera: &Camera, assets: &'static Assets) {
-        assets
-            .sprite(ASSET_PATH)
-            .render(canvas, camera, (0, self.y_offset()).into());
+    pub fn render(&self, canvas: &mut [u32], camera: &Camera) {
+        puffin::profile_function!();
+
+        crate::sprite(ASSET_PATH).render(canvas, camera, (0, self.y_offset()).into());
     }
 
     /// Whether an absolute coordinate hits the terrain.
@@ -56,6 +56,8 @@ impl Terrain {
 
     /// Recalculate the collision top heights.
     fn recalculate_top_height(&mut self, sprite: &Sprite) {
+        puffin::profile_function!();
+
         // Loop over each X value
         self.top_heights
             .iter_mut()

@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use vek::{Aabr, Vec2};
 
-use crate::{assets::Assets, math::Rotation};
+use crate::math::Rotation;
 
 use super::collision::{
     sat::{CollisionResponse, NarrowCollision},
@@ -49,11 +49,13 @@ impl RigidBody {
     /// Construct a new rigidbody without movements.
     ///
     /// Gravity is applied as an external force.
-    pub fn new(pos: Vec2<f32>, mass: f32, shape: Rectangle, assets: &Assets) -> Self {
+    pub fn new(pos: Vec2<f32>, mass: f32, shape: Rectangle) -> Self {
+        let settings = crate::settings();
+
         Self::with_external_force(
             pos,
-            Vec2::new(0.0, assets.settings().physics.gravity),
-            assets.settings().physics.air_friction,
+            Vec2::new(0.0, settings.physics.gravity),
+            settings.physics.air_friction,
             mass,
             shape,
         )
