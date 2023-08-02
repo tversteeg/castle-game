@@ -1,3 +1,4 @@
+use serde::Deserialize;
 use vek::{Aabr, Extent2, Vec2};
 
 use crate::{
@@ -6,7 +7,7 @@ use crate::{
     math::Rotation,
     object::ObjectSettings,
     physics::{
-        collision::{sat::NarrowCollision, shape::Rectangle},
+        collision::{shape::Rectangle, CollisionResponse, NarrowCollision},
         rigidbody::{RigidBody, RigidBodyIndex},
         Simulator,
     },
@@ -24,6 +25,8 @@ const CRATE: &str = "object.crate-1";
 pub struct DebugDraw {
     /// Previous keyboard state.
     previous_space_pressed: bool,
+    /// Previous mouse state.
+    previous_mouse_pressed: bool,
     /// What debug info to show, zero is show nothing.
     screen: u8,
     /// Mouse position.
@@ -48,15 +51,17 @@ impl DebugDraw {
     /// Setup with default.
     pub fn new() -> Self {
         let previous_space_pressed = false;
+        let previous_mouse_pressed = false;
         let mouse = Vec2::zero();
         let physics = Simulator::new();
-        let screen = 0;
+        let screen = crate::settings().debug.start_screen;
         let rigidbodies = Vec::new();
         let rigidbodies_with_collisions = Vec::new();
 
         Self {
             screen,
             previous_space_pressed,
+            previous_mouse_pressed,
             mouse,
             physics,
             rigidbodies,
@@ -88,22 +93,35 @@ impl DebugDraw {
         // Store the mouse state
         self.mouse = input.mouse_pos;
 
-        // Make the first rigidbody follow the mouse
-        self.physics.set_position(
-            self.rigidbodies[0],
-            self.mouse.numcast().unwrap_or_default(),
-        );
+        if self.screen == 1 || self.screen == 2 {
+            if !input.left_mouse_pressed && self.previous_mouse_pressed {
+                // Shape is based on the size of the image
+                let object = crate::asset::<ObjectSettings>(SPEAR);
 
-        // Update the physics.
-        self.physics.step(dt);
+                self.rigidbodies.push(
+                    self.physics
+                        .add_rigidbody(object.rigidbody(self.mouse.as_())),
+                );
+            }
+            self.previous_mouse_pressed = input.left_mouse_pressed;
 
-        // Keep track of all collisions in an ugly way
-        self.rigidbodies_with_collisions = self
-            .physics
-            .colliding_rigid_bodies()
-            .into_iter()
-            .flat_map(|(a, b, _)| std::iter::once(a).chain(std::iter::once(b)))
-            .collect();
+            // Make the first rigidbody follow the mouse
+            self.physics.set_position(
+                self.rigidbodies[0],
+                self.mouse.numcast().unwrap_or_default(),
+            );
+
+            // Update the physics.
+            self.physics.step(dt);
+
+            // Keep track of all collisions in an ugly way
+            self.rigidbodies_with_collisions = self
+                .physics
+                .colliding_rigid_bodies()
+                .into_iter()
+                .flat_map(|(a, b, _)| std::iter::once(a).chain(std::iter::once(b)))
+                .collect();
+        }
     }
 
     /// Draw things for debugging purposes.
@@ -132,7 +150,7 @@ impl DebugDraw {
             for rigidbody in self.rigidbodies.iter() {
                 let rigidbody = self.physics.rigidbody(*rigidbody);
 
-                self.render_rotatable_sprite(
+                self.physics_object(
                     rigidbody.position().as_(),
                     rigidbody.rotation(),
                     if self.screen == 1 { SPEAR } else { CRATE },
@@ -171,23 +189,40 @@ impl DebugDraw {
             }
         } else if self.screen == 4 {
             // Draw two rectangles colliding
-            let sprite = crate::sprite(CRATE);
-            let shape = Rectangle::new(Extent2::new(sprite.width() as f32, sprite.height() as f32));
+            let object = crate::asset::<ObjectSettings>(CRATE);
+            let shape = object.shape();
 
-            let (pos_a, pos_b) = (Vec2::new(SIZE.w as i32 / 2, SIZE.h as i32 / 2), self.mouse);
-            let (rot_a, rot_b) = (45f32.to_radians(), 90f32.to_radians());
-            self.render_rotatable_sprite(pos_a, rot_a, CRATE, canvas);
-            self.render_rotatable_sprite(pos_b, rot_b, CRATE, canvas);
+            let (pos_a, pos_b, pos_c) = (
+                Vec2::new(SIZE.w as i32 / 2 - 20, SIZE.h as i32 / 2),
+                Vec2::new(SIZE.w as i32 / 2 + 20, SIZE.h as i32 / 2),
+                self.mouse,
+            );
+            let (rot_a, rot_b, rot_c) =
+                (45f32.to_radians(), 90f32.to_radians(), 90f32.to_radians());
 
-            if let Some(response) = shape.collide_rectangle(
+            // Draw the boxes
+            self.physics_object(pos_a.as_(), rot_a, CRATE, canvas);
+            self.physics_object(pos_b.as_(), rot_b, CRATE, canvas);
+            self.physics_object(pos_c.as_(), rot_c, CRATE, canvas);
+
+            // Draw the collision information
+            for response in shape.collide_rectangle(
                 pos_a.as_(),
                 Rotation::from_radians(rot_a),
                 shape,
+                pos_c.as_(),
+                Rotation::from_radians(rot_c),
+            ) {
+                self.collision_response(&response, pos_a, rot_a, pos_c, rot_c, canvas);
+            }
+            for response in shape.collide_rectangle(
                 pos_b.as_(),
                 Rotation::from_radians(rot_b),
+                shape,
+                pos_c.as_(),
+                Rotation::from_radians(rot_c),
             ) {
-                self.vector(response.contact.as_(), response.mtv, canvas);
-                //self.circle(response.contact.as_(), canvas, 0xFFFF0000);
+                self.collision_response(&response, pos_b, rot_b, pos_c, rot_c, canvas);
             }
         }
     }
@@ -231,17 +266,14 @@ impl DebugDraw {
         self.physics = Simulator::new();
 
         // Shape is based on the size of the image
-        let sprite = crate::sprite(CRATE);
-        let shape = Rectangle::new(Extent2::new(sprite.width() as f32, sprite.height() as f32));
+        let object = crate::asset::<ObjectSettings>(CRATE);
 
         // Create a nice pyramid
         self.rigidbodies = [(0, -20), (-10, 0), (10, 0), (-20, 20), (0, 20), (20, 20)]
             .iter()
             .map(|(x, y)| {
-                self.physics.add_rigidbody(RigidBody::new(
+                self.physics.add_rigidbody(object.rigidbody(
                     (Vec2::new(*x, *y) + Vec2::new(SIZE.w as i32 / 2, SIZE.h as i32 / 2)).as_(),
-                    1.0,
-                    shape,
                 ))
             })
             .collect();
@@ -331,4 +363,57 @@ impl DebugDraw {
     fn vector(&self, pos: Vec2<i32>, dir: Vec2<f32>, canvas: &mut [u32]) {
         self.render_rotatable_sprite(pos, dir.y.atan2(dir.x), "debug.vector", canvas)
     }
+
+    /// Draw a physics object.
+    fn physics_object(&self, pos: Vec2<f32>, rot: f32, sprite_path: &str, canvas: &mut [u32]) {
+        // Draw the sprite
+        self.render_rotatable_sprite(pos.as_(), rot, sprite_path, canvas);
+
+        let object = crate::asset::<ObjectSettings>(CRATE);
+        let shape = object.shape();
+
+        if crate::settings().debug.draw_physics_vertices {
+            // Draw all vertices
+            shape
+                .vertices(pos, Rotation::from_radians(rot))
+                .into_iter()
+                .for_each(|vertex| self.circle(vertex.as_(), canvas, 0xFF00FF00));
+        }
+    }
+
+    /// Draw a collision response.
+    fn collision_response(
+        &self,
+        response: &CollisionResponse,
+        pos_a: Vec2<i32>,
+        rot_a: f32,
+        pos_b: Vec2<i32>,
+        rot_b: f32,
+        canvas: &mut [u32],
+    ) {
+        self.vector(pos_a.as_(), -response.mtv, canvas);
+        self.vector(pos_b.as_(), response.mtv, canvas);
+
+        self.circle(
+            pos_a.as_() + response.local_contact_1.rotated_z(rot_a).as_(),
+            canvas,
+            0xFFFF0000,
+        );
+        self.circle(
+            pos_b.as_() + response.local_contact_2.rotated_z(rot_b).as_(),
+            canvas,
+            0xFFFFFF00,
+        );
+    }
+}
+
+/// Debug settings loaded from a file so it's easier to change them with hot-reloading.
+#[derive(Deserialize)]
+pub struct DebugSettings {
+    /// Which section to start in when pressing space.
+    pub start_screen: u8,
+    /// Whether to draw physics vertices.
+    pub draw_physics_vertices: bool,
+    /// Whether to draw physics contact points.
+    pub draw_physics_contacts: bool,
 }

@@ -12,7 +12,7 @@ use serde::Deserialize;
 use vek::Vec2;
 
 use self::{
-    collision::{sat::CollisionResponse, spatial_grid::SpatialGrid},
+    collision::{spatial_grid::SpatialGrid, CollisionResponse},
     constraint::{
         distance::DistanceConstraint, penetration::PenetrationConstraint, Constraint,
         ConstraintIndex,
@@ -254,9 +254,10 @@ impl<
         // Narrow-phase with SAT
         collision_pairs
             .iter()
-            .filter_map(|(a, b)| {
+            .flat_map(|(a, b)| {
                 self.rigidbodies[a]
                     .collides(&self.rigidbodies[b])
+                    .into_iter()
                     .map(|response| (*a, *b, response))
             })
             .collect()

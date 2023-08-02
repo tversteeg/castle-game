@@ -5,3 +5,4 @@ mass = 1.0
 
 [collider]
 shape = "rectangle"
+height = 5

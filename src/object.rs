@@ -52,7 +52,7 @@ impl Compound for ObjectSettings {
 }
 
 /// Internal data so we can load it as a compound.
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct ObjectSettingsImpl {
     /// Physics information.
     physics: PhysicsSettings,
@@ -97,7 +97,7 @@ impl Asset for ObjectSettingsImpl {
 }
 
 /// Physics settings for a rigid body.
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 struct PhysicsSettings {
     /// Mass of the body.
     mass: f32,

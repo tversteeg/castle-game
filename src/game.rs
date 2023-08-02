@@ -3,7 +3,7 @@ use serde::Deserialize;
 
 use crate::{
     camera::Camera,
-    debug::DebugDraw,
+    debug::{DebugDraw, DebugSettings},
     input::Input,
     physics::Settings as PhysicsSettings,
     projectile::Projectile,
@@ -149,6 +149,8 @@ pub struct Settings {
     pub projectile_gravity: f32,
     /// Physics settings.
     pub physics: PhysicsSettings,
+    /// Debug settings.
+    pub debug: DebugSettings,
 }
 
 impl Asset for Settings {

@@ -4,6 +4,7 @@ use vek::Vec2;
 #[derive(Debug, Default)]
 pub struct Input {
     pub mouse_pos: Vec2<i32>,
+    pub left_mouse_pressed: bool,
     pub up_pressed: bool,
     pub down_pressed: bool,
     pub left_pressed: bool,

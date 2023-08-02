@@ -1,1 +1,7 @@
 rotations = 8
+
+[physics]
+mass = 1.0
+
+[collider]
+shape = "rectangle"

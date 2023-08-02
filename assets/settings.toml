@@ -15,6 +15,15 @@ projectile_gravity = 9.81
 # How many substeps are taken in a single step
 substeps = 12
 # Gravity applied to everything
-gravity = 9.81
+gravity = 98.1
 # Damping applied to the velocity every timestep
 air_friction = 0.95
+
+# Debug screen specific settings, press Space to open
+[debug]
+# Which section to start in when pressing Space the first time
+start_screen = 4
+# Whether to draw physics vertices
+draw_physics_vertices = true
+# Whether to draw physics contact points
+draw_physics_contacts = true

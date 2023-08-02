@@ -3,7 +3,7 @@ use miette::{IntoDiagnostic, Result};
 use pixels::{PixelsBuilder, SurfaceTexture};
 use vek::{Extent2, Vec2};
 use winit::{
-    event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
+    event::{ElementState, Event, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent},
     event_loop::EventLoop,
 };
 
@@ -153,6 +153,16 @@ where
                     Some(VirtualKeyCode::Escape) => g.exit(),
                     _ => (),
                 },
+
+                // Handle mouse pressed
+                Event::WindowEvent {
+                    event: WindowEvent::MouseInput { button, state, .. },
+                    ..
+                } => {
+                    if *button == MouseButton::Left {
+                        g.game.2.left_mouse_pressed = *state == ElementState::Pressed;
+                    }
+                }
 
                 // Handle mouse move
                 Event::WindowEvent {

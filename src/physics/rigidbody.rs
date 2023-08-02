@@ -1,13 +1,11 @@
 use std::fmt::Display;
 
+use arrayvec::ArrayVec;
 use vek::{Aabr, Vec2};
 
-use crate::math::Rotation;
+use crate::{math::Rotation, SIZE};
 
-use super::collision::{
-    sat::{CollisionResponse, NarrowCollision},
-    shape::Rectangle,
-};
+use super::collision::{shape::Rectangle, CollisionResponse, NarrowCollision};
 
 /// How far away we predict the impulses to move us for checking the collision during the next full deltatime.
 const PREDICTED_POSITION_MULTIPLIER: f32 = 2.0;
@@ -170,6 +168,8 @@ impl RigidBody {
 
         self.ang_vel = (self.rot - self.prev_rot).to_radians() / dt;
         self.ang_vel = self.ang_vel.clamp(-0.1, 0.1);
+
+        self.pos.y = self.pos.y.min(SIZE.h as f32);
     }
 
     /// Apply a force by moving the position, which will trigger velocity increments.
@@ -254,7 +254,7 @@ impl RigidBody {
     }
 
     /// Check if it collides with another rigidbody.
-    pub fn collides(&self, other: &RigidBody) -> Option<CollisionResponse> {
+    pub fn collides(&self, other: &RigidBody) -> ArrayVec<CollisionResponse, 2> {
         self.shape
             .collide_rectangle(self.pos, self.rot, other.shape, other.pos, other.rot)
     }

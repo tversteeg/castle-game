@@ -2,7 +2,7 @@ use hashbrown::HashMap;
 use vek::Vec2;
 
 use crate::physics::{
-    collision::sat::CollisionResponse,
+    collision::CollisionResponse,
     rigidbody::{RigidBody, RigidBodyIndex},
 };
 
@@ -46,7 +46,13 @@ impl Constraint for PenetrationConstraint {
             .get_many_mut([&self.a, &self.b])
             .expect("Couldn't get rigidbodies for penetration constraint");
 
-        self.apply(a, self.response.contact, b, self.response.contact, dt);
+        self.apply(
+            a,
+            self.response.local_contact_1,
+            b,
+            self.response.local_contact_2,
+            dt,
+        );
     }
     fn lambda(&self) -> f32 {
         self.lambda
@@ -60,7 +66,7 @@ impl Constraint for PenetrationConstraint {
 impl PositionalConstraint for PenetrationConstraint {
     fn gradient(&self, _a_global_position: Vec2<f32>, _b_global_position: Vec2<f32>) -> Vec2<f32> {
         // MTV vector from the collision normalized
-        -self.response.mtv.normalized()
+        self.response.mtv.normalized()
     }
 
     fn magnitude(&self, _a_global_position: Vec2<f32>, _b_global_position: Vec2<f32>) -> f32 {
