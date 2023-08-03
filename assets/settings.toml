@@ -22,7 +22,7 @@ air_friction = 0.95
 # Debug screen specific settings, press Space to open
 [debug]
 # Which section to start in when pressing Space the first time
-start_screen = 4
+start_screen = 2
 # Whether to draw physics vertices
 draw_physics_vertices = true
 # Whether to draw physics contact points

@@ -69,7 +69,9 @@ where
                 &mut g.game.0,
                 &g.game.2,
                 (updates_per_second as f32).recip(),
-            )
+            );
+
+            g.game.2.update();
         },
         move |g| {
             let frame_time = g.last_frame_time();
@@ -135,19 +137,19 @@ where
                     ..
                 } => match virtual_keycode {
                     Some(VirtualKeyCode::Up | VirtualKeyCode::W) => {
-                        g.game.2.up_pressed = state == &ElementState::Pressed
+                        g.game.2.up.handle_bool(state == &ElementState::Pressed)
                     }
                     Some(VirtualKeyCode::Down | VirtualKeyCode::S) => {
-                        g.game.2.down_pressed = state == &ElementState::Pressed
+                        g.game.2.down.handle_bool(state == &ElementState::Pressed)
                     }
                     Some(VirtualKeyCode::Left | VirtualKeyCode::A) => {
-                        g.game.2.left_pressed = state == &ElementState::Pressed
+                        g.game.2.left.handle_bool(state == &ElementState::Pressed)
                     }
                     Some(VirtualKeyCode::Right | VirtualKeyCode::D) => {
-                        g.game.2.right_pressed = state == &ElementState::Pressed
+                        g.game.2.right.handle_bool(state == &ElementState::Pressed)
                     }
                     Some(VirtualKeyCode::Space) => {
-                        g.game.2.space_pressed = state == &ElementState::Pressed
+                        g.game.2.space.handle_bool(state == &ElementState::Pressed)
                     }
                     // Close the window when the <ESC> key is pressed
                     Some(VirtualKeyCode::Escape) => g.exit(),
@@ -160,7 +162,10 @@ where
                     ..
                 } => {
                     if *button == MouseButton::Left {
-                        g.game.2.left_mouse_pressed = *state == ElementState::Pressed;
+                        g.game
+                            .2
+                            .left_mouse
+                            .handle_bool(*state == ElementState::Pressed);
                     }
                 }
 

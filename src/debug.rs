@@ -23,10 +23,6 @@ const CRATE: &str = "object.crate-1";
 
 /// Draw things for debugging purposes.
 pub struct DebugDraw {
-    /// Previous keyboard state.
-    previous_space_pressed: bool,
-    /// Previous mouse state.
-    previous_mouse_pressed: bool,
     /// What debug info to show, zero is show nothing.
     screen: u8,
     /// Mouse position.
@@ -50,23 +46,23 @@ pub struct DebugDraw {
 impl DebugDraw {
     /// Setup with default.
     pub fn new() -> Self {
-        let previous_space_pressed = false;
-        let previous_mouse_pressed = false;
         let mouse = Vec2::zero();
         let physics = Simulator::new();
         let screen = crate::settings().debug.start_screen;
         let rigidbodies = Vec::new();
         let rigidbodies_with_collisions = Vec::new();
 
-        Self {
+        let mut debug = Self {
             screen,
-            previous_space_pressed,
-            previous_mouse_pressed,
             mouse,
             physics,
             rigidbodies,
             rigidbodies_with_collisions,
-        }
+        };
+
+        debug.setup();
+
+        debug
     }
 
     /// Update the debug state.
@@ -74,17 +70,11 @@ impl DebugDraw {
         puffin::profile_function!();
 
         // When space is released
-        if !input.space_pressed && self.previous_space_pressed {
+        if input.space.is_released() {
             self.screen += 1;
 
-            match self.screen {
-                1 => self.setup_physics_scene_1(),
-                2 => self.setup_physics_scene_2(),
-                3 | 4 => (),
-                _ => self.screen = 0,
-            }
+            self.setup();
         }
-        self.previous_space_pressed = input.space_pressed;
 
         if self.screen == 0 {
             return;
@@ -94,7 +84,7 @@ impl DebugDraw {
         self.mouse = input.mouse_pos;
 
         if self.screen == 1 || self.screen == 2 {
-            if !input.left_mouse_pressed && self.previous_mouse_pressed {
+            if input.left_mouse.is_released() {
                 // Shape is based on the size of the image
                 let object = crate::asset::<ObjectSettings>(SPEAR);
 
@@ -103,7 +93,6 @@ impl DebugDraw {
                         .add_rigidbody(object.rigidbody(self.mouse.as_())),
                 );
             }
-            self.previous_mouse_pressed = input.left_mouse_pressed;
 
             // Make the first rigidbody follow the mouse
             self.physics.set_position(
@@ -224,6 +213,16 @@ impl DebugDraw {
             ) {
                 self.collision_response(&response, pos_b, rot_b, pos_c, rot_c, canvas);
             }
+        }
+    }
+
+    /// Setup the screen.
+    fn setup(&mut self) {
+        match self.screen {
+            1 => self.setup_physics_scene_1(),
+            2 => self.setup_physics_scene_2(),
+            3 | 4 => (),
+            _ => self.screen = 0,
         }
     }
 
