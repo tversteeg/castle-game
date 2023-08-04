@@ -32,18 +32,8 @@ pub struct CollisionResponse {
     pub local_contact_1: Vec2<f32>,
     /// Local position of contact point 2.
     pub local_contact_2: Vec2<f32>,
-    /// Minimum translation vector.
-    pub mtv: Vec2<f32>,
-}
-
-impl CollisionResponse {
-    /// Transform to world position on body 1.
-    fn local_contact_1_to_world(&self, pos: Vec2<f32>, rot: Rotation) -> Vec2<f32> {
-        pos + rot.rotate(self.local_contact_1)
-    }
-
-    /// Transform to world position on body 2.
-    fn local_contact_2_to_world(&self, pos: Vec2<f32>, rot: Rotation) -> Vec2<f32> {
-        pos + rot.rotate(self.local_contact_2)
-    }
+    /// Normalized direction of collision.
+    pub normal: Vec2<f32>,
+    /// Distance of penetration between objects.
+    pub penetration: f32,
 }

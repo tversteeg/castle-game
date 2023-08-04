@@ -100,32 +100,61 @@ impl<
                     .for_each(|(_, rigidbody)| rigidbody.integrate(sub_dt));
             }
 
-            {
-                puffin::profile_scope!("Apply distance constraints");
-                // Apply constraints for the different types
-                apply_constraints(&mut self.dist_constraints, &mut self.rigidbodies, sub_dt);
-            }
+            let collisions = {
+                puffin::profile_scope!("Narrow phase collision detection");
+
+                // Do a narrow-phase collision check
+                self.collision_narrow_phase_vec(&broad_phase)
+            };
 
             let mut penetration_constraints = {
-                puffin::profile_scope!("Narrow phase collision detection");
-                // Do a narrow-phase collision check
-                let collisions = self.collision_narrow_phase_vec(&broad_phase);
+                puffin::profile_scope!("Collisions to penetration constraints");
+
                 // Resolve collisions into new constraints
                 self.handle_collisions(&collisions)
             };
 
             {
                 puffin::profile_scope!("Apply penetration constraints");
+
+                // Apply the generated penetration constraints
                 apply_constraints_vec(&mut penetration_constraints, &mut self.rigidbodies, sub_dt);
             }
 
             {
-                puffin::profile_scope!("Solve rigidbodies");
+                puffin::profile_scope!("Apply distance constraints");
+                // Apply constraints for the different types
+                apply_constraints(&mut self.dist_constraints, &mut self.rigidbodies, sub_dt);
+            }
+
+            {
+                puffin::profile_scope!("Update velocities");
                 // Finalize velocity based on position offset
                 self.rigidbodies
                     .iter_mut()
-                    .for_each(|(_, rigidbody)| rigidbody.solve(sub_dt));
+                    .for_each(|(_, rigidbody)| rigidbody.update_velocities(sub_dt));
             }
+
+            {
+                puffin::profile_scope!("Solve velocities");
+                self.velocity_solve(&penetration_constraints, sub_dt);
+            }
+
+            {
+                puffin::profile_scope!("Apply translations");
+                // Finalize velocity based on position offset
+                self.rigidbodies
+                    .iter_mut()
+                    .for_each(|(_, rigidbody)| rigidbody.apply_translation());
+            }
+        }
+
+        {
+            puffin::profile_scope!("Mark sleeping");
+            // Finalize velocity based on position offset
+            self.rigidbodies
+                .iter_mut()
+                .for_each(|(_, rigidbody)| rigidbody.mark_sleeping(dt));
         }
     }
 
@@ -259,6 +288,10 @@ impl<
                     .collides(&self.rigidbodies[b])
                     .into_iter()
                     .map(|response| (*a, *b, response))
+                    .filter(|(a, b, _)| {
+                        // Ignore inactive collisions
+                        self.rigidbody(*a).is_active() || self.rigidbody(*b).is_active()
+                    })
             })
             .collect()
     }
@@ -271,6 +304,13 @@ impl<
             .iter()
             .map(|(_, dist_constraint)| dist_constraint.attachments_world(&self.rigidbodies))
             .collect()
+    }
+
+    /// Apply velocity corrections caused by friction and restitution.
+    fn velocity_solve(&mut self, penetration_constraints: &[PenetrationConstraint], sub_dt: f32) {
+        penetration_constraints
+            .iter()
+            .for_each(|constraint| constraint.solve_velocities(&mut self.rigidbodies, sub_dt));
     }
 }
 
@@ -327,4 +367,6 @@ pub struct Settings {
     pub gravity: f32,
     /// Damping applied to the velocity every timestep.
     pub air_friction: f32,
+    /// Dampling applied to the rotation every timestep.
+    pub rotation_friction: f32,
 }

@@ -37,10 +37,10 @@ pub struct DebugDraw {
         4,
         { (SIZE.w / PHYSICS_GRID_STEP as usize) * (SIZE.h / PHYSICS_GRID_STEP as usize) },
     >,
-    /// Physics rigidbodies.
-    rigidbodies: Vec<RigidBodyIndex>,
+    /// Physics rigidbodies with the asset they belong to.
+    rigidbodies: Vec<(RigidBodyIndex, &'static str)>,
     /// Rigidbodies with collisions.
-    rigidbodies_with_collisions: Vec<RigidBodyIndex>,
+    collisions: Vec<(RigidBodyIndex, RigidBodyIndex, CollisionResponse)>,
 }
 
 impl DebugDraw {
@@ -50,14 +50,14 @@ impl DebugDraw {
         let physics = Simulator::new();
         let screen = crate::settings().debug.start_screen;
         let rigidbodies = Vec::new();
-        let rigidbodies_with_collisions = Vec::new();
+        let collisions = Vec::new();
 
         let mut debug = Self {
             screen,
             mouse,
             physics,
             rigidbodies,
-            rigidbodies_with_collisions,
+            collisions,
         };
 
         debug.setup();
@@ -88,28 +88,26 @@ impl DebugDraw {
                 // Shape is based on the size of the image
                 let object = crate::asset::<ObjectSettings>(SPEAR);
 
-                self.rigidbodies.push(
+                self.rigidbodies.push((
                     self.physics
                         .add_rigidbody(object.rigidbody(self.mouse.as_())),
-                );
+                    SPEAR,
+                ));
             }
 
-            // Make the first rigidbody follow the mouse
-            self.physics.set_position(
-                self.rigidbodies[0],
-                self.mouse.numcast().unwrap_or_default(),
-            );
+            if self.screen == 1 {
+                // Make the first rigidbody follow the mouse
+                self.physics.set_position(
+                    self.rigidbodies[0].0,
+                    self.mouse.numcast().unwrap_or_default(),
+                );
+            }
 
             // Update the physics.
             self.physics.step(dt);
 
             // Keep track of all collisions in an ugly way
-            self.rigidbodies_with_collisions = self
-                .physics
-                .colliding_rigid_bodies()
-                .into_iter()
-                .flat_map(|(a, b, _)| std::iter::once(a).chain(std::iter::once(b)))
-                .collect();
+            self.collisions = self.physics.colliding_rigid_bodies();
         }
     }
 
@@ -135,30 +133,44 @@ impl DebugDraw {
         );
 
         if self.screen == 1 || self.screen == 2 {
+            self.text(
+                &format!(
+                    "Rigidbodies: {}\nCollisions: {}",
+                    self.rigidbodies.len(),
+                    self.collisions.len()
+                ),
+                Vec2::new(SIZE.w as i32 - 100, 10),
+                canvas,
+            );
+
             // Draw physics sprites
-            for rigidbody in self.rigidbodies.iter() {
+            for (rigidbody, sprite_path) in self.rigidbodies.iter() {
                 let rigidbody = self.physics.rigidbody(*rigidbody);
 
                 self.physics_object(
                     rigidbody.position().as_(),
                     rigidbody.rotation(),
-                    if self.screen == 1 { SPEAR } else { CRATE },
+                    rigidbody.is_sleeping(),
+                    sprite_path,
                     canvas,
                 );
-
-                self.text(&format!("{rigidbody}"), rigidbody.position().as_(), canvas);
-
-                // Draw AABR
-                //self.aabr(self.physics.aabr(*rigidbody), canvas, 0xFF00FF00);
             }
 
             // Draw collisions
-            for rigidbody in self.rigidbodies_with_collisions.iter() {
+            for (a, b, response) in self.collisions.iter() {
+                let a = self.physics.rigidbody(*a);
+                let b = self.physics.rigidbody(*b);
+
                 // Draw AABR
-                self.aabr(
-                    self.physics.rigidbody(*rigidbody).aabr(),
+                self.aabr(a.aabr(), canvas, 0xFFFF0000);
+                self.aabr(b.aabr(), canvas, 0xFFFF00FF);
+                self.collision_response(
+                    response,
+                    a.position().as_(),
+                    a.rotation(),
+                    b.position().as_(),
+                    b.rotation(),
                     canvas,
-                    0xFFFF0000,
                 );
             }
 
@@ -190,9 +202,9 @@ impl DebugDraw {
                 (45f32.to_radians(), 90f32.to_radians(), 90f32.to_radians());
 
             // Draw the boxes
-            self.physics_object(pos_a.as_(), rot_a, CRATE, canvas);
-            self.physics_object(pos_b.as_(), rot_b, CRATE, canvas);
-            self.physics_object(pos_c.as_(), rot_c, CRATE, canvas);
+            self.physics_object(pos_a.as_(), rot_a, false, CRATE, canvas);
+            self.physics_object(pos_b.as_(), rot_b, false, CRATE, canvas);
+            self.physics_object(pos_c.as_(), rot_c, false, CRATE, canvas);
 
             // Draw the collision information
             for response in shape.collide_rectangle(
@@ -240,8 +252,11 @@ impl DebugDraw {
             .enumerate()
             .map(|(_i, _)| {
                 x += 30.0;
-                self.physics.add_rigidbody(
-                    object.rigidbody(Vec2::new(SIZE.w as f32 / 2.0 + x, SIZE.h as f32 / 2.0)),
+                (
+                    self.physics.add_rigidbody(
+                        object.rigidbody(Vec2::new(SIZE.w as f32 / 2.0 + x, SIZE.h as f32 / 2.0)),
+                    ),
+                    SPEAR,
                 )
             })
             .collect();
@@ -250,9 +265,9 @@ impl DebugDraw {
         for i in 1..self.rigidbodies.len() {
             // Offset the attachments to prevent collisions
             self.physics.add_distance_constraint(
-                self.rigidbodies[i - 1],
+                self.rigidbodies[i - 1].0,
                 Vec2::new(-object.width() / 2.0 - 10.0, 0.0),
-                self.rigidbodies[i],
+                self.rigidbodies[i].0,
                 Vec2::new(object.width() / 2.0 + 10.0, 0.0),
                 5.0,
                 0.0001,
@@ -271,14 +286,17 @@ impl DebugDraw {
         self.rigidbodies = [(0, -20), (-10, 0), (10, 0), (-20, 20), (0, 20), (20, 20)]
             .iter()
             .map(|(x, y)| {
-                self.physics.add_rigidbody(object.rigidbody(
-                    (Vec2::new(*x, *y) + Vec2::new(SIZE.w as i32 / 2, SIZE.h as i32 / 2)).as_(),
-                ))
+                (
+                    self.physics.add_rigidbody(object.rigidbody(
+                        (Vec2::new(*x, *y) + Vec2::new(SIZE.w as i32 / 2, SIZE.h as i32 / 2)).as_(),
+                    )),
+                    CRATE,
+                )
             })
             .collect();
 
         // Don't let them fall through the ground
-        self.physics.add_rigidbody(RigidBody::fixed(
+        self.physics.add_rigidbody(RigidBody::new_fixed(
             Vec2::new(SIZE.w as f32 / 2.0, SIZE.h as f32),
             Rectangle::new(Extent2::new(SIZE.w as f32, SIZE.h as f32 / 2.0)),
         ));
@@ -364,14 +382,21 @@ impl DebugDraw {
     }
 
     /// Draw a physics object.
-    fn physics_object(&self, pos: Vec2<f32>, rot: f32, sprite_path: &str, canvas: &mut [u32]) {
+    fn physics_object(
+        &self,
+        pos: Vec2<f32>,
+        rot: f32,
+        is_sleeping: bool,
+        sprite_path: &str,
+        canvas: &mut [u32],
+    ) {
         // Draw the sprite
         self.render_rotatable_sprite(pos.as_(), rot, sprite_path, canvas);
 
-        let object = crate::asset::<ObjectSettings>(CRATE);
+        let object = crate::asset::<ObjectSettings>(sprite_path);
         let shape = object.shape();
 
-        if crate::settings().debug.draw_physics_vertices {
+        if !is_sleeping && crate::settings().debug.draw_physics_vertices {
             // Draw all vertices
             shape
                 .vertices(pos, Rotation::from_radians(rot))
@@ -390,8 +415,12 @@ impl DebugDraw {
         rot_b: f32,
         canvas: &mut [u32],
     ) {
-        self.vector(pos_a.as_(), -response.mtv, canvas);
-        self.vector(pos_b.as_(), response.mtv, canvas);
+        if !crate::settings().debug.draw_physics_contacts {
+            return;
+        }
+
+        self.vector(pos_a.as_(), -response.normal, canvas);
+        self.vector(pos_b.as_(), response.normal, canvas);
 
         self.circle(
             pos_a.as_() + response.local_contact_1.rotated_z(rot_a).as_(),

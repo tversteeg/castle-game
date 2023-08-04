@@ -17,7 +17,9 @@ substeps = 12
 # Gravity applied to everything
 gravity = 98.1
 # Damping applied to the velocity every timestep
-air_friction = 0.95
+air_friction = 0.999
+# Dampling applied to rotations every timestep
+rotation_friction = 1.0
 
 # Debug screen specific settings, press Space to open
 [debug]

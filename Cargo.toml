@@ -27,7 +27,7 @@ winit_input_helper = "0.14.1"
 rotsprite = "0.1.4"
 vek = "0.16.1"
 assets_manager = { version = "0.10.2", features = ["embedded", "hot-reloading", "toml", "png"], default-features = false }
-serde = "1.0.180"
+serde = "1.0.181"
 arrayvec = "0.7.4"
 itertools = "0.11.0"
 hashbrown = "0.14.0"

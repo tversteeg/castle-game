@@ -136,15 +136,14 @@ impl NarrowCollision for Rectangle {
             );
         }
 
-        let mut contacts = ArrayVec::new();
-
         if manifold.points.is_empty() {
             // No collision found
-            return contacts;
+            return ArrayVec::new();
         }
 
         // Normal vector that always points to the same location globally
-        let mtv = Vec2::new(manifold.local_n1.x, manifold.local_n1.y).rotated_z(rot.to_radians());
+        let normal =
+            Vec2::new(manifold.local_n1.x, manifold.local_n1.y).rotated_z(rot.to_radians());
 
         manifold
             .points
@@ -156,11 +155,13 @@ impl NarrowCollision for Rectangle {
                     Vec2::new(tracked_contact.local_p1.x, tracked_contact.local_p1.y);
                 let local_contact_2 =
                     Vec2::new(tracked_contact.local_p2.x, tracked_contact.local_p2.y);
+                let penetration = -tracked_contact.dist;
 
                 CollisionResponse {
                     local_contact_1,
                     local_contact_2,
-                    mtv,
+                    normal,
+                    penetration,
                 }
             })
             .collect()

@@ -26,6 +26,37 @@ pub trait Constraint {
     fn reset(&mut self) {
         self.set_lambda(0.0);
     }
+
+    /// Calculate a generic form of the lambda update.
+    fn delta_lambda<const AMOUNT: usize>(
+        lambda: f32,
+        magnitude: f32,
+        compliance: f32,
+        gradients: [Vec2<f32>; AMOUNT],
+        attachments: [Vec2<f32>; AMOUNT],
+        bodies: [&RigidBody; AMOUNT],
+        dt: f32,
+    ) -> f32 {
+        puffin::profile_function!();
+
+        let generalized_inverse_mass_sum: f32 = gradients
+            .into_iter()
+            .zip(attachments)
+            .zip(bodies)
+            .map(|((gradient, attachment), body)| {
+                body.inverse_mass_at_relative_point(attachment, gradient)
+            })
+            .sum();
+
+        if generalized_inverse_mass_sum <= std::f32::EPSILON {
+            // Avoid divisions by zero
+            return 0.0;
+        }
+
+        let stiffness = compliance / dt.powi(2);
+
+        (-magnitude - stiffness * lambda) / (generalized_inverse_mass_sum + stiffness)
+    }
 }
 
 /// Constraint specialization for position restrictions.
@@ -50,6 +81,8 @@ pub trait PositionalConstraint: Constraint {
         b_attachment: Vec2<f32>,
         dt: f32,
     ) {
+        puffin::profile_function!();
+
         let a_world_position = a.local_to_world(a_attachment);
         let b_world_position = b.local_to_world(b_attachment);
 
@@ -59,16 +92,16 @@ pub trait PositionalConstraint: Constraint {
         let a_attachment = a.rotate(a_attachment);
         let b_attachment = b.rotate(b_attachment);
 
-        let a_generalized_inverse_mass = a.inverse_mass_at_relative_point(a_attachment, gradient);
-        let b_generalized_inverse_mass = b.inverse_mass_at_relative_point(b_attachment, gradient);
-
-        let stiffness = self.compliance() / dt.powi(2);
-
-        let delta_lambda = (-self.magnitude(a_world_position, b_world_position)
-            - stiffness * self.lambda())
-            / (a_generalized_inverse_mass + b_generalized_inverse_mass + stiffness);
-
-        if delta_lambda == 0.0 {
+        let delta_lambda = Self::delta_lambda(
+            self.lambda(),
+            self.magnitude(a_world_position, b_world_position),
+            self.compliance(),
+            [gradient, gradient],
+            [a_attachment, b_attachment],
+            [a, b],
+            dt,
+        );
+        if delta_lambda.abs() <= std::f32::EPSILON {
             // Nothing will change, do nothing
             return;
         }
@@ -76,14 +109,9 @@ pub trait PositionalConstraint: Constraint {
         // lambda += delta_lambda
         self.set_lambda(self.lambda() + delta_lambda);
 
+        // Apply impulse
         let positional_impulse = gradient * delta_lambda;
-
-        // Change positions of bodies
-        a.apply_force(positional_impulse * a.inverse_mass());
-        b.apply_force(-positional_impulse * b.inverse_mass());
-
-        // Change rotation of bodies
-        a.apply_rotational_force(a.delta_rotation_at_point(a_attachment, positional_impulse));
-        b.apply_rotational_force(-b.delta_rotation_at_point(b_attachment, positional_impulse));
+        a.apply_positional_impulse(positional_impulse, a_attachment, 1.0);
+        b.apply_positional_impulse(positional_impulse, b_attachment, -1.0);
     }
 }

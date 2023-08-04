@@ -90,6 +90,11 @@ impl Constraint for DistanceConstraint {
             .get_many_mut([&self.a, &self.b])
             .expect("Couldn't get rigidbodies for distance constraint");
 
+        // Ignore sleeping or static bodies
+        if !a.is_active() && !b.is_active() {
+            return;
+        }
+
         self.apply(a, self.a_attachment, b, self.b_attachment, dt);
     }
 
