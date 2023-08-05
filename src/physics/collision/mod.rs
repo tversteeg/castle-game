@@ -1,29 +1,7 @@
 pub mod shape;
 pub mod spatial_grid;
 
-use arrayvec::ArrayVec;
 use vek::Vec2;
-
-use crate::math::Rotation;
-
-use self::shape::Rectangle;
-
-/// Make a shape implement collision detection with other shapes.
-///
-/// Implemented with Separating Axis Theorem.
-pub trait NarrowCollision {
-    /// Check for collision with a rectangle, returning collision information.
-    ///
-    /// Returns `None` when no collision.
-    fn collide_rectangle(
-        &self,
-        pos: Vec2<f32>,
-        rot: Rotation,
-        other_rect: Rectangle,
-        other_pos: Vec2<f32>,
-        other_rot: Rotation,
-    ) -> ArrayVec<CollisionResponse, 2>;
-}
 
 /// Response for a collision.
 #[derive(Debug, Clone, PartialEq)]

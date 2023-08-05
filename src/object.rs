@@ -8,7 +8,10 @@ use serde::Deserialize;
 use vek::{Extent2, Vec2};
 
 use crate::{
-    physics::{collision::shape::Rectangle, rigidbody::RigidBody},
+    physics::{
+        collision::shape::{Heightmap, Rectangle, Shape},
+        rigidbody::RigidBody,
+    },
     sprite::Sprite,
 };
 
@@ -45,6 +48,24 @@ impl Compound for ObjectSettings {
                     }
                 }
             }
+            ColliderSettings::Heightmap {
+                spacing,
+                ref mut heights,
+            } => {
+                let sprite = cache.load::<Sprite>(id)?.read();
+
+                let amount_heights = heights.len() as u32 / *spacing as u32;
+                // Calculate the new heights from the sprite
+                *heights = (0..amount_heights)
+                    .map(|index| {
+                        let x = index * *spacing as u32;
+
+                        (0..sprite.height())
+                            .find(|y| !sprite.is_pixel_transparent(x, *y))
+                            .unwrap_or(sprite.height()) as u8
+                    })
+                    .collect();
+            }
         };
 
         Ok(Self(settings))
@@ -67,10 +88,13 @@ impl ObjectSettingsImpl {
     }
 
     /// Construct a collider shape from the metadata.
-    pub fn shape(&self) -> Rectangle {
-        match self.collider {
+    pub fn shape(&self) -> Shape {
+        match &self.collider {
             ColliderSettings::Rectangle { width, height } => {
-                Rectangle::new(Extent2::new(width, height))
+                Rectangle::new(Extent2::new(*width, *height)).into()
+            }
+            ColliderSettings::Heightmap { spacing, heights } => {
+                Heightmap::new(heights.clone(), *spacing).into()
             }
         }
     }
@@ -79,6 +103,10 @@ impl ObjectSettingsImpl {
     pub fn width(&self) -> f32 {
         match self.collider {
             ColliderSettings::Rectangle { width, .. } => width,
+            ColliderSettings::Heightmap {
+                spacing,
+                ref heights,
+            } => heights.len() as f32 * spacing as f32,
         }
     }
 
@@ -86,6 +114,8 @@ impl ObjectSettingsImpl {
     pub fn height(&self) -> f32 {
         match self.collider {
             ColliderSettings::Rectangle { height, .. } => height,
+            // Cannot be known
+            ColliderSettings::Heightmap { .. } => 0.0,
         }
     }
 }
@@ -120,5 +150,12 @@ enum ColliderSettings {
         /// Height of the collider, if `0.0` the sprite size is used.
         #[serde(default)]
         height: f32,
+    },
+    Heightmap {
+        /// How many X pixels will be skipped before the next sample is taken.
+        spacing: u8,
+        /// List of heights, will be calculated from the image.
+        #[serde(default)]
+        heights: Vec<u8>,
     },
 }

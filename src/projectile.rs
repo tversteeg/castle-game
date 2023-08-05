@@ -1,47 +1,66 @@
 use vek::Vec2;
 
-use crate::{camera::Camera, terrain::Terrain};
+use crate::{
+    camera::Camera,
+    object::ObjectSettings,
+    physics::{rigidbody::RigidBodyIndex, Physics},
+    terrain::Terrain,
+};
 
 /// Spear asset path.
 const ASSET_PATH: &str = "projectile.spear-1";
 
 /// Projectile that can fly.
 pub struct Projectile {
-    /// Absolute position.
-    pos: Vec2<f32>,
-    /// Velocity.
-    vel: Vec2<f32>,
+    /// Reference to the physics rigid body.
+    rigidbody: RigidBodyIndex,
 }
 
 impl Projectile {
-    /// Create a new unit.
-    pub fn new(pos: Vec2<f32>, vel: Vec2<f32>) -> Self {
-        Self { pos, vel }
-    }
-
-    /// Move the projectile.
-    ///
-    /// Returns whether the projectile should be removed.
-    pub fn update(&mut self, terrain: &Terrain, dt: f32) -> bool {
+    /// Create a new projectile.
+    pub fn new<
+        const WIDTH: u16,
+        const HEIGHT: u16,
+        const STEP: u16,
+        const BUCKET: usize,
+        const SIZE: usize,
+    >(
+        pos: Vec2<f32>,
+        vel: Vec2<f32>,
+        physics: &mut Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
+    ) -> Self {
         puffin::profile_function!();
 
-        self.pos += self.vel * dt;
-        self.vel.y += crate::settings().projectile_gravity;
+        // Load the object definition for properties of the object
+        let object = crate::asset::<ObjectSettings>(ASSET_PATH);
 
-        terrain.point_collides(self.pos.numcast().unwrap_or_default())
+        let rigidbody = physics.add_rigidbody(object.rigidbody(pos).with_velocity(vel));
+
+        Self { rigidbody }
     }
 
     /// Render the projectile.
-    pub fn render(&self, canvas: &mut [u32], camera: &Camera) {
+    pub fn render<
+        const WIDTH: u16,
+        const HEIGHT: u16,
+        const STEP: u16,
+        const BUCKET: usize,
+        const SIZE: usize,
+    >(
+        &self,
+        canvas: &mut [u32],
+        camera: &Camera,
+        physics: &Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
+    ) {
         puffin::profile_function!();
 
-        let rotation = self.vel.y.atan2(self.vel.x);
+        let rigidbody = physics.rigidbody(self.rigidbody);
 
         crate::rotatable_sprite(ASSET_PATH).render(
-            rotation,
+            rigidbody.rotation(),
             canvas,
             camera,
-            self.pos.numcast().unwrap_or_default(),
+            rigidbody.position().as_(),
         );
     }
 }

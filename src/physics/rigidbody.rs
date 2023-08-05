@@ -5,7 +5,7 @@ use vek::{Aabr, Vec2};
 
 use crate::{math::Rotation, timer::Timer, SIZE};
 
-use super::collision::{shape::Rectangle, CollisionResponse, NarrowCollision};
+use super::collision::{shape::Shape, CollisionResponse};
 
 /// How far away we predict the impulses to move us for checking the collision during the next full deltatime.
 const PREDICTED_POSITION_MULTIPLIER: f32 = 2.0;
@@ -53,7 +53,7 @@ pub struct RigidBody {
     /// Restitution coefficient, how bouncy collisions are.
     restitution: f32,
     /// Collision shape.
-    shape: Rectangle,
+    shape: Shape,
     /// If > 0 we are sleeping, which means we don't have to calculate a lot of steps.
     ///
     /// After a certain time the velocity and position will be set to zero.
@@ -64,10 +64,13 @@ impl RigidBody {
     /// Construct a new rigidbody without movements.
     ///
     /// Gravity is applied as an external force.
-    pub fn new(pos: Vec2<f32>, mass: f32, shape: Rectangle) -> Self {
+    pub fn new<S>(pos: Vec2<f32>, mass: f32, shape: S) -> Self
+    where
+        S: Into<Shape>,
+    {
         let settings = crate::settings();
 
-        Self::with_external_force(
+        Self::new_external_force(
             pos,
             Vec2::new(0.0, settings.physics.gravity),
             settings.physics.air_friction,
@@ -78,14 +81,17 @@ impl RigidBody {
     }
 
     /// Construct a new rigidbody with acceleration.
-    pub fn with_external_force(
+    pub fn new_external_force<S>(
         pos: Vec2<f32>,
         ext_force: Vec2<f32>,
         lin_damping: f32,
         ang_damping: f32,
         mass: f32,
-        shape: Rectangle,
-    ) -> Self {
+        shape: S,
+    ) -> Self
+    where
+        S: Into<Shape>,
+    {
         let inv_mass = mass.recip();
         let prev_pos = pos;
         let vel = Vec2::default();
@@ -99,9 +105,8 @@ impl RigidBody {
         let restitution = 0.2;
         let translation = Vec2::zero();
         let time_sleeping = 0.0;
-
-        // https://en.wikipedia.org/wiki/List_of_moments_of_inertia
-        let inertia = mass * (shape.width().powi(2) + shape.height().powi(2)) / 12.0;
+        let shape = shape.into();
+        let inertia = shape.inertia(mass);
 
         Self {
             pos,
@@ -127,7 +132,10 @@ impl RigidBody {
     }
 
     /// Construct a fixed rigidbody with infinite mass and no gravity.
-    pub fn new_fixed(pos: Vec2<f32>, shape: Rectangle) -> Self {
+    pub fn new_fixed<S>(pos: Vec2<f32>, shape: S) -> Self
+    where
+        S: Into<Shape>,
+    {
         let inv_mass = 0.0;
 
         let prev_pos = pos;
@@ -138,7 +146,6 @@ impl RigidBody {
         let prev_rot = Rotation::default();
         let ang_vel = 0.0;
         let prev_ang_vel = ang_vel;
-        let inertia = 1.0;
         let lin_damping = 0.0;
         let ang_damping = 0.0;
         let ext_force = Vec2::zero();
@@ -146,6 +153,8 @@ impl RigidBody {
         let friction = 0.5;
         let restitution = 0.1;
         let time_sleeping = 0.0;
+        let shape = shape.into();
+        let inertia = shape.inertia(1.0 / inv_mass);
 
         Self {
             pos,
@@ -168,6 +177,14 @@ impl RigidBody {
             restitution,
             time_sleeping,
         }
+    }
+
+    /// Apply velocity after creating a rigidbody.
+    pub fn with_velocity(mut self, velocity: Vec2<f32>) -> Self {
+        self.vel = velocity;
+        self.prev_vel = velocity;
+
+        self
     }
 
     /// Perform a single (sub-)step with a deltatime.
@@ -328,16 +345,6 @@ impl RigidBody {
         self.pos - self.prev_pos + self.translation + point - self.prev_rot.rotate(point)
     }
 
-    /// Inverse of the mass.
-    pub fn inverse_mass(&self) -> f32 {
-        self.inv_mass
-    }
-
-    /// Inertia tensor, corresponds to mass in rotational terms.
-    pub fn inertia(&self) -> f32 {
-        self.inertia
-    }
-
     /// Inverse of the inertia tensor.
     pub fn inverse_inertia(&self) -> f32 {
         self.inertia.recip()
@@ -366,10 +373,10 @@ impl RigidBody {
 
     /// Check if it collides with another rigidbody.
     pub fn collides(&self, other: &RigidBody) -> ArrayVec<CollisionResponse, 2> {
-        self.shape.collide_rectangle(
+        self.shape.collides(
             self.position(),
             self.rot,
-            other.shape,
+            &other.shape,
             other.position(),
             other.rot,
         )

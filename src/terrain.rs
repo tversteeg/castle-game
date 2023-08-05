@@ -1,73 +1,63 @@
 use vek::{Extent2, Vec2};
 
-use crate::{camera::Camera, sprite::Sprite, SIZE};
+use crate::{
+    camera::Camera,
+    object::ObjectSettings,
+    physics::{
+        collision::shape::Rectangle,
+        rigidbody::{RigidBody, RigidBodyIndex},
+        Physics,
+    },
+    sprite::Sprite,
+    SIZE,
+};
 
 /// Level asset path.
 const ASSET_PATH: &str = "level.grass-1";
 
 /// Destructible terrain buffer.
 pub struct Terrain {
-    /// Size of the terrain.
-    size: Extent2<u32>,
-    /// Array of the top collision point heights of the terrain.
-    top_heights: Vec<u8>,
+    /// Y offset of the sprite.
+    pub y: f32,
+    /// Total size of the level.
+    pub width: f32,
+    /// Physics object reference.
+    rigidbody: RigidBodyIndex,
 }
 
 impl Terrain {
     /// Load a terrain from image bytes.
-    pub fn new() -> Self {
+    pub fn new<
+        const WIDTH: u16,
+        const HEIGHT: u16,
+        const STEP: u16,
+        const BUCKET: usize,
+        const GRID_SIZE: usize,
+    >(
+        physics: &mut Physics<WIDTH, HEIGHT, STEP, BUCKET, GRID_SIZE>,
+    ) -> Self {
+        let object = crate::asset::<ObjectSettings>(ASSET_PATH);
         let sprite = crate::sprite(ASSET_PATH);
-        let size = Extent2::new(sprite.width(), sprite.height());
+        let shape = object.shape();
 
-        // Create an empty vector so we can fill it with a method
-        let top_heights = vec![0; size.w as usize];
+        let width = sprite.width() as f32;
+        let y = SIZE.h as f32 - sprite.height() as f32;
 
-        let mut terrain = Self { size, top_heights };
-        terrain.recalculate_top_height(&sprite);
-        terrain
+        // Create a heightmap for the terrain
+        let rigidbody =
+            physics.add_rigidbody(RigidBody::new_fixed(Vec2::new(width / 2.0, y), shape));
+
+        Self {
+            rigidbody,
+            y,
+            width,
+        }
     }
 
     /// Draw the terrain based on a camera offset.
     pub fn render(&self, canvas: &mut [u32], camera: &Camera) {
         puffin::profile_function!();
 
-        crate::sprite(ASSET_PATH).render(canvas, camera, (0, self.y_offset()).into());
-    }
-
-    /// Whether an absolute coordinate hits the terrain.
-    pub fn point_collides(&self, point: Vec2<i32>) -> bool {
-        if point.y < self.y_offset() || point.x < 0 || point.x >= self.width() as i32 {
-            false
-        } else {
-            // Collides if the top height is smaller than the position
-            self.y_offset() + (self.top_heights[point.x as usize] as i32) < point.y
-        }
-    }
-
-    /// Width of the terrain.
-    pub fn width(&self) -> u32 {
-        self.size.w
-    }
-
-    /// Total offset to place the terrain at the bottom.
-    pub fn y_offset(&self) -> i32 {
-        SIZE.h as i32 - self.size.h as i32
-    }
-
-    /// Recalculate the collision top heights.
-    fn recalculate_top_height(&mut self, sprite: &Sprite) {
-        puffin::profile_function!();
-
-        // Loop over each X value
-        self.top_heights
-            .iter_mut()
-            .enumerate()
-            .for_each(|(x, height)| {
-                // Loop over each Y value to find the first pixel that is not transparent
-                *height = (0..sprite.height())
-                    .find(|y| !sprite.is_pixel_transparent(x as u32, *y))
-                    // If nothing is found just use the bottom
-                    .unwrap_or(self.size.h) as u8;
-            });
+        crate::sprite(ASSET_PATH).render(canvas, camera, Vec2::new(0, self.y as i32));
     }
 }

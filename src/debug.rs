@@ -7,9 +7,9 @@ use crate::{
     math::Rotation,
     object::ObjectSettings,
     physics::{
-        collision::{shape::Rectangle, CollisionResponse, NarrowCollision},
+        collision::{shape::Rectangle, CollisionResponse},
         rigidbody::{RigidBody, RigidBodyIndex},
-        Simulator,
+        Physics,
     },
     SIZE,
 };
@@ -30,7 +30,7 @@ pub struct DebugDraw {
     /// Physics engine debug.
     ///
     /// All physics happen within the screen space.
-    physics: Simulator<
+    physics: Physics<
         { SIZE.w as u16 },
         { SIZE.h as u16 },
         PHYSICS_GRID_STEP,
@@ -47,7 +47,7 @@ impl DebugDraw {
     /// Setup with default.
     pub fn new() -> Self {
         let mouse = Vec2::zero();
-        let physics = Simulator::new();
+        let physics = Physics::new();
         let screen = crate::settings().debug.start_screen;
         let rigidbodies = Vec::new();
         let collisions = Vec::new();
@@ -215,10 +215,10 @@ impl DebugDraw {
                 self.physics_object(pos.as_(), rot, false, CRATE, canvas);
 
                 // Draw the collision information
-                for response in shape.collide_rectangle(
+                for response in shape.collides(
                     pos.as_(),
                     Rotation::from_degrees(rot),
-                    shape,
+                    &shape,
                     self.mouse.as_(),
                     Rotation::from_degrees(mouse_rot),
                 ) {
@@ -247,7 +247,7 @@ impl DebugDraw {
 
     /// Setup a new physics scene with a rope structure.
     fn setup_physics_scene_1(&mut self) {
-        self.physics = Simulator::new();
+        self.physics = Physics::new();
 
         // Shape is based on the size of the image
         let object = crate::asset::<ObjectSettings>(SPEAR);
@@ -284,7 +284,7 @@ impl DebugDraw {
 
     /// Setup a new physics scene with boxes.
     fn setup_physics_scene_2(&mut self) {
-        self.physics = Simulator::new();
+        self.physics = Physics::new();
 
         // Shape is based on the size of the image
         let object = crate::asset::<ObjectSettings>(CRATE);
@@ -445,13 +445,14 @@ impl DebugDraw {
 
             // Draw all vertices
             vertices
-                .into_iter()
+                .iter()
                 .for_each(|vertex| self.circle(vertex.as_(), canvas, 0xFF00FF00));
 
             // Draw a line between each vertex and the next
+            let first = vertices[0];
             vertices
                 .into_iter()
-                .chain(std::iter::once(vertices[0]))
+                .chain(std::iter::once(first))
                 .reduce(|prev, cur| {
                     self.line(prev.as_(), cur.as_(), canvas, 0xFF00FF00);
                     cur

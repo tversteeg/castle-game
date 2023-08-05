@@ -1,21 +1,92 @@
 use arrayvec::ArrayVec;
 use parry2d::{
-    math::{Isometry, Point},
-    na::{Isometry2, Translation, Vector2},
-    query::{ContactManifold, DefaultQueryDispatcher, PersistentQueryDispatcher, TrackedContact},
-    shape::{ConvexPolygon, Cuboid, PackedFeatureId, RoundShape, Shape, SharedShape},
+    na::{Isometry2, Vector2},
+    query::{ContactManifold, DefaultQueryDispatcher, PersistentQueryDispatcher},
+    shape::SharedShape,
 };
-use vek::{Aabr, Extent2, LineSegment2, Vec2};
+use vek::{Aabr, Extent2, Vec2};
 
 use crate::math::Rotation;
 
-use super::{CollisionResponse, NarrowCollision};
+use super::CollisionResponse;
 
 /// Distance at which the collisions will be detected before actually touching.
 const PREDICTION_DISTANCE: f32 = 0.1;
 
 /// Distance at which we count a collision as valid.
 const MIN_PENETRATION_DISTANCE: f32 = 0.0001;
+
+/// Different shapes.
+#[derive(Debug, Clone)]
+pub enum Shape {
+    /// Box with two half extents.
+    Rectangle(Rectangle),
+    /// Heightmap from a list of heights.
+    Heightmap(Heightmap),
+}
+
+impl Shape {
+    /// Axis aligned bounding box.
+    pub fn aabr(&self, pos: Vec2<f32>, rot: f32) -> Aabr<f32> {
+        match self {
+            Shape::Rectangle(rect) => rect.aabr(pos, rot),
+            Shape::Heightmap(heightmap) => heightmap.aabr(pos),
+        }
+    }
+
+    /// Collide with another shape.
+    pub fn collides(
+        &self,
+        pos: Vec2<f32>,
+        rot: Rotation,
+        other: &Self,
+        other_pos: Vec2<f32>,
+        other_rot: Rotation,
+    ) -> ArrayVec<CollisionResponse, 2> {
+        match (self, other) {
+            (Shape::Rectangle(a), Shape::Rectangle(b)) => {
+                a.collide_rectangle(pos, rot, b, other_pos, other_rot)
+            }
+            (Shape::Rectangle(_), Shape::Heightmap(_)) => todo!(),
+            (Shape::Heightmap(_), Shape::Rectangle(_)) => todo!(),
+            (Shape::Heightmap(_), Shape::Heightmap(_)) => todo!(),
+        }
+    }
+
+    /// Calculate inertia based on the shape and mass.
+    pub fn inertia(&self, mass: f32) -> f32 {
+        match self {
+            Shape::Rectangle(rect) => rect.inertia(mass),
+            Shape::Heightmap(_) => 1.0,
+        }
+    }
+
+    /// Get a list of vertices for the shape.
+    pub fn vertices(&self, pos: Vec2<f32>, rot: Rotation) -> Vec<Vec2<f32>> {
+        match self {
+            Shape::Rectangle(rect) => rect.vertices(pos, rot).to_vec(),
+            Shape::Heightmap(_) => todo!(),
+        }
+    }
+}
+
+impl Default for Shape {
+    fn default() -> Self {
+        Self::Rectangle(Rectangle::default())
+    }
+}
+
+impl From<Rectangle> for Shape {
+    fn from(rect: Rectangle) -> Self {
+        Self::Rectangle(rect)
+    }
+}
+
+impl From<Heightmap> for Shape {
+    fn from(heightmap: Heightmap) -> Self {
+        Self::Heightmap(heightmap)
+    }
+}
 
 /// Orientable rectangle.
 #[derive(Debug, Clone, Copy, Default)]
@@ -88,14 +159,17 @@ impl Rectangle {
 
         SharedShape::cuboid(self.half_width(), self.half_height())
     }
-}
 
-impl NarrowCollision for Rectangle {
+    /// Calculate inertia based on mass.
+    pub fn inertia(&self, mass: f32) -> f32 {
+        mass * (self.width().powi(2) + self.height().powi(2)) / 12.0
+    }
+
     fn collide_rectangle(
         &self,
         pos: Vec2<f32>,
         rot: Rotation,
-        other_rect: Rectangle,
+        other_rect: &Rectangle,
         other_pos: Vec2<f32>,
         other_rot: Rotation,
     ) -> ArrayVec<CollisionResponse, 2> {
@@ -168,5 +242,29 @@ impl NarrowCollision for Rectangle {
                 }
             })
             .collect()
+    }
+}
+
+/// List of vertical heights with a set spacing.
+#[derive(Debug, Clone, Default)]
+pub struct Heightmap {
+    /// Y position of point spread out by spacing.
+    pub heights: Vec<u8>,
+    /// X pixels between each point.
+    pub spacing: u8,
+}
+
+impl Heightmap {
+    /// Construct from existing list.
+    pub fn new(heights: Vec<u8>, spacing: u8) -> Self {
+        Self { heights, spacing }
+    }
+
+    /// Bounding box, heightmaps can never be rotated.
+    fn aabr(&self, pos: Vec2<f32>) -> Aabr<f32> {
+        let min = pos;
+        let max = pos + Vec2::new(self.heights.len() as f32 * self.spacing as f32, 256.0);
+
+        Aabr { min, max }
     }
 }

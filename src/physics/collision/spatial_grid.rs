@@ -101,25 +101,15 @@ where
     pub fn store_aabr(&mut self, aabr: Aabr<u16>, id: I) {
         puffin::profile_function!();
 
-        let start = aabr.min / STEP;
-        let mut end = aabr.max / STEP;
-        end.x = end.x.min(Self::STEPPED_WIDTH - 1);
-        end.y = end.y.min(Self::STEPPED_WIDTH - 1);
+        let edge = Vec2::new(Self::STEPPED_WIDTH - 1, Self::STEPPED_HEIGHT - 1);
+        let start = Vec2::<u16>::min(aabr.min / STEP, edge);
+        let end = Vec2::<u16>::min(aabr.max / STEP, edge);
 
         for y in start.y..=end.y {
             for x in start.x..=end.x {
                 self.add_to_bucket(x + y * Self::STEPPED_WIDTH, id);
             }
         }
-    }
-
-    /// Store a single entity.
-    ///
-    /// Drops an entity when the bucket is full.
-    ///
-    /// Panics when the entity is outside of the size of the grid.
-    pub fn store_entity(&mut self, pos: Vec2<u16>, id: I) {
-        self.add_to_bucket(Self::coordinate_to_index(pos), id);
     }
 
     /// Add entity to bucket at index.

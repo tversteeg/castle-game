@@ -3,7 +3,8 @@ use serde::Deserialize;
 use vek::Vec2;
 
 use crate::{
-    camera::Camera, projectile::Projectile, random::RandomRangeF32, terrain::Terrain, timer::Timer,
+    camera::Camera, physics::Physics, projectile::Projectile, random::RandomRangeF32,
+    terrain::Terrain, timer::Timer,
 };
 
 /// All unit types.
@@ -57,9 +58,21 @@ impl Unit {
     /// Move the unit.
     ///
     /// When a projectile is returned one is spawned.
-    pub fn update(&mut self, terrain: &Terrain, dt: f32) -> Option<Projectile> {
+    pub fn update<
+        const WIDTH: u16,
+        const HEIGHT: u16,
+        const STEP: u16,
+        const BUCKET: usize,
+        const SIZE: usize,
+    >(
+        &mut self,
+        terrain: &Terrain,
+        dt: f32,
+        physics: &mut Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
+    ) -> Option<Projectile> {
         puffin::profile_function!();
 
+        /*
         if !terrain.point_collides(self.pos.numcast().unwrap_or_default()) {
             // No collision with the terrain, the unit falls down
             self.pos.y += 1.0;
@@ -71,6 +84,7 @@ impl Unit {
             let walk_speed = self.settings().walk_speed;
             self.pos.x += walk_speed * dt;
         }
+        */
 
         // Update hands delay
         if self.hide_hands_delay > 0.0 {
@@ -84,7 +98,11 @@ impl Unit {
 
             let velocity = self.settings().projectile_velocity.value();
 
-            Some(Projectile::new(self.pos, Vec2::new(velocity, -velocity)))
+            Some(Projectile::new(
+                self.pos,
+                Vec2::new(velocity, -velocity),
+                physics,
+            ))
         } else {
             None
         }

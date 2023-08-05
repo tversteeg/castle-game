@@ -1,0 +1,6 @@
+[physics]
+mass = 1000.0
+
+[collider]
+shape = "heightmap"
+spacing = 5

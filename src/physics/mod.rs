@@ -22,7 +22,7 @@ use self::{
 
 /// Physics simulation state.
 #[derive(Debug)]
-pub struct Simulator<
+pub struct Physics<
     const WIDTH: u16,
     const HEIGHT: u16,
     const STEP: u16,
@@ -47,7 +47,7 @@ impl<
         const STEP: u16,
         const BUCKET: usize,
         const SIZE: usize,
-    > Simulator<WIDTH, HEIGHT, STEP, BUCKET, SIZE>
+    > Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>
 {
     /// Create the new state.
     pub fn new() -> Self {

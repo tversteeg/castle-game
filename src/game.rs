@@ -1,18 +1,26 @@
 use assets_manager::{loader::TomlLoader, Asset};
 use serde::Deserialize;
+use vek::Vec2;
 
 #[cfg(feature = "debug")]
 use crate::debug::{DebugDraw, DebugSettings};
 use crate::{
     camera::Camera,
     input::Input,
-    physics::Settings as PhysicsSettings,
+    physics::{Physics, Settings as PhysicsSettings},
     projectile::Projectile,
     terrain::Terrain,
     timer::Timer,
     unit::{Unit, UnitType},
     SIZE,
 };
+
+/// Physics grid step size.
+const PHYSICS_GRID_STEP: u16 = 20;
+/// Biggest map size.
+const MAX_MAP_WIDTH: u16 = 640;
+/// Maximum amount of physics objects in a single tile.
+const BUCKET_SIZE: usize = 4;
 
 /// Handles everything related to the game.
 pub struct GameState {
@@ -30,6 +38,16 @@ pub struct GameState {
     camera: Camera,
     /// Maximum X position of the level.
     level_width: u32,
+    /// Physics engine.
+    ///
+    /// Size of the grid is the maximum size of any map.
+    physics: Physics<
+        MAX_MAP_WIDTH,
+        { SIZE.h as u16 },
+        PHYSICS_GRID_STEP,
+        BUCKET_SIZE,
+        { (MAX_MAP_WIDTH / PHYSICS_GRID_STEP) as usize * (SIZE.h / PHYSICS_GRID_STEP as usize) },
+    >,
     /// Debug information on the screen.
     #[cfg(feature = "debug")]
     debug_state: DebugDraw,
@@ -38,19 +56,16 @@ pub struct GameState {
 impl GameState {
     /// Construct the game state with default values.
     pub fn new() -> Self {
-        let terrain = Terrain::new();
         let units = Vec::new();
         let unit_spawner = Timer::new(crate::settings().unit_spawn_interval);
         let enemy_unit_spawner = Timer::new(crate::settings().enemy_unit_spawn_interval);
         let projectiles = Vec::new();
-        let level_width = terrain.width();
         let camera = Camera::default();
-        #[cfg(feature = "debug")]
-        let debug_state = DebugDraw::new();
+        let mut physics = Physics::new();
+        let terrain = Terrain::new(&mut physics);
+        let level_width = terrain.width as u32;
 
         Self {
-            #[cfg(feature = "debug")]
-            debug_state,
             projectiles,
             terrain,
             units,
@@ -58,6 +73,9 @@ impl GameState {
             enemy_unit_spawner,
             camera,
             level_width,
+            physics,
+            #[cfg(feature = "debug")]
+            debug_state: DebugDraw::new(),
         }
     }
 
@@ -75,7 +93,7 @@ impl GameState {
         // Render all projectiles
         self.projectiles
             .iter()
-            .for_each(|projectile| projectile.render(canvas, &self.camera));
+            .for_each(|projectile| projectile.render(canvas, &self.camera, &self.physics));
 
         // Render debug information
         #[cfg(feature = "debug")]
@@ -103,33 +121,28 @@ impl GameState {
             );
         }
 
+        // Simulate the physics
+        self.physics.step(dt);
+
         // Update all units
         self.units.iter_mut().for_each(|unit| {
-            if let Some(projectile) = unit.update(&self.terrain, dt) {
+            if let Some(projectile) = unit.update(&self.terrain, dt, &mut self.physics) {
                 self.projectiles.push(projectile);
             }
         });
-
-        // Update all projectiles
-        self.projectiles
-            .retain_mut(|projectile| !projectile.update(&self.terrain, dt));
 
         // Update the spawn timers and spawn a unit when it ticks
         if self.unit_spawner.update(dt) {
             // Spawn a unit at the upper edge of the terrain image
             self.units.push(Unit::new(
-                (10.0, self.terrain.y_offset() as f32).into(),
+                Vec2::new(10.0, self.terrain.y),
                 UnitType::PlayerSpear,
             ));
         }
         if self.enemy_unit_spawner.update(dt) {
             // Spawn a unit at the upper edge of the terrain image
             self.units.push(Unit::new(
-                (
-                    self.level_width as f32 - 10.0,
-                    self.terrain.y_offset() as f32,
-                )
-                    .into(),
+                (self.level_width as f32 - 10.0, self.terrain.y).into(),
                 UnitType::EnemySpear,
             ));
         }
@@ -151,8 +164,6 @@ pub struct Settings {
     pub unit_spawn_interval: f32,
     /// Interval in seconds for when an enemy unit spawns.
     pub enemy_unit_spawn_interval: f32,
-    /// Downward force on all projectiles.
-    pub projectile_gravity: f32,
     /// Physics settings.
     pub physics: PhysicsSettings,
     /// Debug settings.
