@@ -283,15 +283,15 @@ impl<
         // Narrow-phase with SAT
         collision_pairs
             .iter()
+            .filter(|(a, b)| {
+                // Ignore inactive collisions
+                self.rigidbody(*a).is_active() || self.rigidbody(*b).is_active()
+            })
             .flat_map(|(a, b)| {
                 self.rigidbodies[a]
                     .collides(&self.rigidbodies[b])
                     .into_iter()
                     .map(|response| (*a, *b, response))
-                    .filter(|(a, b, _)| {
-                        // Ignore inactive collisions
-                        self.rigidbody(*a).is_active() || self.rigidbody(*b).is_active()
-                    })
             })
             .collect()
     }

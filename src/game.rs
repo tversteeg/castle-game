@@ -1,9 +1,10 @@
 use assets_manager::{loader::TomlLoader, Asset};
 use serde::Deserialize;
 
+#[cfg(feature = "debug")]
+use crate::debug::{DebugDraw, DebugSettings};
 use crate::{
     camera::Camera,
-    debug::{DebugDraw, DebugSettings},
     input::Input,
     physics::Settings as PhysicsSettings,
     projectile::Projectile,
@@ -30,6 +31,7 @@ pub struct GameState {
     /// Maximum X position of the level.
     level_width: u32,
     /// Debug information on the screen.
+    #[cfg(feature = "debug")]
     debug_state: DebugDraw,
 }
 
@@ -43,9 +45,11 @@ impl GameState {
         let projectiles = Vec::new();
         let level_width = terrain.width();
         let camera = Camera::default();
+        #[cfg(feature = "debug")]
         let debug_state = DebugDraw::new();
 
         Self {
+            #[cfg(feature = "debug")]
             debug_state,
             projectiles,
             terrain,
@@ -74,6 +78,7 @@ impl GameState {
             .for_each(|projectile| projectile.render(canvas, &self.camera));
 
         // Render debug information
+        #[cfg(feature = "debug")]
         self.debug_state.render(canvas);
     }
 
@@ -130,6 +135,7 @@ impl GameState {
         }
 
         // Update debug information
+        #[cfg(feature = "debug")]
         self.debug_state.update(input, dt);
     }
 }

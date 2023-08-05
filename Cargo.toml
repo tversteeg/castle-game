@@ -13,6 +13,10 @@ repository = "https://github.com/tversteeg/castle-game.git"
 keywords = ["game", "2d", "destructible"]
 categories = ["games"]
 
+[features]
+default = ["debug"]
+debug = ["line_2d"]
+
 [dependencies]
 winit = "0.28.6"
 log = "0.4.19"
@@ -32,6 +36,7 @@ arrayvec = "0.7.4"
 itertools = "0.11.0"
 hashbrown = "0.14.0"
 parry2d = { version = "0.13.5", features = ["simd-stable"] }
+line_2d = { version = "0.5.3", optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1.29.1", features = ["macros", "sync", "rt-multi-thread"] }

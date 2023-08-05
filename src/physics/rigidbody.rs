@@ -95,7 +95,7 @@ impl RigidBody {
         let rot = Rotation::default();
         let prev_rot = rot;
         let ext_torque = 0.0;
-        let friction = 0.3;
+        let friction = 0.4;
         let restitution = 0.2;
         let translation = Vec2::zero();
         let time_sleeping = 0.0;
@@ -143,8 +143,8 @@ impl RigidBody {
         let ang_damping = 0.0;
         let ext_force = Vec2::zero();
         let ext_torque = 0.0;
-        let friction = 0.3;
-        let restitution = 0.0;
+        let friction = 0.5;
+        let restitution = 0.1;
         let time_sleeping = 0.0;
 
         Self {
@@ -366,8 +366,13 @@ impl RigidBody {
 
     /// Check if it collides with another rigidbody.
     pub fn collides(&self, other: &RigidBody) -> ArrayVec<CollisionResponse, 2> {
-        self.shape
-            .collide_rectangle(self.position(), self.rot, other.shape, other.pos, other.rot)
+        self.shape.collide_rectangle(
+            self.position(),
+            self.rot,
+            other.shape,
+            other.position(),
+            other.rot,
+        )
     }
 
     /// Rotate a point in local space.

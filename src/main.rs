@@ -1,5 +1,6 @@
 mod assets;
 mod camera;
+#[cfg(feature = "debug")]
 mod debug;
 mod font;
 mod game;

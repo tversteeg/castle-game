@@ -189,41 +189,48 @@ impl DebugDraw {
                 );
             }
         } else if self.screen == 4 {
-            // Draw two rectangles colliding
+            // Draw collision between rotated rectangles
             let object = crate::asset::<ObjectSettings>(CRATE);
             let shape = object.shape();
 
-            let (pos_a, pos_b, pos_c) = (
-                Vec2::new(SIZE.w as i32 / 2 - 20, SIZE.h as i32 / 2),
-                Vec2::new(SIZE.w as i32 / 2 + 20, SIZE.h as i32 / 2),
-                self.mouse,
+            let mouse_rot = -23f32;
+
+            // Draw the box
+            self.physics_object(
+                self.mouse.as_(),
+                mouse_rot.to_radians(),
+                false,
+                CRATE,
+                canvas,
             );
-            let (rot_a, rot_b, rot_c) =
-                (45f32.to_radians(), 90f32.to_radians(), 90f32.to_radians());
 
-            // Draw the boxes
-            self.physics_object(pos_a.as_(), rot_a, false, CRATE, canvas);
-            self.physics_object(pos_b.as_(), rot_b, false, CRATE, canvas);
-            self.physics_object(pos_c.as_(), rot_c, false, CRATE, canvas);
+            for (index, rot) in [0, 90, 45, 23].into_iter().enumerate() {
+                let pos = Vec2::new(
+                    SIZE.w as i32 / 2 - 60 + index as i32 * 30,
+                    SIZE.h as i32 / 2,
+                );
+                let rot = (rot as f32).to_radians();
 
-            // Draw the collision information
-            for response in shape.collide_rectangle(
-                pos_a.as_(),
-                Rotation::from_radians(rot_a),
-                shape,
-                pos_c.as_(),
-                Rotation::from_radians(rot_c),
-            ) {
-                self.collision_response(&response, pos_a, rot_a, pos_c, rot_c, canvas);
-            }
-            for response in shape.collide_rectangle(
-                pos_b.as_(),
-                Rotation::from_radians(rot_b),
-                shape,
-                pos_c.as_(),
-                Rotation::from_radians(rot_c),
-            ) {
-                self.collision_response(&response, pos_b, rot_b, pos_c, rot_c, canvas);
+                // Draw the box
+                self.physics_object(pos.as_(), rot, false, CRATE, canvas);
+
+                // Draw the collision information
+                for response in shape.collide_rectangle(
+                    pos.as_(),
+                    Rotation::from_degrees(rot),
+                    shape,
+                    self.mouse.as_(),
+                    Rotation::from_degrees(mouse_rot),
+                ) {
+                    self.collision_response(
+                        &response,
+                        pos,
+                        rot,
+                        self.mouse,
+                        mouse_rot.to_radians(),
+                        canvas,
+                    );
+                }
             }
         }
     }
@@ -283,17 +290,36 @@ impl DebugDraw {
         let object = crate::asset::<ObjectSettings>(CRATE);
 
         // Create a nice pyramid
-        self.rigidbodies = [(0, -20), (-10, 0), (10, 0), (-20, 20), (0, 20), (20, 20)]
-            .iter()
-            .map(|(x, y)| {
-                (
-                    self.physics.add_rigidbody(object.rigidbody(
-                        (Vec2::new(*x, *y) + Vec2::new(SIZE.w as i32 / 2, SIZE.h as i32 / 2)).as_(),
-                    )),
-                    CRATE,
-                )
-            })
-            .collect();
+        self.rigidbodies = [
+            // Layer 1
+            (0, -70),
+            // Layer 2
+            (-8, -50),
+            (8, -50),
+            // Layer 3
+            (-16, -30),
+            (0, -30),
+            (16, -30),
+            // Layer 4
+            (-24, -10),
+            (-8, -10),
+            (8, -10),
+            (24, -10),
+        ]
+        .iter()
+        .map(|(x, y)| {
+            (
+                self.physics.add_rigidbody(
+                    object.rigidbody(
+                        (Vec2::new(*x, *y)
+                            + Vec2::new(SIZE.w as i32 / 2, (SIZE.h - SIZE.h / 4) as i32))
+                        .as_(),
+                    ),
+                ),
+                CRATE,
+            )
+        })
+        .collect();
 
         // Don't let them fall through the ground
         self.physics.add_rigidbody(RigidBody::new_fixed(
@@ -365,6 +391,16 @@ impl DebugDraw {
         self.point(pos + Vec2::new(-1, 0), canvas, color);
     }
 
+    /// Draw a line.
+    fn line(&self, mut start: Vec2<i32>, mut end: Vec2<i32>, canvas: &mut [u32], color: u32) {
+        for line_2d::Coord { x, y } in line_2d::coords_between(
+            line_2d::Coord::new(start.x, start.y),
+            line_2d::Coord::new(end.x, end.y),
+        ) {
+            self.point(Vec2::new(x, y), canvas, color);
+        }
+    }
+
     /// Draw a single point.
     fn point(&self, pos: Vec2<i32>, canvas: &mut [u32], color: u32) {
         let pos = pos.as_::<usize>();
@@ -377,8 +413,16 @@ impl DebugDraw {
     }
 
     /// Draw a debug direction vector.
-    fn vector(&self, pos: Vec2<i32>, dir: Vec2<f32>, canvas: &mut [u32]) {
+    fn direction(&self, pos: Vec2<i32>, dir: Vec2<f32>, canvas: &mut [u32]) {
         self.render_rotatable_sprite(pos, dir.y.atan2(dir.x), "debug.vector", canvas)
+    }
+
+    /// Draw a vector with a magnitude.
+    fn vector(&self, pos: Vec2<i32>, vec: Vec2<f32>, canvas: &mut [u32]) {
+        let color = 0xFF00AAAA | ((vec.magnitude() * 20.0).clamp(0.0, 0xFF as f32) as u32) << 16;
+
+        self.line(pos, pos + (vec * 4.0).as_(), canvas, color);
+        self.circle(pos + vec.as_(), canvas, color);
     }
 
     /// Draw a physics object.
@@ -397,11 +441,21 @@ impl DebugDraw {
         let shape = object.shape();
 
         if !is_sleeping && crate::settings().debug.draw_physics_vertices {
+            let vertices = shape.vertices(pos, Rotation::from_radians(rot));
+
             // Draw all vertices
-            shape
-                .vertices(pos, Rotation::from_radians(rot))
+            vertices
                 .into_iter()
                 .for_each(|vertex| self.circle(vertex.as_(), canvas, 0xFF00FF00));
+
+            // Draw a line between each vertex and the next
+            vertices
+                .into_iter()
+                .chain(std::iter::once(vertices[0]))
+                .reduce(|prev, cur| {
+                    self.line(prev.as_(), cur.as_(), canvas, 0xFF00FF00);
+                    cur
+                });
         }
     }
 
@@ -419,8 +473,8 @@ impl DebugDraw {
             return;
         }
 
-        self.vector(pos_a.as_(), -response.normal, canvas);
-        self.vector(pos_b.as_(), response.normal, canvas);
+        self.vector(pos_a.as_(), response.normal * response.penetration, canvas);
+        self.vector(pos_b.as_(), -response.normal * response.penetration, canvas);
 
         self.circle(
             pos_a.as_() + response.local_contact_1.rotated_z(rot_a).as_(),
