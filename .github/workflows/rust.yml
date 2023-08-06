@@ -79,7 +79,7 @@ jobs:
 
       # Build the WASM 
       - name: Build
-        run: cargo run --package run-wasm -- --bin castle-game --release --build-only
+        run: cargo run --package run-wasm -- --bin castle-game --no-default-features --release --build-only
 
       # Deploy to GitHub pages
       - name: Deploy to GitHub Pages

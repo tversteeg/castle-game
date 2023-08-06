@@ -167,6 +167,7 @@ pub struct Settings {
     /// Physics settings.
     pub physics: PhysicsSettings,
     /// Debug settings.
+    #[cfg(feature = "debug")]
     pub debug: DebugSettings,
 }
 
