@@ -196,6 +196,30 @@ impl DebugDraw {
 
             let mouse_rot = -23f32;
 
+            // Detect collisions with the heightmap
+            let level_object = crate::asset::<ObjectSettings>(LEVEL);
+            let level_pos = Vec2::new(0.0, 100.0);
+
+            self.physics_object(level_pos.as_(), 0.0, false, LEVEL, canvas);
+
+            // Draw the collision information
+            for response in level_object.shape().collides(
+                level_pos.as_(),
+                Rotation::zero(),
+                &shape,
+                self.mouse.as_(),
+                Rotation::from_degrees(mouse_rot),
+            ) {
+                self.collision_response(
+                    &response,
+                    level_pos.as_(),
+                    0.0,
+                    self.mouse,
+                    mouse_rot.to_radians(),
+                    canvas,
+                );
+            }
+
             // Draw the box
             self.physics_object(
                 self.mouse.as_(),
@@ -233,30 +257,6 @@ impl DebugDraw {
                     );
                 }
             }
-
-            // Detect collisions with the heightmap
-            let level_object = crate::asset::<ObjectSettings>(LEVEL);
-            let level_pos = Vec2::new(0.0, 100.0);
-
-            self.physics_object(level_pos.as_(), 0.0, false, LEVEL, canvas);
-
-            // Draw the collision information
-            for response in level_object.shape().collides(
-                level_pos.as_(),
-                Rotation::from_degrees(0.0),
-                &shape,
-                self.mouse.as_(),
-                Rotation::from_degrees(mouse_rot),
-            ) {
-                self.collision_response(
-                    &response,
-                    level_pos.as_(),
-                    0.0,
-                    self.mouse,
-                    mouse_rot.to_radians(),
-                    canvas,
-                );
-            }
         }
     }
 
@@ -283,7 +283,7 @@ impl DebugDraw {
             .iter()
             .enumerate()
             .map(|(_i, _)| {
-                x += 30.0;
+                x += 10.0;
                 (
                     self.physics.add_rigidbody(
                         object.rigidbody(Vec2::new(SIZE.w as f32 / 2.0 + x, SIZE.h as f32 / 2.0)),
@@ -314,42 +314,41 @@ impl DebugDraw {
         // Shape is based on the size of the image
         let object = crate::asset::<ObjectSettings>(CRATE);
 
+        let y_offset = (SIZE.h - SIZE.h / 4) as i32;
+
         // Create a nice pyramid
-        self.rigidbodies = [
-            // Layer 1
-            (0, -70),
-            // Layer 2
-            (-8, -50),
-            (8, -50),
-            // Layer 3
-            (-16, -30),
-            (0, -30),
-            (16, -30),
-            // Layer 4
-            (-24, -10),
-            (-8, -10),
-            (8, -10),
-            (24, -10),
-        ]
-        .iter()
-        .map(|(x, y)| {
-            (
-                self.physics.add_rigidbody(
-                    object.rigidbody(
-                        (Vec2::new(*x, *y)
-                            + Vec2::new(SIZE.w as i32 / 2, (SIZE.h - SIZE.h / 4) as i32))
-                        .as_(),
-                    ),
-                ),
-                CRATE,
-            )
-        })
-        .collect();
+        self.rigidbodies =
+            [
+                // Layer 1
+                (0, -70),
+                // Layer 2
+                (-8, -50),
+                (8, -50),
+                // Layer 3
+                (-16, -30),
+                (0, -30),
+                (16, -30),
+                // Layer 4
+                (-24, -10),
+                (-8, -10),
+                (8, -10),
+                (24, -10),
+            ]
+            .iter()
+            .map(|(x, y)| {
+                (
+                    self.physics.add_rigidbody(object.rigidbody(
+                        (Vec2::new(*x, *y) + Vec2::new(SIZE.w as i32 / 2, y_offset)).as_(),
+                    )),
+                    CRATE,
+                )
+            })
+            .collect();
 
         // Don't let them fall through the ground
         self.physics.add_rigidbody(RigidBody::new_fixed(
-            Vec2::new(SIZE.w as f32 / 2.0, SIZE.h as f32),
-            Rectangle::new(Extent2::new(SIZE.w as f32, SIZE.h as f32 / 2.0)),
+            Vec2::new(SIZE.w as f32 / 2.0, y_offset as f32 + 25.0),
+            Rectangle::new(Extent2::new(200.0, 30.0)),
         ));
     }
 

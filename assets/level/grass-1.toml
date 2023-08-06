@@ -3,8 +3,9 @@ rotations = 1
 offset = "left_top"
 
 [physics]
-mass = 1000.0
+mass = 0.0
 
 [collider]
 shape = "heightmap"
-spacing = 5
+spacing = 10
+height_offset = 2.5

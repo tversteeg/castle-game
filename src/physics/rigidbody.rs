@@ -151,7 +151,7 @@ impl RigidBody {
         let ext_force = Vec2::zero();
         let ext_torque = 0.0;
         let friction = 0.5;
-        let restitution = 0.1;
+        let restitution = 0.2;
         let time_sleeping = 0.0;
         let shape = shape.into();
         let inertia = shape.inertia(1.0 / inv_mass);
@@ -263,7 +263,7 @@ impl RigidBody {
         }
 
         // TODO: make these values configurable
-        if self.vel.magnitude_squared() > 0.3 || self.ang_vel.abs() > 0.3 {
+        if self.vel.magnitude_squared() > 1.0 || self.ang_vel.abs() > 1.0 {
             self.time_sleeping = 0.0;
         } else if self.time_sleeping < 0.5 {
             self.time_sleeping += dt;
@@ -298,7 +298,7 @@ impl RigidBody {
 
     /// Calculate the update in rotation when a position change is applied at a specific point.
     pub fn delta_rotation_at_point(&self, point: Vec2<f32>, impulse: Vec2<f32>) -> f32 {
-        // Perpendicular dot product of `point` with `normal`
+        // Perpendicular dot product of `point` with `impulse`
         let perp_dot = (point.x * impulse.y) - (point.y * impulse.x);
 
         self.inverse_inertia() * perp_dot
@@ -322,6 +322,22 @@ impl RigidBody {
 
         // Change rotation of body
         self.apply_rotational_force(sign * self.delta_rotation_at_point(point, positional_impulse));
+    }
+
+    /// Apply a velocity change at a point.
+    pub fn apply_velocity_impulse(
+        &mut self,
+        velocity_impulse: Vec2<f32>,
+        point: Vec2<f32>,
+        sign: f32,
+    ) {
+        if self.is_static() {
+            // Ignore when we're a static body
+            return;
+        }
+
+        self.vel += sign * velocity_impulse * self.inv_mass;
+        self.ang_vel += sign * self.delta_rotation_at_point(point, velocity_impulse);
     }
 
     /// Calculate the contact velocity based on a local relative rotated point.

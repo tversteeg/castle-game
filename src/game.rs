@@ -16,7 +16,7 @@ use crate::{
 };
 
 /// Physics grid step size.
-const PHYSICS_GRID_STEP: u16 = 20;
+const PHYSICS_GRID_STEP: u16 = 8;
 /// Biggest map size.
 const MAX_MAP_WIDTH: u16 = 640;
 /// Maximum amount of physics objects in a single tile.
@@ -123,6 +123,10 @@ impl GameState {
 
         // Simulate the physics
         self.physics.step(dt);
+
+        // Remove rigidbodies that don't exist anymore
+        self.projectiles
+            .retain(|projectile| self.physics.has_rigidbody(projectile.rigidbody));
 
         // Update all units
         self.units.iter_mut().for_each(|unit| {

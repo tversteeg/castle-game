@@ -211,6 +211,11 @@ impl<
             .apply_rotational_force(force);
     }
 
+    /// Check whether a rigidbody is still alive.
+    pub fn has_rigidbody(&self, rigidbody: RigidBodyIndex) -> bool {
+        self.rigidbodies.contains_key(&rigidbody)
+    }
+
     /// Reference to a rigid body.
     pub fn rigidbody(&self, rigidbody: RigidBodyIndex) -> &RigidBody {
         puffin::profile_function!();

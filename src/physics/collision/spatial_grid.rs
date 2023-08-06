@@ -97,19 +97,32 @@ where
     ///
     /// This will fill all buckets that are colliding with this rectangle.
     ///
-    /// Drops an entity when the bucket is full.
-    pub fn store_aabr(&mut self, aabr: Aabr<u16>, id: I) {
+    /// Drops an entity when the bucket is full or when it's outside of the range.
+    pub fn store_aabr(&mut self, aabr: Aabr<i16>, id: I) {
         puffin::profile_function!();
 
-        let edge = Vec2::new(Self::STEPPED_WIDTH - 1, Self::STEPPED_HEIGHT - 1);
-        let start = Vec2::<u16>::min(aabr.min / STEP, edge);
-        let end = Vec2::<u16>::min(aabr.max / STEP, edge);
+        // First check if the rectangle is within bounds
+        let grid = Aabr {
+            min: Vec2::zero(),
+            max: Vec2::new((WIDTH - 1) as i16, (HEIGHT - 1) as i16),
+        };
+        if !grid.contains_aabr(aabr) {
+            return;
+        }
+
+        let start = aabr.min / STEP as i16;
+        let end = aabr.max / STEP as i16;
 
         for y in start.y..=end.y {
             for x in start.x..=end.x {
-                self.add_to_bucket(x + y * Self::STEPPED_WIDTH, id);
+                self.add_to_bucket(x as u16 + y as u16 * Self::STEPPED_WIDTH, id);
             }
         }
+    }
+
+    /// Whether a position can be added to the bucket.
+    pub fn is_in_range(&self, pos: Vec2<f32>) -> bool {
+        pos.x >= 0.0 && pos.y >= 0.0 && pos.x < WIDTH as f32 && pos.y < HEIGHT as f32
     }
 
     /// Add entity to bucket at index.

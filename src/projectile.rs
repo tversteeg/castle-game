@@ -13,7 +13,7 @@ const ASSET_PATH: &str = "projectile.spear-1";
 /// Projectile that can fly.
 pub struct Projectile {
     /// Reference to the physics rigid body.
-    rigidbody: RigidBodyIndex,
+    pub rigidbody: RigidBodyIndex,
 }
 
 impl Projectile {

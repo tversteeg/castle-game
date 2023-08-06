@@ -48,7 +48,7 @@ impl Shape {
                 .collide_rectangle(pos, rot, b, other_pos, other_rot)
                 .to_vec(),
             (Shape::Rectangle(a), Shape::Heightmap(b)) => {
-                b.collide_rectangle(other_pos, a, pos, rot)
+                todo!()
             }
             (Shape::Heightmap(a), Shape::Rectangle(b)) => {
                 a.collide_rectangle(pos, b, other_pos, other_rot)
@@ -254,14 +254,14 @@ impl Rectangle {
 #[derive(Debug, Clone, Default)]
 pub struct Heightmap {
     /// Y position of point spread out by spacing.
-    pub heights: Vec<u8>,
+    pub heights: Vec<f32>,
     /// X pixels between each point.
     pub spacing: u8,
 }
 
 impl Heightmap {
     /// Construct from existing list.
-    pub fn new(heights: Vec<u8>, spacing: u8) -> Self {
+    pub fn new(heights: Vec<f32>, spacing: u8) -> Self {
         Self { heights, spacing }
     }
 
@@ -289,8 +289,8 @@ impl Heightmap {
         puffin::profile_function!();
 
         SharedShape::heightfield(
-            DVector::<u8>::from_row_slice(&self.heights).cast(),
-            Vector2::new(self.spacing as f32, 0.0),
+            DVector::from_row_slice(&self.heights),
+            Vector2::new(self.spacing as f32 * self.heights.len() as f32, 1.0),
         )
     }
 

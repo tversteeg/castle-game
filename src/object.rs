@@ -48,12 +48,13 @@ impl Compound for ObjectSettings {
                     }
                 }
             }
+            // Generate a heightmap from the sprite
             ColliderSettings::Heightmap {
                 spacing,
+                height_offset,
                 ref mut heights,
             } => {
                 let sprite = cache.load::<Sprite>(id)?.read();
-
                 let amount_heights = sprite.width() / *spacing as u32;
 
                 // Calculate the new heights from the sprite
@@ -62,8 +63,10 @@ impl Compound for ObjectSettings {
                         let x = index * *spacing as u32;
 
                         (0..sprite.height())
+                            // Find the top pixel that's non-transparent as the top of the heigthfield
                             .find(|y| !sprite.is_pixel_transparent(Vec2::new(x, *y)))
-                            .unwrap_or(sprite.height()) as u8
+                            .unwrap_or(sprite.height()) as f32
+                            + *height_offset
                     })
                     .collect();
             }
@@ -94,9 +97,9 @@ impl ObjectSettingsImpl {
             ColliderSettings::Rectangle { width, height } => {
                 Rectangle::new(Extent2::new(*width, *height)).into()
             }
-            ColliderSettings::Heightmap { spacing, heights } => {
-                Heightmap::new(heights.clone(), *spacing).into()
-            }
+            ColliderSettings::Heightmap {
+                spacing, heights, ..
+            } => Heightmap::new(heights.clone(), *spacing).into(),
         }
     }
 
@@ -107,6 +110,7 @@ impl ObjectSettingsImpl {
             ColliderSettings::Heightmap {
                 spacing,
                 ref heights,
+                ..
             } => heights.len() as f32 * spacing as f32,
         }
     }
@@ -155,8 +159,11 @@ enum ColliderSettings {
     Heightmap {
         /// How many X pixels will be skipped before the next sample is taken.
         spacing: u8,
+        /// How much height below a pixel is used for the collision shape.
+        #[serde(default)]
+        height_offset: f32,
         /// List of heights, will be calculated from the image.
         #[serde(default)]
-        heights: Vec<u8>,
+        heights: Vec<f32>,
     },
 }

@@ -133,10 +133,10 @@ impl PenetrationConstraint {
         let tangent_vel_magnitude = tangent_vel.magnitude();
 
         // Dynamic friction
-        let dynamic_friction_impulse = if tangent_vel_magnitude.abs() <= std::f32::EPSILON {
+        let dynamic_friction_impulse = if tangent_vel_magnitude <= std::f32::EPSILON {
             Vec2::zero()
         } else {
-            let normal_impulse = self.tangent_lambda / dt;
+            let normal_impulse = self.normal_lambda / dt;
 
             // Friction can never exceed the velocity itself
             -tangent_vel
@@ -145,11 +145,18 @@ impl PenetrationConstraint {
         };
 
         // Restitution
+        let restitution_coefficient = if normal_vel.abs() <= 2.0 * dt {
+            // Prevent some jittering
+            0.0
+        } else {
+            a.combine_restitutions(b)
+        };
+
         let restitution_impulse =
-            normal * (-normal_vel + (-a.combine_restitutions(b) * prev_normal_vel).min(0.0));
+            normal * (-normal_vel + (-restitution_coefficient * prev_normal_vel).min(0.0));
 
         // Calcule the new velocity
-        let delta_vel = dynamic_friction_impulse * restitution_impulse;
+        let delta_vel = dynamic_friction_impulse + restitution_impulse;
         let (delta_vel_normal, delta_vel_magnitude) = delta_vel.normalized_and_get_magnitude();
         if delta_vel_magnitude <= std::f32::EPSILON {
             return;
@@ -166,9 +173,9 @@ impl PenetrationConstraint {
         }
 
         // Apply velocity impulses and updates
-        let positional_impulse = delta_vel / generalized_inverse_mass_sum;
-        a.apply_positional_impulse(positional_impulse, a_attachment, 1.0);
-        b.apply_positional_impulse(positional_impulse, b_attachment, -1.0);
+        let velocity_impulse = delta_vel / generalized_inverse_mass_sum;
+        a.apply_velocity_impulse(velocity_impulse, a_attachment, 1.0);
+        b.apply_velocity_impulse(velocity_impulse, b_attachment, -1.0);
     }
 }
 

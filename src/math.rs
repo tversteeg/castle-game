@@ -14,6 +14,13 @@ pub struct Rotation {
 }
 
 impl Rotation {
+    /// With no rotation, points to the right.
+    pub fn zero() -> Self {
+        let (sin, cos) = (0.0, 0.0);
+
+        Self { sin, cos }
+    }
+
     /// Create from radians.
     pub fn from_radians(rotation: f32) -> Self {
         let (sin, cos) = rotation.sin_cos();
