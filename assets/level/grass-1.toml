@@ -1,3 +1,7 @@
+rotations = 1
+
+offset = "left_top"
+
 [physics]
 mass = 1000.0
 

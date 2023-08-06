@@ -18,6 +18,7 @@ use crate::{
 const PHYSICS_GRID_STEP: u16 = 10;
 
 /// Asset paths.
+const LEVEL: &str = "level.grass-1";
 const SPEAR: &str = "projectile.spear-1";
 const CRATE: &str = "object.crate-1";
 
@@ -232,6 +233,30 @@ impl DebugDraw {
                     );
                 }
             }
+
+            // Detect collisions with the heightmap
+            let level_object = crate::asset::<ObjectSettings>(LEVEL);
+            let level_pos = Vec2::new(0.0, 100.0);
+
+            self.physics_object(level_pos.as_(), 0.0, false, LEVEL, canvas);
+
+            // Draw the collision information
+            for response in level_object.shape().collides(
+                level_pos.as_(),
+                Rotation::from_degrees(0.0),
+                &shape,
+                self.mouse.as_(),
+                Rotation::from_degrees(mouse_rot),
+            ) {
+                self.collision_response(
+                    &response,
+                    level_pos.as_(),
+                    0.0,
+                    self.mouse,
+                    mouse_rot.to_radians(),
+                    canvas,
+                );
+            }
         }
     }
 
@@ -366,6 +391,10 @@ impl DebugDraw {
 
     /// Draw a bounding rectangle.
     fn aabr(&self, aabr: Aabr<f32>, canvas: &mut [u32], color: u32) {
+        if aabr.max.x >= SIZE.w as f32 || aabr.max.y >= SIZE.h as f32 {
+            return;
+        }
+
         let aabr: Aabr<usize> = aabr.as_().intersection(Aabr {
             min: Vec2::zero(),
             max: Vec2::new(SIZE.w - 1, SIZE.h - 1),

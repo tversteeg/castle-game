@@ -44,8 +44,7 @@ impl Terrain {
         let y = SIZE.h as f32 - sprite.height() as f32;
 
         // Create a heightmap for the terrain
-        let rigidbody =
-            physics.add_rigidbody(RigidBody::new_fixed(Vec2::new(width / 2.0, y), shape));
+        let rigidbody = physics.add_rigidbody(RigidBody::new_fixed(Vec2::new(0.0, y), shape));
 
         Self {
             rigidbody,

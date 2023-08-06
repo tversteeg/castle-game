@@ -20,9 +20,9 @@ rotation_friction = 1.0
 
 # Debug screen specific settings, press Space to open
 [debug]
-# Which section to start in when pressing Space the first time
-start_screen = 0
+# Which debug section to start in when running the game, 0 is no debug
+start_screen = 4
 # Whether to draw physics vertices
-draw_physics_vertices = false
+draw_physics_vertices = true
 # Whether to draw physics contact points
-draw_physics_contacts = false
+draw_physics_contacts = true

@@ -1,6 +1,6 @@
 use arrayvec::ArrayVec;
 use parry2d::{
-    na::{Isometry2, Vector2},
+    na::{DVector, Isometry2, Vector2},
     query::{ContactManifold, DefaultQueryDispatcher, PersistentQueryDispatcher},
     shape::SharedShape,
 };
@@ -42,13 +42,17 @@ impl Shape {
         other: &Self,
         other_pos: Vec2<f32>,
         other_rot: Rotation,
-    ) -> ArrayVec<CollisionResponse, 2> {
+    ) -> Vec<CollisionResponse> {
         match (self, other) {
-            (Shape::Rectangle(a), Shape::Rectangle(b)) => {
-                a.collide_rectangle(pos, rot, b, other_pos, other_rot)
+            (Shape::Rectangle(a), Shape::Rectangle(b)) => a
+                .collide_rectangle(pos, rot, b, other_pos, other_rot)
+                .to_vec(),
+            (Shape::Rectangle(a), Shape::Heightmap(b)) => {
+                b.collide_rectangle(other_pos, a, pos, rot)
             }
-            (Shape::Rectangle(_), Shape::Heightmap(_)) => todo!(),
-            (Shape::Heightmap(_), Shape::Rectangle(_)) => todo!(),
+            (Shape::Heightmap(a), Shape::Rectangle(b)) => {
+                a.collide_rectangle(pos, b, other_pos, other_rot)
+            }
             (Shape::Heightmap(_), Shape::Heightmap(_)) => todo!(),
         }
     }
@@ -65,7 +69,7 @@ impl Shape {
     pub fn vertices(&self, pos: Vec2<f32>, rot: Rotation) -> Vec<Vec2<f32>> {
         match self {
             Shape::Rectangle(rect) => rect.vertices(pos, rot).to_vec(),
-            Shape::Heightmap(_) => todo!(),
+            Shape::Heightmap(heightmap) => heightmap.vertices(pos),
         }
     }
 }
@@ -165,6 +169,7 @@ impl Rectangle {
         mass * (self.width().powi(2) + self.height().powi(2)) / 12.0
     }
 
+    /// Handle the collision between this and another rectangle.
     fn collide_rectangle(
         &self,
         pos: Vec2<f32>,
@@ -266,5 +271,107 @@ impl Heightmap {
         let max = pos + Vec2::new(self.heights.len() as f32 * self.spacing as f32, 256.0);
 
         Aabr { min, max }
+    }
+
+    /// List of vertices.
+    fn vertices(&self, pos: Vec2<f32>) -> Vec<Vec2<f32>> {
+        self.heights
+            .iter()
+            .enumerate()
+            .map(|(index, height)| {
+                pos + Vec2::new(index as f32 * self.spacing as f32, *height as f32)
+            })
+            .collect()
+    }
+
+    /// Create a parry2d heightmap from this rectangle.
+    fn to_shared_shape(&self) -> SharedShape {
+        puffin::profile_function!();
+
+        SharedShape::heightfield(
+            DVector::<u8>::from_row_slice(&self.heights).cast(),
+            Vector2::new(self.spacing as f32, 0.0),
+        )
+    }
+
+    /// Handle the collision between this and a rectangle.
+    fn collide_rectangle(
+        &self,
+        pos: Vec2<f32>,
+        other_rect: &Rectangle,
+        other_pos: Vec2<f32>,
+        other_rot: Rotation,
+    ) -> Vec<CollisionResponse> {
+        puffin::profile_function!();
+
+        let (a, b) = {
+            puffin::profile_scope!("Creating parry shapes");
+
+            // Don't use big distances for numerical stability
+            (self.to_shared_shape(), other_rect.to_shared_shape())
+        };
+
+        let a_pos = Isometry2::new(Vector2::new(pos.x, pos.y), 0.0);
+        let b_pos = Isometry2::new(
+            Vector2::new(other_pos.x, other_pos.y),
+            other_rot.to_radians(),
+        );
+
+        // Check collision and return contact information
+        let mut manifolds: Vec<ContactManifold<(), ()>> = Vec::new();
+
+        {
+            puffin::profile_scope!("Finding collision contacts");
+
+            let ab_pos = a_pos.inv_mul(&b_pos);
+            DefaultQueryDispatcher
+                .contact_manifolds(
+                    &ab_pos,
+                    a.0.as_ref(),
+                    b.0.as_ref(),
+                    PREDICTION_DISTANCE,
+                    &mut manifolds,
+                    &mut None,
+                )
+                .expect("Collision failed");
+        }
+
+        manifolds
+            .into_iter()
+            // Ignore all empty manifolds
+            .filter(|manifold| !manifold.points.is_empty())
+            .map(|manifold| {
+                // Normal vector that always points to the same location globally
+                let normal = Vec2::new(manifold.local_n1.x, manifold.local_n1.y);
+
+                // PERF: remove allocation
+                let contacts = manifold.contacts().to_vec();
+
+                (contacts, normal)
+            })
+            .flat_map(|(contacts, normal)| {
+                contacts.into_iter().filter_map(move |tracked_contact| {
+                    puffin::profile_scope!("Manifold translation");
+
+                    let local_contact_1 =
+                        Vec2::new(tracked_contact.local_p1.x, tracked_contact.local_p1.y);
+                    let local_contact_2 =
+                        Vec2::new(tracked_contact.local_p2.x, tracked_contact.local_p2.y);
+                    let penetration = -tracked_contact.dist;
+
+                    // Ignore collisions where there's not enough penetration
+                    if penetration >= MIN_PENETRATION_DISTANCE {
+                        Some(CollisionResponse {
+                            local_contact_1,
+                            local_contact_2,
+                            normal,
+                            penetration,
+                        })
+                    } else {
+                        None
+                    }
+                })
+            })
+            .collect()
     }
 }

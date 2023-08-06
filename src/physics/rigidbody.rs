@@ -372,7 +372,7 @@ impl RigidBody {
     }
 
     /// Check if it collides with another rigidbody.
-    pub fn collides(&self, other: &RigidBody) -> ArrayVec<CollisionResponse, 2> {
+    pub fn collides(&self, other: &RigidBody) -> Vec<CollisionResponse> {
         self.shape.collides(
             self.position(),
             self.rot,

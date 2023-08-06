@@ -7,49 +7,58 @@ use assets_manager::{
 use blit::{Blit, BlitBuffer, ToBlitBuffer};
 use image::ImageFormat;
 use serde::Deserialize;
-use vek::Vec2;
+use vek::{Extent2, Vec2};
 
 use crate::{camera::Camera, SIZE};
 
 /// Sprite that can be drawn on the  canvas.
 #[derive(Debug)]
-pub struct Sprite(BlitBuffer);
+pub struct Sprite {
+    /// Pixels to render.
+    sprite: BlitBuffer,
+    /// Pixel offset to render at.
+    offset: Vec2<i32>,
+}
 
 impl Sprite {
     /// Draw the sprite based on a camera offset.
-    pub fn render(&self, canvas: &mut [u32], camera: &Camera, offset: Vec2<i32>) {
+    pub fn render(&self, canvas: &mut [u32], camera: &Camera, mut offset: Vec2<i32>) {
         puffin::profile_function!();
 
         // Get the rendering options based on the camera offset
         let mut blit_options = camera.to_blit_options();
+        offset += self.offset.as_();
 
         // Add the additional offset
         blit_options.set_position((blit_options.x + offset.x, blit_options.y + offset.y));
 
-        self.0.blit(canvas, SIZE.into_tuple().into(), &blit_options);
+        self.sprite
+            .blit(canvas, SIZE.into_tuple().into(), &blit_options);
     }
 
     /// Whether a pixel on the image is transparent.
-    pub fn is_pixel_transparent(&self, x: u32, y: u32) -> bool {
-        let index = x + y * self.0.width();
-        let pixel = self.0.pixels()[index as usize];
+    pub fn is_pixel_transparent(&self, pixel: Vec2<u32>) -> bool {
+        let offset: Vec2<i32> = pixel.as_() + self.offset;
+
+        let index: i32 = offset.x + offset.y * self.sprite.width() as i32;
+        let pixel = self.sprite.pixels()[index as usize];
 
         pixel == 0
     }
 
     /// Width of the image.
     pub fn width(&self) -> u32 {
-        self.0.width()
+        self.sprite.width()
     }
 
     /// Height of the image.
     pub fn height(&self) -> u32 {
-        self.0.height()
+        self.sprite.height()
     }
 
     /// Raw buffer.
     pub fn into_blit_buffer(self) -> BlitBuffer {
-        self.0
+        self.sprite
     }
 }
 
@@ -69,7 +78,9 @@ impl Loader<Sprite> for SpriteLoader {
             .into_rgba8()
             .to_blit_buffer_with_alpha(127);
 
-        Ok(Sprite(sprite))
+        let offset = Vec2::zero();
+
+        Ok(Sprite { sprite, offset })
     }
 }
 
@@ -83,23 +94,31 @@ impl RotatableSprite {
     /// Space between rotations is assumed to be equal in a full circle.
     pub fn with_fill_circle(
         sprite: Sprite,
-        rotations: NonZeroU16,
+        metadata: RotatableSpriteMetadata,
         sprite_rotation_offset: f32,
     ) -> Self {
         let buffer = sprite.into_blit_buffer();
 
+        let rotations = metadata.rotations.get();
         Self(
-            (0..rotations.get())
+            (0..rotations)
                 .map(|i| {
                     let (width, _, buffer) = rotsprite::rotsprite(
                         buffer.pixels(),
                         &0,
                         buffer.width() as usize,
-                        i as f64 * 360.0 / rotations.get() as f64 + sprite_rotation_offset as f64,
+                        i as f64 * 360.0 / rotations as f64 + sprite_rotation_offset as f64,
                     )
                     .unwrap();
 
-                    Sprite(BlitBuffer::from_buffer(&buffer, width, 127))
+                    let sprite = BlitBuffer::from_buffer(&buffer, width, 127);
+
+                    // TODO: factor in rotations
+                    let offset = metadata
+                        .offset
+                        .offset(Extent2::new(sprite.width(), sprite.height()));
+
+                    Sprite { sprite, offset }
                 })
                 .collect(),
         )
@@ -114,10 +133,7 @@ impl RotatableSprite {
 
         let sprite = &self.0[index];
 
-        // Center the sprite
-        let center: Vec2<i32> = offset - (sprite.width() as i32 / 2, sprite.height() as i32 / 2);
-
-        sprite.render(canvas, camera, center);
+        sprite.render(canvas, camera, offset);
     }
 }
 
@@ -129,15 +145,44 @@ impl Compound for RotatableSprite {
         // Load the metadata
         let metadata = cache.load::<RotatableSpriteMetadata>(id)?.read();
 
-        Ok(Self::with_fill_circle(sprite, metadata.rotations, 0.0))
+        Ok(Self::with_fill_circle(sprite, *metadata, 0.0))
+    }
+}
+
+/// Center of the sprite.
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum SpriteOffset {
+    /// Middle of the sprite will be rendered at `(0, 0)`.
+    #[default]
+    Middle,
+    /// Left top of the sprite will be rendered at `(0, 0)`.
+    LeftTop,
+    /// Sprite will be offset with the custom coordinates counting from the left top.
+    Custom(Vec2<u32>),
+}
+
+impl SpriteOffset {
+    /// Get the offset based on the sprite size.
+    pub fn offset(&self, sprite_size: Extent2<u32>) -> Vec2<i32> {
+        match self {
+            SpriteOffset::Middle => {
+                Vec2::new(-(sprite_size.w as i32) / 2, -(sprite_size.h as i32) / 2)
+            }
+            SpriteOffset::LeftTop => Vec2::zero(),
+            SpriteOffset::Custom(offset) => offset.as_(),
+        }
     }
 }
 
 /// Rotatable sprite metadata to load.
-#[derive(Deserialize)]
-struct RotatableSpriteMetadata {
+#[derive(Deserialize, Clone, Copy)]
+pub struct RotatableSpriteMetadata {
     /// How many rotations are pre-rendered.
     rotations: NonZeroU16,
+    /// Center of where sprite will be rendered.
+    #[serde(default)]
+    offset: SpriteOffset,
 }
 
 impl Asset for RotatableSpriteMetadata {

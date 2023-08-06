@@ -54,14 +54,15 @@ impl Compound for ObjectSettings {
             } => {
                 let sprite = cache.load::<Sprite>(id)?.read();
 
-                let amount_heights = heights.len() as u32 / *spacing as u32;
+                let amount_heights = sprite.width() / *spacing as u32;
+
                 // Calculate the new heights from the sprite
                 *heights = (0..amount_heights)
                     .map(|index| {
                         let x = index * *spacing as u32;
 
                         (0..sprite.height())
-                            .find(|y| !sprite.is_pixel_transparent(x, *y))
+                            .find(|y| !sprite.is_pixel_transparent(Vec2::new(x, *y)))
                             .unwrap_or(sprite.height()) as u8
                     })
                     .collect();
