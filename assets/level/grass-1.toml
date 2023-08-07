@@ -1,6 +1,6 @@
 rotations = 1
 
-offset = "left_top"
+offset = "middle_top"
 
 [physics]
 density = 0.0

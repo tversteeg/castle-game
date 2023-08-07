@@ -8,10 +8,7 @@ use serde::Deserialize;
 use vek::{Extent2, Vec2};
 
 use crate::{
-    physics::{
-        collision::shape::{Heightmap, Rectangle, Shape},
-        rigidbody::RigidBody,
-    },
+    physics::{collision::shape::Shape, rigidbody::RigidBody},
     sprite::Sprite,
 };
 

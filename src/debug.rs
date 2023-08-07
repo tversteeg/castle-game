@@ -7,10 +7,7 @@ use crate::{
     math::{Iso, Rotation},
     object::ObjectSettings,
     physics::{
-        collision::{
-            shape::{Rectangle, Shape},
-            CollisionResponse,
-        },
+        collision::{shape::Shape, CollisionResponse},
         rigidbody::{RigidBody, RigidBodyIndex},
         Physics,
     },
@@ -455,7 +452,7 @@ impl DebugDraw {
             0xFFFF0000,
         );
         self.circle(
-            b.translate(response.local_contact_1).as_(),
+            b.translate(response.local_contact_2).as_(),
             canvas,
             0xFFFFFF00,
         );

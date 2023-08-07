@@ -4,11 +4,9 @@ use crate::{
     camera::Camera,
     object::ObjectSettings,
     physics::{
-        collision::shape::Rectangle,
         rigidbody::{RigidBody, RigidBodyIndex},
         Physics,
     },
-    sprite::Sprite,
     SIZE,
 };
 
@@ -44,7 +42,7 @@ impl Terrain {
         let y = SIZE.h as f32 - sprite.height() as f32;
 
         // Create a heightmap for the terrain
-        let rigidbody = physics.add_rigidbody(RigidBody::new_fixed(Vec2::new(0.0, y), shape));
+        let rigidbody = physics.add_rigidbody(RigidBody::new_fixed(Vec2::new(1.0, y), shape));
 
         Self {
             rigidbody,

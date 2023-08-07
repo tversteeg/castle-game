@@ -1,7 +1,7 @@
 rotations = 32
 
 [physics]
-density = 0.0001
+density = 0.001
 
 [collider]
 shape = "rectangle"
