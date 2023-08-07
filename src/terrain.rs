@@ -57,6 +57,6 @@ impl Terrain {
     pub fn render(&self, canvas: &mut [u32], camera: &Camera) {
         puffin::profile_function!();
 
-        crate::sprite(ASSET_PATH).render(canvas, camera, Vec2::new(0, self.y as i32));
+        crate::sprite(ASSET_PATH).render(canvas, camera, Vec2::new(0.0, self.y));
     }
 }

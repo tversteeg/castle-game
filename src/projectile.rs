@@ -56,11 +56,6 @@ impl Projectile {
 
         let rigidbody = physics.rigidbody(self.rigidbody);
 
-        crate::rotatable_sprite(ASSET_PATH).render(
-            rigidbody.rotation(),
-            canvas,
-            camera,
-            rigidbody.position().as_(),
-        );
+        crate::rotatable_sprite(ASSET_PATH).render(rigidbody.iso(), canvas, camera);
     }
 }

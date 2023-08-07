@@ -9,7 +9,11 @@ use image::ImageFormat;
 use serde::Deserialize;
 use vek::{Extent2, Vec2};
 
-use crate::{camera::Camera, SIZE};
+use crate::{
+    camera::Camera,
+    math::{Iso, Rotation},
+    SIZE,
+};
 
 /// Sprite that can be drawn on the  canvas.
 #[derive(Debug)]
@@ -22,12 +26,12 @@ pub struct Sprite {
 
 impl Sprite {
     /// Draw the sprite based on a camera offset.
-    pub fn render(&self, canvas: &mut [u32], camera: &Camera, mut offset: Vec2<i32>) {
+    pub fn render(&self, canvas: &mut [u32], camera: &Camera, mut offset: Vec2<f32>) {
         puffin::profile_function!();
 
         // Get the rendering options based on the camera offset
         let mut blit_options = camera.to_blit_options();
-        offset += self.offset.as_();
+        let offset: Vec2<i32> = offset.as_() + self.offset.as_();
 
         // Add the additional offset
         blit_options.set_position((blit_options.x + offset.x, blit_options.y + offset.y));
@@ -125,7 +129,9 @@ impl RotatableSprite {
     }
 
     /// Draw the nearest sprite based on the rotation with a camera offset.
-    pub fn render(&self, rotation: f32, canvas: &mut [u32], camera: &Camera, offset: Vec2<i32>) {
+    pub fn render(&self, iso: Iso, canvas: &mut [u32], camera: &Camera) {
+        let rotation = iso.rot.to_radians();
+
         // Calculate rotation based on nearest point
         let index = (rotation / TAU * self.0.len() as f32)
             .round()
@@ -133,7 +139,7 @@ impl RotatableSprite {
 
         let sprite = &self.0[index];
 
-        sprite.render(canvas, camera, offset);
+        sprite.render(canvas, camera, iso.pos);
     }
 }
 

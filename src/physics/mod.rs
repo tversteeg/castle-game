@@ -21,7 +21,6 @@ use self::{
 };
 
 /// Physics simulation state.
-#[derive(Debug)]
 pub struct Physics<
     const WIDTH: u16,
     const HEIGHT: u16,
@@ -83,7 +82,7 @@ impl<
         }
 
         let broad_phase = {
-            puffin::profile_scope!("Narrow phase collision detection");
+            puffin::profile_scope!("Broad phase collision detection");
             // Do a broad phase collision check to get possible colliding pairs
             self.collision_broad_phase_vec(dt)
         };
@@ -289,10 +288,14 @@ impl<
         collision_pairs
             .iter()
             .filter(|(a, b)| {
+                puffin::profile_scope!("Filter inactive");
+
                 // Ignore inactive collisions
                 self.rigidbody(*a).is_active() || self.rigidbody(*b).is_active()
             })
             .flat_map(|(a, b)| {
+                puffin::profile_scope!("Narrow collision");
+
                 self.rigidbodies[a]
                     .collides(&self.rigidbodies[b])
                     .into_iter()

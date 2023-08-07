@@ -4,15 +4,15 @@ pan_edge_offset = 80
 pan_speed = 100
 
 # Interval in seconds for when a unit spawns
-unit_spawn_interval = 300
-enemy_unit_spawn_interval = 400
+unit_spawn_interval = 3
+enemy_unit_spawn_interval = 4
 
 # Physics engine specific settings
 [physics]
 # How many substeps are taken in a single step
-substeps = 20
+substeps = 6
 # Gravity applied to everything
-gravity = 98.1
+gravity = 9.81
 # Damping applied to the velocity every timestep
 air_friction = 1.0
 # Dampling applied to rotations every timestep
@@ -23,6 +23,6 @@ rotation_friction = 1.0
 # Which debug section to start in when running the game, 0 is no debug
 start_screen = 2
 # Whether to draw physics vertices
-draw_physics_vertices = false
+draw_physics_vertices = true
 # Whether to draw physics contact points
-draw_physics_contacts = false
+draw_physics_contacts = true

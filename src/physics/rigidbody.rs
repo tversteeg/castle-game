@@ -1,9 +1,9 @@
 use std::fmt::Display;
 
-use arrayvec::ArrayVec;
+use smallvec::SmallVec;
 use vek::{Aabr, Vec2};
 
-use crate::{math::Rotation, timer::Timer, SIZE};
+use crate::math::{Iso, Rotation};
 
 use super::collision::{shape::Shape, CollisionResponse};
 
@@ -14,7 +14,7 @@ const PREDICTED_POSITION_MULTIPLIER: f32 = 2.0;
 pub type RigidBodyIndex = u32;
 
 /// Represents any physics object that can have constraints applied.
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct RigidBody {
     /// Global position.
     pos: Vec2<f32>,
@@ -64,7 +64,7 @@ impl RigidBody {
     /// Construct a new rigidbody without movements.
     ///
     /// Gravity is applied as an external force.
-    pub fn new<S>(pos: Vec2<f32>, mass: f32, shape: S) -> Self
+    pub fn new<S>(pos: Vec2<f32>, density: f32, shape: S) -> Self
     where
         S: Into<Shape>,
     {
@@ -75,7 +75,7 @@ impl RigidBody {
             Vec2::new(0.0, settings.physics.gravity),
             settings.physics.air_friction,
             settings.physics.rotation_friction,
-            mass,
+            density,
             shape,
         )
     }
@@ -86,13 +86,12 @@ impl RigidBody {
         ext_force: Vec2<f32>,
         lin_damping: f32,
         ang_damping: f32,
-        mass: f32,
+        density: f32,
         shape: S,
     ) -> Self
     where
         S: Into<Shape>,
     {
-        let inv_mass = mass.recip();
         let prev_pos = pos;
         let vel = Vec2::default();
         let prev_vel = vel;
@@ -101,12 +100,14 @@ impl RigidBody {
         let rot = Rotation::default();
         let prev_rot = rot;
         let ext_torque = 0.0;
-        let friction = 0.4;
-        let restitution = 0.2;
+        let friction = 0.3;
+        let restitution = 0.3;
         let translation = Vec2::zero();
         let time_sleeping = 0.0;
         let shape = shape.into();
-        let inertia = shape.inertia(mass);
+        let mass_properties = shape.mass_properties(density);
+        let inv_mass = mass_properties.mass().recip();
+        let inertia = mass_properties.principal_inertia();
 
         Self {
             pos,
@@ -154,7 +155,7 @@ impl RigidBody {
         let restitution = 0.2;
         let time_sleeping = 0.0;
         let shape = shape.into();
-        let inertia = shape.inertia(1.0 / inv_mass);
+        let inertia = 1.0;
 
         Self {
             pos,
@@ -279,6 +280,11 @@ impl RigidBody {
         self.pos + self.translation
     }
 
+    /// Global position with rotation.
+    pub fn iso(&self) -> Iso {
+        Iso::new(self.position(), self.rot)
+    }
+
     /// Rotation in radians.
     pub fn rotation(&self) -> f32 {
         self.rot.to_radians()
@@ -368,7 +374,7 @@ impl RigidBody {
 
     /// Axis-aligned bounding rectangle.
     pub fn aabr(&self) -> Aabr<f32> {
-        self.shape.aabr(self.position(), self.rot.to_radians())
+        self.shape.aabr(self.iso())
     }
 
     /// Axis-aligned bounding rectangle with a predicted future position added.
@@ -376,10 +382,10 @@ impl RigidBody {
     /// WARNING: `dt` is not from the substep but from the full physics step.
     pub fn predicted_aabr(&self, dt: f32) -> Aabr<f32> {
         // Start with the future aabr
-        let mut aabr = self.shape.aabr(
+        let mut aabr = self.shape.aabr(Iso::new(
             self.position() + self.vel * PREDICTED_POSITION_MULTIPLIER * dt,
-            self.rot.to_radians(),
-        );
+            self.rot,
+        ));
 
         // Add the current aabr
         aabr.expand_to_contain(self.aabr());
@@ -388,14 +394,8 @@ impl RigidBody {
     }
 
     /// Check if it collides with another rigidbody.
-    pub fn collides(&self, other: &RigidBody) -> Vec<CollisionResponse> {
-        self.shape.collides(
-            self.position(),
-            self.rot,
-            &other.shape,
-            other.position(),
-            other.rot,
-        )
+    pub fn collides(&self, other: &RigidBody) -> SmallVec<[CollisionResponse; 4]> {
+        self.shape.collides(self.iso(), &other.shape, other.iso())
     }
 
     /// Rotate a point in local space.
@@ -447,14 +447,5 @@ impl RigidBody {
     /// Combine the restitutions between this and another body.
     pub fn combine_restitutions(&self, other: &Self) -> f32 {
         (self.restitution + other.restitution) / 2.0
-    }
-}
-
-impl Display for RigidBody {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "vel: ({}, {})", self.vel.x.round(), self.vel.y.round())?;
-        writeln!(f, "ang_vel: {}", self.ang_vel.round())?;
-
-        Ok(())
     }
 }

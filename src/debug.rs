@@ -4,10 +4,13 @@ use vek::{Aabr, Extent2, Vec2};
 use crate::{
     camera::Camera,
     input::Input,
-    math::Rotation,
+    math::{Iso, Rotation},
     object::ObjectSettings,
     physics::{
-        collision::{shape::Rectangle, CollisionResponse},
+        collision::{
+            shape::{Rectangle, Shape},
+            CollisionResponse,
+        },
         rigidbody::{RigidBody, RigidBodyIndex},
         Physics,
     },
@@ -27,7 +30,7 @@ pub struct DebugDraw {
     /// What debug info to show, zero is show nothing.
     screen: u8,
     /// Mouse position.
-    mouse: Vec2<i32>,
+    mouse: Vec2<f32>,
     /// Physics engine debug.
     ///
     /// All physics happen within the screen space.
@@ -82,7 +85,7 @@ impl DebugDraw {
         }
 
         // Store the mouse state
-        self.mouse = input.mouse_pos;
+        self.mouse = input.mouse_pos.as_();
 
         if self.screen == 1 || self.screen == 2 {
             if input.left_mouse.is_released() {
@@ -129,7 +132,7 @@ impl DebugDraw {
                 4 => "SAT collision detection",
                 _ => "Undefined",
             },
-            Vec2::new(20, 30),
+            Vec2::new(20.0, 30.0),
             canvas,
         );
 
@@ -140,7 +143,7 @@ impl DebugDraw {
                     self.rigidbodies.len(),
                     self.collisions.len()
                 ),
-                Vec2::new(SIZE.w as i32 - 100, 10),
+                Vec2::new(SIZE.w as f32 - 100.0, 10.0),
                 canvas,
             );
 
@@ -149,8 +152,7 @@ impl DebugDraw {
                 let rigidbody = self.physics.rigidbody(*rigidbody);
 
                 self.physics_object(
-                    rigidbody.position().as_(),
-                    rigidbody.rotation(),
+                    rigidbody.iso(),
                     rigidbody.is_sleeping(),
                     sprite_path,
                     canvas,
@@ -165,14 +167,7 @@ impl DebugDraw {
                 // Draw AABR
                 self.aabr(a.aabr(), canvas, 0xFFFF0000);
                 self.aabr(b.aabr(), canvas, 0xFFFF00FF);
-                self.collision_response(
-                    response,
-                    a.position().as_(),
-                    a.rotation(),
-                    b.position().as_(),
-                    b.rotation(),
-                    canvas,
-                );
+                self.collision_response(response, a.iso(), b.iso(), canvas);
             }
 
             // Draw attachment positions
@@ -184,7 +179,7 @@ impl DebugDraw {
             // Draw rotating sprites
             for (index, asset) in [SPEAR, CRATE].iter().enumerate() {
                 self.render_rotatable_to_mouse_sprite(
-                    Vec2::new(50, 50 + index as i32 * 50),
+                    Vec2::new(50.0, 50.0 + index as f32 * 50.0),
                     asset,
                     canvas,
                 );
@@ -194,67 +189,37 @@ impl DebugDraw {
             let object = crate::asset::<ObjectSettings>(CRATE);
             let shape = object.shape();
 
-            let mouse_rot = -23f32;
+            let mouse_iso = Iso::new(self.mouse.as_(), Rotation::from_degrees(23f32));
 
             // Detect collisions with the heightmap
             let level_object = crate::asset::<ObjectSettings>(LEVEL);
             let level_pos = Vec2::new(0.0, 100.0);
+            let level_iso = Iso::from_pos(level_pos);
 
-            self.physics_object(level_pos.as_(), 0.0, false, LEVEL, canvas);
+            self.physics_object(level_iso, false, LEVEL, canvas);
 
             // Draw the collision information
-            for response in level_object.shape().collides(
-                level_pos.as_(),
-                Rotation::zero(),
-                &shape,
-                self.mouse.as_(),
-                Rotation::from_degrees(mouse_rot),
-            ) {
-                self.collision_response(
-                    &response,
-                    level_pos.as_(),
-                    0.0,
-                    self.mouse,
-                    mouse_rot.to_radians(),
-                    canvas,
-                );
+            for response in level_object.shape().collides(level_iso, &shape, mouse_iso) {
+                self.collision_response(&response, level_iso, mouse_iso, canvas);
             }
 
             // Draw the box
-            self.physics_object(
-                self.mouse.as_(),
-                mouse_rot.to_radians(),
-                false,
-                CRATE,
-                canvas,
-            );
+            self.physics_object(mouse_iso, false, CRATE, canvas);
 
             for (index, rot) in [0, 90, 45, 23].into_iter().enumerate() {
                 let pos = Vec2::new(
-                    SIZE.w as i32 / 2 - 60 + index as i32 * 30,
-                    SIZE.h as i32 / 2,
+                    SIZE.w as f32 / 2.0 - 60.0 + index as f32 * 30.0,
+                    SIZE.h as f32 / 2.0,
                 );
-                let rot = (rot as f32).to_radians();
+                let rot = Rotation::from_degrees(rot as f32);
+                let iso = Iso::new(pos, rot);
 
                 // Draw the box
-                self.physics_object(pos.as_(), rot, false, CRATE, canvas);
+                self.physics_object(iso, false, CRATE, canvas);
 
                 // Draw the collision information
-                for response in shape.collides(
-                    pos.as_(),
-                    Rotation::from_degrees(rot),
-                    &shape,
-                    self.mouse.as_(),
-                    Rotation::from_degrees(mouse_rot),
-                ) {
-                    self.collision_response(
-                        &response,
-                        pos,
-                        rot,
-                        self.mouse,
-                        mouse_rot.to_radians(),
-                        canvas,
-                    );
+                for response in shape.collides(iso, &shape, mouse_iso) {
+                    self.collision_response(&response, iso, mouse_iso, canvas);
                 }
             }
         }
@@ -348,24 +313,18 @@ impl DebugDraw {
         // Don't let them fall through the ground
         self.physics.add_rigidbody(RigidBody::new_fixed(
             Vec2::new(SIZE.w as f32 / 2.0, y_offset as f32 + 25.0),
-            Rectangle::new(Extent2::new(200.0, 30.0)),
+            Shape::rectangle(Extent2::new(200.0, 30.0)),
         ));
     }
 
     /// Draw a rotatable sprite pointing towards the mouse.
-    fn render_rotatable_sprite(
-        &self,
-        pos: Vec2<i32>,
-        rotation: f32,
-        sprite_path: &str,
-        canvas: &mut [u32],
-    ) {
+    fn render_rotatable_sprite(&self, iso: Iso, sprite_path: &str, canvas: &mut [u32]) {
         let sprite = crate::rotatable_sprite(sprite_path);
 
-        sprite.render(rotation, canvas, &Camera::default(), pos);
+        sprite.render(iso, canvas, &Camera::default());
         self.text(
-            &format!("{}", rotation.to_degrees().round()),
-            pos + Vec2::new(0, 10),
+            &format!("{}", iso.rot.to_degrees().round()),
+            iso.pos + Vec2::new(0.0, 10.0),
             canvas,
         );
     }
@@ -373,19 +332,19 @@ impl DebugDraw {
     /// Draw a rotatable sprite towards the mouse.
     fn render_rotatable_to_mouse_sprite(
         &self,
-        pos: Vec2<i32>,
+        pos: Vec2<f32>,
         sprite_path: &str,
         canvas: &mut [u32],
     ) {
         // Draw rotating sprites
         let delta: Vec2<f32> = (self.mouse - pos).numcast().unwrap_or_default();
         let rot = delta.y.atan2(delta.x);
-        self.render_rotatable_sprite(pos, rot, sprite_path, canvas);
+        self.render_rotatable_sprite(Iso::new(pos, rot), sprite_path, canvas);
     }
 
     /// Render text.
-    fn text(&self, text: &str, pos: Vec2<i32>, canvas: &mut [u32]) {
-        crate::font("font.debug").render(canvas, text, pos.x, pos.y);
+    fn text(&self, text: &str, pos: Vec2<f32>, canvas: &mut [u32]) {
+        crate::font("font.debug").render(text, pos, canvas);
     }
 
     /// Draw a bounding rectangle.
@@ -411,26 +370,26 @@ impl DebugDraw {
     }
 
     /// Draw a tiny circle.
-    fn circle(&self, pos: Vec2<i32>, canvas: &mut [u32], color: u32) {
+    fn circle(&self, pos: Vec2<f32>, canvas: &mut [u32], color: u32) {
         self.point(pos, canvas, color);
-        self.point(pos + Vec2::new(0, 1), canvas, color);
-        self.point(pos + Vec2::new(1, 0), canvas, color);
-        self.point(pos + Vec2::new(0, -1), canvas, color);
-        self.point(pos + Vec2::new(-1, 0), canvas, color);
+        self.point(pos + Vec2::new(0.0, 1.0), canvas, color);
+        self.point(pos + Vec2::new(1.0, 0.0), canvas, color);
+        self.point(pos + Vec2::new(0.0, -1.0), canvas, color);
+        self.point(pos + Vec2::new(-1.0, 0.0), canvas, color);
     }
 
     /// Draw a line.
-    fn line(&self, mut start: Vec2<i32>, mut end: Vec2<i32>, canvas: &mut [u32], color: u32) {
+    fn line(&self, mut start: Vec2<f32>, mut end: Vec2<f32>, canvas: &mut [u32], color: u32) {
         for line_2d::Coord { x, y } in line_2d::coords_between(
-            line_2d::Coord::new(start.x, start.y),
-            line_2d::Coord::new(end.x, end.y),
+            line_2d::Coord::new(start.x as i32, start.y as i32),
+            line_2d::Coord::new(end.x as i32, end.y as i32),
         ) {
-            self.point(Vec2::new(x, y), canvas, color);
+            self.point(Vec2::new(x, y).as_(), canvas, color);
         }
     }
 
     /// Draw a single point.
-    fn point(&self, pos: Vec2<i32>, canvas: &mut [u32], color: u32) {
+    fn point(&self, pos: Vec2<f32>, canvas: &mut [u32], color: u32) {
         let pos = pos.as_::<usize>();
 
         if pos.x >= SIZE.w || pos.y >= SIZE.h {
@@ -441,12 +400,12 @@ impl DebugDraw {
     }
 
     /// Draw a debug direction vector.
-    fn direction(&self, pos: Vec2<i32>, dir: Vec2<f32>, canvas: &mut [u32]) {
-        self.render_rotatable_sprite(pos, dir.y.atan2(dir.x), "debug.vector", canvas)
+    fn direction(&self, pos: Vec2<f32>, dir: Vec2<f32>, canvas: &mut [u32]) {
+        self.render_rotatable_sprite(Iso::new(pos, dir.y.atan2(dir.x)), "debug.vector", canvas)
     }
 
     /// Draw a vector with a magnitude.
-    fn vector(&self, pos: Vec2<i32>, vec: Vec2<f32>, canvas: &mut [u32]) {
+    fn vector(&self, pos: Vec2<f32>, vec: Vec2<f32>, canvas: &mut [u32]) {
         let color = 0xFF00AAAA | ((vec.magnitude() * 20.0).clamp(0.0, 0xFF as f32) as u32) << 16;
 
         self.line(pos, pos + (vec * 4.0).as_(), canvas, color);
@@ -454,22 +413,15 @@ impl DebugDraw {
     }
 
     /// Draw a physics object.
-    fn physics_object(
-        &self,
-        pos: Vec2<f32>,
-        rot: f32,
-        is_sleeping: bool,
-        sprite_path: &str,
-        canvas: &mut [u32],
-    ) {
+    fn physics_object(&self, iso: Iso, is_sleeping: bool, sprite_path: &str, canvas: &mut [u32]) {
         // Draw the sprite
-        self.render_rotatable_sprite(pos.as_(), rot, sprite_path, canvas);
+        self.render_rotatable_sprite(iso, sprite_path, canvas);
 
         let object = crate::asset::<ObjectSettings>(sprite_path);
         let shape = object.shape();
 
         if !is_sleeping && crate::settings().debug.draw_physics_vertices {
-            let vertices = shape.vertices(pos, Rotation::from_radians(rot));
+            let vertices = shape.vertices(iso);
 
             // Draw all vertices
             vertices
@@ -489,29 +441,21 @@ impl DebugDraw {
     }
 
     /// Draw a collision response.
-    fn collision_response(
-        &self,
-        response: &CollisionResponse,
-        pos_a: Vec2<i32>,
-        rot_a: f32,
-        pos_b: Vec2<i32>,
-        rot_b: f32,
-        canvas: &mut [u32],
-    ) {
+    fn collision_response(&self, response: &CollisionResponse, a: Iso, b: Iso, canvas: &mut [u32]) {
         if !crate::settings().debug.draw_physics_contacts {
             return;
         }
 
-        self.vector(pos_a.as_(), response.normal * response.penetration, canvas);
-        self.vector(pos_b.as_(), -response.normal * response.penetration, canvas);
+        self.vector(a.pos.as_(), response.normal * response.penetration, canvas);
+        self.vector(b.pos.as_(), -response.normal * response.penetration, canvas);
 
         self.circle(
-            pos_a.as_() + response.local_contact_1.rotated_z(rot_a).as_(),
+            a.translate(response.local_contact_1).as_(),
             canvas,
             0xFFFF0000,
         );
         self.circle(
-            pos_b.as_() + response.local_contact_2.rotated_z(rot_b).as_(),
+            b.translate(response.local_contact_1).as_(),
             canvas,
             0xFFFFFF00,
         );

@@ -88,18 +88,18 @@ pub struct ObjectSettingsImpl {
 impl ObjectSettingsImpl {
     /// Construct a rigidbody from the metadata.
     pub fn rigidbody(&self, pos: Vec2<f32>) -> RigidBody {
-        RigidBody::new(pos, self.physics.mass, self.shape())
+        RigidBody::new(pos, self.physics.density, self.shape())
     }
 
     /// Construct a collider shape from the metadata.
     pub fn shape(&self) -> Shape {
         match &self.collider {
             ColliderSettings::Rectangle { width, height } => {
-                Rectangle::new(Extent2::new(*width, *height)).into()
+                Shape::rectangle(Extent2::new(*width, *height))
             }
             ColliderSettings::Heightmap {
                 spacing, heights, ..
-            } => Heightmap::new(heights.clone(), *spacing).into(),
+            } => Shape::heightmap(heights, *spacing as f32),
         }
     }
 
@@ -134,13 +134,13 @@ impl Asset for ObjectSettingsImpl {
 /// Physics settings for a rigid body.
 #[derive(Debug, Deserialize)]
 struct PhysicsSettings {
-    /// Mass of the body.
-    mass: f32,
+    /// Mass is density times area.
+    density: f32,
 }
 
 impl Default for PhysicsSettings {
     fn default() -> Self {
-        Self { mass: 1.0 }
+        Self { density: 1.0 }
     }
 }
 

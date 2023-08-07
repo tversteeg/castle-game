@@ -81,8 +81,6 @@ impl GameState {
 
     /// Draw a frame.
     pub fn render(&mut self, canvas: &mut [u32], frame_time: f32) {
-        crate::font("font.torus-sans").render(canvas, &format!("Castle Game: {frame_time}"), 0, 0);
-
         self.terrain.render(canvas, &self.camera);
 
         // Render all units

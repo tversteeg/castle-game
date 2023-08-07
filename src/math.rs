@@ -1,6 +1,61 @@
 use std::ops::{Add, AddAssign, Neg, Sub, SubAssign};
 
+use parry2d::na::{Isometry2, Vector2};
 use vek::Vec2;
+
+/// Position with a rotation.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Iso {
+    /// Position before being rotated.
+    pub pos: Vec2<f32>,
+    /// Rotation.
+    pub rot: Rotation,
+}
+
+impl Iso {
+    /// Construct from a position and a rotation.
+    pub fn new<P, R>(pos: P, rot: R) -> Self
+    where
+        P: Into<Vec2<f32>>,
+        R: Into<Rotation>,
+    {
+        let pos = pos.into();
+        let rot = rot.into();
+
+        Self { pos, rot }
+    }
+
+    /// Construct from a position with a rotation of zero.
+    pub fn from_pos<P>(pos: P) -> Self
+    where
+        P: Into<Vec2<f32>>,
+    {
+        let pos = pos.into();
+        let rot = Rotation::zero();
+
+        Self { pos, rot }
+    }
+
+    /// Rotate a relative point and add the position.
+    pub fn translate(&self, point: Vec2<f32>) -> Vec2<f32> {
+        self.pos + self.rot.rotate(point)
+    }
+}
+
+impl From<(Vec2<f32>, Rotation)> for Iso {
+    fn from((pos, rot): (Vec2<f32>, Rotation)) -> Self {
+        Self { pos, rot }
+    }
+}
+
+impl From<Iso> for Isometry2<f32> {
+    fn from(value: Iso) -> Self {
+        Isometry2::new(
+            Vector2::new(value.pos.x, value.pos.y),
+            value.rot.to_radians(),
+        )
+    }
+}
 
 /// Rotation split into it's sine and cosine parts.
 ///
@@ -67,6 +122,12 @@ impl Rotation {
 impl Default for Rotation {
     fn default() -> Self {
         Self { cos: 1.0, sin: 0.0 }
+    }
+}
+
+impl From<f32> for Rotation {
+    fn from(value: f32) -> Self {
+        Self::from_radians(value)
     }
 }
 
