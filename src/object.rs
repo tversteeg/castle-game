@@ -52,12 +52,18 @@ impl Compound for ObjectSettings {
                 ref mut heights,
             } => {
                 let sprite = cache.load::<Sprite>(id)?.read();
-                let amount_heights = sprite.width() / *spacing as u32;
+
+                assert_eq!(
+                    sprite.width() % *spacing,
+                    0,
+                    "Spacing of heightmap must be divisible by sprite width"
+                );
+                let amount_heights = sprite.width() / *spacing;
 
                 // Calculate the new heights from the sprite
                 *heights = (0..amount_heights)
                     .map(|index| {
-                        let x = index * *spacing as u32;
+                        let x = index * *spacing;
 
                         (0..sprite.height())
                             // Find the top pixel that's non-transparent as the top of the heigthfield
@@ -155,7 +161,9 @@ enum ColliderSettings {
     },
     Heightmap {
         /// How many X pixels will be skipped before the next sample is taken.
-        spacing: u8,
+        ///
+        /// Width must be divisible by the spacing.
+        spacing: u32,
         /// How much height below a pixel is used for the collision shape.
         #[serde(default)]
         height_offset: f32,

@@ -6,7 +6,7 @@ use std::{
 
 use arrayvec::ArrayVec;
 use itertools::Itertools;
-use vek::{Aabr, Extent2, Vec2};
+use vek::{Aabr, Clamp, Extent2, Vec2};
 
 /// Spatial hash grid with fixed buckets divided over an area so potential collision pairs can be found quickly.
 ///
@@ -101,17 +101,13 @@ where
     pub fn store_aabr(&mut self, aabr: Aabr<i16>, id: I) {
         puffin::profile_function!();
 
-        // First check if the rectangle is within bounds
-        let grid = Aabr {
-            min: Vec2::zero(),
-            max: Vec2::new((WIDTH - 1) as i16, (HEIGHT - 1) as i16),
-        };
-        if !grid.contains_aabr(aabr) {
-            return;
-        }
-
-        let start = aabr.min / STEP as i16;
-        let end = aabr.max / STEP as i16;
+        // Clamp the rectangle within the screen
+        let edge = Vec2::new(
+            Self::STEPPED_WIDTH as i16 - 1,
+            Self::STEPPED_HEIGHT as i16 - 1,
+        );
+        let start: Vec2<i16> = Vec2::min(Vec2::max(aabr.min / STEP as i16, Vec2::zero()), edge);
+        let end: Vec2<i16> = Vec2::min(Vec2::max(aabr.max / STEP as i16, Vec2::zero()), edge);
 
         for y in start.y..=end.y {
             for x in start.x..=end.x {

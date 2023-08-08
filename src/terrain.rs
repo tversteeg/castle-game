@@ -11,7 +11,7 @@ use crate::{
 };
 
 /// Level asset path.
-const ASSET_PATH: &str = "level.grass-1";
+pub const ASSET_PATH: &str = "level.grass-1";
 
 /// Destructible terrain buffer.
 pub struct Terrain {
@@ -20,7 +20,7 @@ pub struct Terrain {
     /// Total size of the level.
     pub width: f32,
     /// Physics object reference.
-    rigidbody: RigidBodyIndex,
+    pub rigidbody: RigidBodyIndex,
 }
 
 impl Terrain {
@@ -42,7 +42,8 @@ impl Terrain {
         let y = SIZE.h as f32 - sprite.height() as f32;
 
         // Create a heightmap for the terrain
-        let rigidbody = physics.add_rigidbody(RigidBody::new_fixed(Vec2::new(1.0, y), shape));
+        let rigidbody =
+            physics.add_rigidbody(RigidBody::new_fixed(Vec2::new(width / 2.0, y), shape));
 
         Self {
             rigidbody,

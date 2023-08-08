@@ -35,7 +35,7 @@ impl Shape {
 
         let shape = SharedShape::heightfield(
             DVector::from_row_slice(heights),
-            Vector2::new(spacing * heights.len() as f32, 1.0),
+            Vector2::new(spacing * (heights.len() - 1) as f32, 1.0),
         );
 
         Self(shape)

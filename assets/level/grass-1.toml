@@ -7,5 +7,5 @@ density = 0.0
 
 [collider]
 shape = "heightmap"
-spacing = 10
+spacing = 5
 height_offset = 2.5

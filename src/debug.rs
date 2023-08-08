@@ -11,6 +11,7 @@ use crate::{
         rigidbody::{RigidBody, RigidBodyIndex},
         Physics,
     },
+    terrain::Terrain,
     SIZE,
 };
 
@@ -308,10 +309,9 @@ impl DebugDraw {
             .collect();
 
         // Don't let them fall through the ground
-        self.physics.add_rigidbody(RigidBody::new_fixed(
-            Vec2::new(SIZE.w as f32 / 2.0, y_offset as f32 + 25.0),
-            Shape::rectangle(Extent2::new(200.0, 30.0)),
-        ));
+        let terrain = Terrain::new(&mut self.physics);
+        self.rigidbodies
+            .push((terrain.rigidbody, crate::terrain::ASSET_PATH));
     }
 
     /// Draw a rotatable sprite pointing towards the mouse.
