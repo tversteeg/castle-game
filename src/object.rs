@@ -91,7 +91,16 @@ pub struct ObjectSettingsImpl {
 impl ObjectSettingsImpl {
     /// Construct a rigidbody from the metadata.
     pub fn rigidbody(&self, pos: Vec2<f32>) -> RigidBody {
-        RigidBody::new(pos, self.physics.density, self.shape())
+        if self.physics.is_fixed {
+            RigidBody::new_fixed(pos, self.shape())
+        } else {
+            RigidBody::new(pos, self.shape())
+                .with_density(self.physics.density)
+                .with_friction(self.physics.friction)
+                .with_restitution(self.physics.restitution)
+                .with_linear_damping(self.physics.linear_damping)
+                .with_angular_damping(self.physics.angular_damping)
+        }
     }
 
     /// Construct a collider shape from the metadata.
@@ -105,27 +114,6 @@ impl ObjectSettingsImpl {
             } => Shape::heightmap(heights, *spacing as f32),
         }
     }
-
-    /// Width of the shape.
-    pub fn width(&self) -> f32 {
-        match self.collider {
-            ColliderSettings::Rectangle { width, .. } => width,
-            ColliderSettings::Heightmap {
-                spacing,
-                ref heights,
-                ..
-            } => heights.len() as f32 * spacing as f32,
-        }
-    }
-
-    /// Height of the shape.
-    pub fn height(&self) -> f32 {
-        match self.collider {
-            ColliderSettings::Rectangle { height, .. } => height,
-            // Cannot be known
-            ColliderSettings::Heightmap { .. } => 0.0,
-        }
-    }
 }
 
 impl Asset for ObjectSettingsImpl {
@@ -136,14 +124,38 @@ impl Asset for ObjectSettingsImpl {
 
 /// Physics settings for a rigid body.
 #[derive(Debug, Deserialize)]
+#[serde(default)]
 struct PhysicsSettings {
+    /// Whether this is a fixed object, means it can't move.
+    is_fixed: bool,
     /// Mass is density times area.
+    ///
+    /// Doesn't apply when this is a static object.
     density: f32,
+    /// Friction coefficient for both static and dynamic friction.
+    friction: f32,
+    /// Restitution coefficiont for bounciness.
+    restitution: f32,
+    /// Linear damping.
+    ///
+    /// Doesn't apply when this is a static object.
+    linear_damping: f32,
+    /// Angular damping.
+    ///
+    /// Doesn't apply when this is a static object.
+    angular_damping: f32,
 }
 
 impl Default for PhysicsSettings {
     fn default() -> Self {
-        Self { density: 1.0 }
+        Self {
+            is_fixed: false,
+            density: 1.0,
+            friction: 0.3,
+            restitution: 0.3,
+            linear_damping: 1.0,
+            angular_damping: 1.0,
+        }
     }
 }
 

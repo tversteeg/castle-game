@@ -1,4 +1,5 @@
 use blit::BlitOptions;
+use vek::Vec2;
 
 /// Camera view.
 ///
@@ -21,5 +22,10 @@ impl Camera {
     /// Create drawing options with the camera subrectangle to draw.
     pub fn to_blit_options(&self) -> BlitOptions {
         BlitOptions::new_position(-self.x, -self.y)
+    }
+
+    /// Transform a vec2 into camera space.
+    pub fn translate(&self, point: Vec2<f32>) -> Vec2<f32> {
+        point - Vec2::new(self.x, self.y)
     }
 }

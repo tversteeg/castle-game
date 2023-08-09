@@ -15,6 +15,15 @@ use crate::{
     SIZE,
 };
 
+/// Don't need to add const stuff everywhere.
+pub type PhysicsEngine = Physics<
+    MAX_MAP_WIDTH,
+    { SIZE.h as u16 },
+    PHYSICS_GRID_STEP,
+    BUCKET_SIZE,
+    { (MAX_MAP_WIDTH / PHYSICS_GRID_STEP) as usize * (SIZE.h / PHYSICS_GRID_STEP as usize) },
+>;
+
 /// Physics grid step size.
 const PHYSICS_GRID_STEP: u16 = 8;
 /// Biggest map size.
@@ -41,13 +50,7 @@ pub struct GameState {
     /// Physics engine.
     ///
     /// Size of the grid is the maximum size of any map.
-    physics: Physics<
-        MAX_MAP_WIDTH,
-        { SIZE.h as u16 },
-        PHYSICS_GRID_STEP,
-        BUCKET_SIZE,
-        { (MAX_MAP_WIDTH / PHYSICS_GRID_STEP) as usize * (SIZE.h / PHYSICS_GRID_STEP as usize) },
-    >,
+    physics: PhysicsEngine,
     /// Debug information on the screen.
     #[cfg(feature = "debug")]
     debug_state: DebugDraw,
@@ -95,7 +98,7 @@ impl GameState {
 
         // Render debug information
         #[cfg(feature = "debug")]
-        self.debug_state.render(canvas);
+        self.debug_state.render(&self.physics, &self.camera, canvas);
     }
 
     /// Update a frame and handle user input.
@@ -151,7 +154,8 @@ impl GameState {
 
         // Update debug information
         #[cfg(feature = "debug")]
-        self.debug_state.update(input, dt);
+        self.debug_state
+            .update(input, &mut self.physics, &mut self.projectiles, dt);
     }
 }
 

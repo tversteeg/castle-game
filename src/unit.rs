@@ -3,8 +3,8 @@ use serde::Deserialize;
 use vek::Vec2;
 
 use crate::{
-    camera::Camera, physics::Physics, projectile::Projectile, random::RandomRangeF32,
-    terrain::Terrain, timer::Timer,
+    camera::Camera, game::PhysicsEngine, physics::Physics, projectile::Projectile,
+    random::RandomRangeF32, terrain::Terrain, timer::Timer,
 };
 
 /// All unit types.
@@ -58,17 +58,11 @@ impl Unit {
     /// Move the unit.
     ///
     /// When a projectile is returned one is spawned.
-    pub fn update<
-        const WIDTH: u16,
-        const HEIGHT: u16,
-        const STEP: u16,
-        const BUCKET: usize,
-        const SIZE: usize,
-    >(
+    pub fn update(
         &mut self,
         terrain: &Terrain,
         dt: f32,
-        physics: &mut Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
+        physics: &mut PhysicsEngine,
     ) -> Option<Projectile> {
         puffin::profile_function!();
 

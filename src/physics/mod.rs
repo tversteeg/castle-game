@@ -157,6 +157,12 @@ impl<
         }
     }
 
+    /// Remove every rigidbody.
+    pub fn reset(&mut self) {
+        self.rigidbodies.clear();
+        self.dist_constraints.clear();
+    }
+
     /// Add a rigidbody to the simulation.
     ///
     /// Returns a rigidbody reference.
@@ -222,6 +228,13 @@ impl<
         self.rigidbodies
             .get(&rigidbody)
             .expect("Rigid body does not exist")
+    }
+
+    /// Reference to all rigid bodies.
+    pub fn rigidbody_map(&self) -> &HashMap<RigidBodyIndex, RigidBody> {
+        puffin::profile_function!();
+
+        &self.rigidbodies
     }
 
     /// Calculate all pairs of indices for colliding rigid bodies.

@@ -2,6 +2,7 @@ use vek::Vec2;
 
 use crate::{
     camera::Camera,
+    game::PhysicsEngine,
     object::ObjectSettings,
     physics::{rigidbody::RigidBodyIndex, Physics},
     terrain::Terrain,
@@ -18,17 +19,7 @@ pub struct Projectile {
 
 impl Projectile {
     /// Create a new projectile.
-    pub fn new<
-        const WIDTH: u16,
-        const HEIGHT: u16,
-        const STEP: u16,
-        const BUCKET: usize,
-        const SIZE: usize,
-    >(
-        pos: Vec2<f32>,
-        vel: Vec2<f32>,
-        physics: &mut Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
-    ) -> Self {
+    pub fn new(pos: Vec2<f32>, vel: Vec2<f32>, physics: &mut PhysicsEngine) -> Self {
         puffin::profile_function!();
 
         // Load the object definition for properties of the object
@@ -40,18 +31,7 @@ impl Projectile {
     }
 
     /// Render the projectile.
-    pub fn render<
-        const WIDTH: u16,
-        const HEIGHT: u16,
-        const STEP: u16,
-        const BUCKET: usize,
-        const SIZE: usize,
-    >(
-        &self,
-        canvas: &mut [u32],
-        camera: &Camera,
-        physics: &Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
-    ) {
+    pub fn render(&self, canvas: &mut [u32], camera: &Camera, physics: &PhysicsEngine) {
         puffin::profile_function!();
 
         let rigidbody = physics.rigidbody(self.rigidbody);

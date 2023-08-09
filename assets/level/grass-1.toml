@@ -3,7 +3,8 @@ rotations = 1
 offset = "middle_top"
 
 [physics]
-density = 0.0
+is_static = true
+friction = 0.8
 
 [collider]
 shape = "heightmap"

@@ -26,7 +26,7 @@ bytemuck = "1.13.1"
 blit = "0.8.2"
 game-loop = { version = "0.10.2", features = ["winit"] }
 miette = { version = "5.10.0", features = ["fancy"] }
-image = { version = "0.24.6", default-features = false, features = ["png"] }
+image = { version = "0.24.7", default-features = false, features = ["png"] }
 winit_input_helper = "0.14.1"
 rotsprite = "0.1.4"
 vek = "0.16.1"

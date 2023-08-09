@@ -2,6 +2,7 @@ use vek::{Extent2, Vec2};
 
 use crate::{
     camera::Camera,
+    game::PhysicsEngine,
     object::ObjectSettings,
     physics::{
         rigidbody::{RigidBody, RigidBodyIndex},
@@ -25,15 +26,7 @@ pub struct Terrain {
 
 impl Terrain {
     /// Load a terrain from image bytes.
-    pub fn new<
-        const WIDTH: u16,
-        const HEIGHT: u16,
-        const STEP: u16,
-        const BUCKET: usize,
-        const GRID_SIZE: usize,
-    >(
-        physics: &mut Physics<WIDTH, HEIGHT, STEP, BUCKET, GRID_SIZE>,
-    ) -> Self {
+    pub fn new(physics: &mut PhysicsEngine) -> Self {
         let object = crate::asset::<ObjectSettings>(ASSET_PATH);
         let sprite = crate::sprite(ASSET_PATH);
         let shape = object.shape();

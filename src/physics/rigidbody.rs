@@ -36,7 +36,7 @@ pub struct RigidBody {
     prev_ang_vel: f32,
     /// Inertia tensor, corresponds to mass in rotational terms.
     ///
-    /// Torque needed for an angulare acceleration.
+    /// Torque needed for an angular acceleration.
     inertia: f32,
     /// Linear damping.
     lin_damping: f32,
@@ -64,7 +64,7 @@ impl RigidBody {
     /// Construct a new rigidbody without movements.
     ///
     /// Gravity is applied as an external force.
-    pub fn new<S>(pos: Vec2<f32>, density: f32, shape: S) -> Self
+    pub fn new<S>(pos: Vec2<f32>, shape: S) -> Self
     where
         S: Into<Shape>,
     {
@@ -75,7 +75,7 @@ impl RigidBody {
             Vec2::new(0.0, settings.physics.gravity),
             settings.physics.air_friction,
             settings.physics.rotation_friction,
-            density,
+            1.0,
             shape,
         )
     }
@@ -184,6 +184,45 @@ impl RigidBody {
     pub fn with_velocity(mut self, velocity: Vec2<f32>) -> Self {
         self.vel = velocity;
         self.prev_vel = velocity;
+
+        self
+    }
+
+    /// Set the density.
+    ///
+    /// This will change the mass and inertia.
+    pub fn with_density(mut self, density: f32) -> Self {
+        let mass_properties = self.shape.mass_properties(density);
+        self.inv_mass = mass_properties.mass().recip();
+        self.inertia = mass_properties.principal_inertia();
+
+        self
+    }
+
+    /// Set the dynamic and static frictions.
+    pub fn with_friction(mut self, friction: f32) -> Self {
+        self.friction = friction;
+
+        self
+    }
+
+    /// Set the restitution.
+    pub fn with_restitution(mut self, restitution: f32) -> Self {
+        self.restitution = restitution;
+
+        self
+    }
+
+    /// Set the linear damping.
+    pub fn with_linear_damping(mut self, linear_damping: f32) -> Self {
+        self.lin_damping = linear_damping;
+
+        self
+    }
+
+    /// Set the angular damping.
+    pub fn with_angular_damping(mut self, angular_damping: f32) -> Self {
+        self.ang_damping = angular_damping;
 
         self
     }
@@ -375,6 +414,11 @@ impl RigidBody {
     /// Axis-aligned bounding rectangle.
     pub fn aabr(&self) -> Aabr<f32> {
         self.shape.aabr(self.iso())
+    }
+
+    /// Vertices for the body.
+    pub fn vertices(&self) -> Vec<Vec2<f32>> {
+        self.shape.vertices(self.iso())
     }
 
     /// Axis-aligned bounding rectangle with a predicted future position added.
