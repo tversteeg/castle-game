@@ -17,9 +17,6 @@ use crate::{
     SIZE,
 };
 
-/// Physics grid step size.
-const PHYSICS_GRID_STEP: u16 = 10;
-
 /// Asset paths.
 const LEVEL: &str = "level.grass-1";
 const SPEAR: &str = "projectile.spear-1";
@@ -31,6 +28,7 @@ const CRATE: &str = "object.crate-1";
 pub enum DebugScreen {
     #[default]
     Empty,
+    RigidBodyDirections,
     SpriteRotations,
     Collisions,
 }
@@ -40,6 +38,7 @@ impl DebugScreen {
     pub fn title(&self) -> &'static str {
         match self {
             DebugScreen::Empty => "",
+            DebugScreen::RigidBodyDirections => "Rigidbody Directions",
             DebugScreen::SpriteRotations => "Sprite Rotation Test",
             DebugScreen::Collisions => "Collision Detection Test",
         }
@@ -50,7 +49,8 @@ impl DebugScreen {
     /// Go to the next screen.
     pub fn next(&self) -> Self {
         match self {
-            Self::Empty => Self::SpriteRotations,
+            Self::Empty => Self::RigidBodyDirections,
+            Self::RigidBodyDirections => Self::SpriteRotations,
             Self::SpriteRotations => Self::Collisions,
             Self::Collisions => Self::Empty,
         }
@@ -170,6 +170,14 @@ impl DebugDraw {
                     }
                 }
             }
+            DebugScreen::RigidBodyDirections => {
+                // Draw direction vectors for each rigidbody
+                physics.rigidbody_map().iter().for_each(|(_, rigidbody)| {
+                    if rigidbody.is_active() {
+                        self.render_direction(rigidbody.position(), rigidbody.direction(), canvas)
+                    }
+                });
+            }
             DebugScreen::Empty => (),
         }
     }
@@ -202,6 +210,11 @@ impl DebugDraw {
     /// Render text.
     fn render_text(&self, text: &str, pos: Vec2<f32>, canvas: &mut [u32]) {
         crate::font("font.debug").render(text, pos, canvas);
+    }
+
+    /// Draw a debug direction vector.
+    fn render_direction(&self, pos: Vec2<f32>, dir: Vec2<f32>, canvas: &mut [u32]) {
+        self.render_rotatable_sprite(Iso::new(pos, dir.y.atan2(dir.x)), "debug.vector", canvas)
     }
 
     /// Draw a bounding rectangle.

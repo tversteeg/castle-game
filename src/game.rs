@@ -125,6 +125,11 @@ impl GameState {
         // Simulate the physics
         self.physics.step(dt);
 
+        // Update all projectiles
+        self.projectiles
+            .iter()
+            .for_each(|projectile| projectile.update(&mut self.physics, dt));
+
         // Remove rigidbodies that don't exist anymore
         self.projectiles
             .retain(|projectile| self.physics.has_rigidbody(projectile.rigidbody));

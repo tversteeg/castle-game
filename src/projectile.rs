@@ -3,6 +3,7 @@ use vek::Vec2;
 use crate::{
     camera::Camera,
     game::PhysicsEngine,
+    math::Rotation,
     object::ObjectSettings,
     physics::{rigidbody::RigidBodyIndex, Physics},
     terrain::Terrain,
@@ -10,6 +11,12 @@ use crate::{
 
 /// Spear asset path.
 const ASSET_PATH: &str = "projectile.spear-1";
+/// Airflow torque strength.
+const AIRFLOW_TORQUE: f32 = 20.0;
+/// Projectile velocity must be over this treshold before airflow is applied.
+const AIRFLOW_VEL_TRESHOLD: f32 = 50.0;
+/// Projectile angular velocity must be under this treshold before airflow is applied.
+const AIRFLOW_ANG_VEL_TRESHOLD: f32 = 1.0;
 
 /// Projectile that can fly.
 pub struct Projectile {
@@ -28,6 +35,21 @@ impl Projectile {
         let rigidbody = physics.add_rigidbody(object.rigidbody(pos).with_velocity(vel));
 
         Self { rigidbody }
+    }
+
+    /// Update the physics of the projectile.
+    pub fn update(&self, physics: &mut PhysicsEngine, dt: f32) {
+        let rigidbody = physics.rigidbody_mut(self.rigidbody);
+
+        if rigidbody.velocity().magnitude() >= AIRFLOW_VEL_TRESHOLD
+            && rigidbody.angular_velocity() < AIRFLOW_ANG_VEL_TRESHOLD
+        {
+            // Let the projectile rotate toward the projectile, simulating air flow
+            let dir = Rotation::from_direction(rigidbody.direction());
+            let delta_angle = rigidbody.rotation() - dir;
+
+            rigidbody.apply_torque(delta_angle.to_radians() * AIRFLOW_TORQUE * dt);
+        }
     }
 
     /// Render the projectile.

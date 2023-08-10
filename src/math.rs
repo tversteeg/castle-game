@@ -88,19 +88,21 @@ impl Rotation {
         Self::from_radians(rotation.to_radians())
     }
 
+    /// Create from a direction vector.
+    ///
+    /// Vector is assumed to be normalized.
+    pub fn from_direction(dir: Vec2<f32>) -> Self {
+        Self::from_radians(dir.y.atan2(dir.x))
+    }
+
     /// Convert to radians.
-    pub fn to_radians(&self) -> f32 {
+    pub fn to_radians(self) -> f32 {
         self.sin.atan2(self.cos)
     }
 
     /// Convert to degrees.
-    pub fn to_degrees(&self) -> f32 {
+    pub fn to_degrees(self) -> f32 {
         self.to_radians().to_degrees()
-    }
-
-    /// Normalized direction vector.
-    pub fn as_dir(&self) -> Vec2<f32> {
-        Vec2::new(self.cos, self.sin)
     }
 
     /// Rotate a point.

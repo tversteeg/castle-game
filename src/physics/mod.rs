@@ -192,30 +192,6 @@ impl<
         self.dist_constraints_key
     }
 
-    /// Move a rigidbody to a specific position.
-    pub fn set_position(&mut self, rigidbody: RigidBodyIndex, position: Vec2<f32>) {
-        self.rigidbodies
-            .get_mut(&rigidbody)
-            .expect("Rigid body doesn't exist anymore")
-            .set_position(position, false);
-    }
-
-    /// Apply a force on a rigidbody.
-    pub fn apply_force(&mut self, rigidbody: RigidBodyIndex, force: Vec2<f32>) {
-        self.rigidbodies
-            .get_mut(&rigidbody)
-            .expect("Rigid body doesn't exist anymore")
-            .apply_force(force);
-    }
-
-    /// Apply a rotational force on a rigidbody.
-    pub fn apply_rotational_force(&mut self, rigidbody: RigidBodyIndex, force: f32) {
-        self.rigidbodies
-            .get_mut(&rigidbody)
-            .expect("Rigid body doesn't exist anymore")
-            .apply_rotational_force(force);
-    }
-
     /// Check whether a rigidbody is still alive.
     pub fn has_rigidbody(&self, rigidbody: RigidBodyIndex) -> bool {
         self.rigidbodies.contains_key(&rigidbody)
@@ -227,6 +203,15 @@ impl<
 
         self.rigidbodies
             .get(&rigidbody)
+            .expect("Rigid body does not exist")
+    }
+
+    /// Mutable reference to a rigid body.
+    pub fn rigidbody_mut(&mut self, rigidbody: RigidBodyIndex) -> &mut RigidBody {
+        puffin::profile_function!();
+
+        self.rigidbodies
+            .get_mut(&rigidbody)
             .expect("Rigid body does not exist")
     }
 

@@ -286,6 +286,11 @@ impl RigidBody {
         self.rot += force;
     }
 
+    /// Apply torque from an external source.
+    pub fn apply_torque(&mut self, torque: f32) {
+        self.ext_torque += torque;
+    }
+
     /// Set global position.
     pub fn set_position(&mut self, pos: Vec2<f32>, force: bool) {
         self.pos = pos;
@@ -319,14 +324,24 @@ impl RigidBody {
         self.pos + self.translation
     }
 
+    /// Global linear velocity.
+    pub fn velocity(&self) -> Vec2<f32> {
+        self.vel
+    }
+
+    /// Global angular velocity.
+    pub fn angular_velocity(&self) -> f32 {
+        self.ang_vel
+    }
+
     /// Global position with rotation.
     pub fn iso(&self) -> Iso {
         Iso::new(self.position(), self.rot)
     }
 
-    /// Rotation in radians.
-    pub fn rotation(&self) -> f32 {
-        self.rot.to_radians()
+    /// Orientation of the body.
+    pub fn rotation(&self) -> Rotation {
+        self.rot
     }
 
     /// Calculate generalized inverse mass at a relative point along the normal vector.
@@ -491,5 +506,10 @@ impl RigidBody {
     /// Combine the restitutions between this and another body.
     pub fn combine_restitutions(&self, other: &Self) -> f32 {
         (self.restitution + other.restitution) / 2.0
+    }
+
+    /// Current direction the body is moving in.
+    pub fn direction(&self) -> Vec2<f32> {
+        (self.pos - self.prev_pos).normalized()
     }
 }
