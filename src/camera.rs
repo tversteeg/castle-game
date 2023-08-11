@@ -24,8 +24,13 @@ impl Camera {
         BlitOptions::new_position(-self.x, -self.y)
     }
 
-    /// Transform a vec2 into camera space.
+    /// Transform a world space vec2 into camera space.
     pub fn translate(&self, point: Vec2<f32>) -> Vec2<f32> {
         point - Vec2::new(self.x, self.y)
+    }
+
+    /// Transform a vec2 from screenspace into world space.
+    pub fn translate_from_screen(&self, point: Vec2<f32>) -> Vec2<f32> {
+        point + Vec2::new(self.x, self.y)
     }
 }

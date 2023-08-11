@@ -6,6 +6,8 @@ pub mod collision;
 pub mod constraint;
 pub mod rigidbody;
 
+use std::rc::{Rc, Weak};
+
 use hashbrown::HashMap;
 
 use serde::Deserialize;
@@ -30,6 +32,8 @@ pub struct Physics<
 > {
     /// List of all rigidbodies, accessed by index.
     rigidbodies: HashMap<RigidBodyIndex, RigidBody>,
+    /// List of references to the rigidbody handles so that when a handle is dropped from anywhere we can also destroy the rigidbody.
+    rigidbody_references: Vec<(Weak<RigidBodyIndex>, RigidBodyIndex)>,
     /// Rigid body key start.
     rigidbodies_key: RigidBodyIndex,
     /// All distance constraints.
@@ -64,6 +68,7 @@ impl<
     pub fn new() -> Self {
         let rigidbodies = HashMap::new();
         let rigidbodies_key = 0;
+        let rigidbody_references = Vec::new();
         let dist_constraints = HashMap::new();
         let dist_constraints_key = 0;
         let penetration_constraints = Vec::new();
@@ -74,6 +79,7 @@ impl<
         Self {
             rigidbodies,
             rigidbodies_key,
+            rigidbody_references,
             dist_constraints,
             dist_constraints_key,
             penetration_constraints,
@@ -92,6 +98,13 @@ impl<
 
         // Deltatime for each sub-step
         let sub_dt = dt / substeps as f32;
+
+        {
+            puffin::profile_scope!("Remove dropped rigidbodies");
+
+            // Destroy every rigidbody handle that has no references anymore
+            self.destroy_dropped_rigidbodies();
+        }
 
         {
             puffin::profile_scope!("Reset constraints");
@@ -181,11 +194,17 @@ impl<
     /// Add a rigidbody to the simulation.
     ///
     /// Returns a rigidbody reference.
-    pub fn add_rigidbody(&mut self, rigidbody: RigidBody) -> RigidBodyIndex {
+    pub fn add_rigidbody(&mut self, rigidbody: RigidBody) -> RigidBodyHandle {
         self.rigidbodies_key += 1;
         self.rigidbodies.insert(self.rigidbodies_key, rigidbody);
 
-        self.rigidbodies_key
+        let handle = RigidBodyHandle(Rc::new(self.rigidbodies_key));
+
+        // Store a weak reference to the handle so we can destroy it when the handle is dropped
+        self.rigidbody_references
+            .push((handle.downgrade(), self.rigidbodies_key));
+
+        handle
     }
 
     /// Add a distance constraint between two rigidbodies.
@@ -334,6 +353,74 @@ impl<
             .iter()
             .for_each(|constraint| constraint.solve_velocities(&mut self.rigidbodies, sub_dt));
     }
+
+    /// Destroy every rigidbody where the handle is dropped.
+    fn destroy_dropped_rigidbodies(&mut self) {
+        self.rigidbody_references.retain(|(reference, rigidbody)| {
+            if reference.strong_count() == 0 {
+                // Remove the rigidbody
+                self.rigidbodies.remove(rigidbody);
+
+                false
+            } else {
+                true
+            }
+        });
+    }
+}
+
+/// Handle that will destroy the rigidbody when it's dropped.
+#[derive(Debug, Clone)]
+pub struct RigidBodyHandle(Rc<RigidBodyIndex>);
+
+impl RigidBodyHandle {
+    /// Get a reference to the rigidbody this is a handle from.
+    pub fn rigidbody<
+        'a,
+        const WIDTH: u16,
+        const HEIGHT: u16,
+        const STEP: u16,
+        const BUCKET: usize,
+        const SIZE: usize,
+    >(
+        &self,
+        physics: &'a Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
+    ) -> &'a RigidBody {
+        physics.rigidbody(*self.0)
+    }
+
+    /// Get a mutable reference to the rigidbody this is a handle from.
+    pub fn rigidbody_mut<
+        'a,
+        const WIDTH: u16,
+        const HEIGHT: u16,
+        const STEP: u16,
+        const BUCKET: usize,
+        const SIZE: usize,
+    >(
+        &self,
+        physics: &'a mut Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
+    ) -> &'a mut RigidBody {
+        physics.rigidbody_mut(*self.0)
+    }
+
+    /// Create a weak reference to the rigidbody.
+    pub fn downgrade(&self) -> Weak<RigidBodyIndex> {
+        Rc::downgrade(&self.0)
+    }
+}
+
+/// Physics settings loaded from a file so it's easier to change them with hot-reloading.
+#[derive(Deserialize)]
+pub struct Settings {
+    /// How many substeps are taken in a single step.
+    pub substeps: u8,
+    /// Gravity applied every frame.
+    pub gravity: f32,
+    /// Damping applied to the velocity every timestep.
+    pub air_friction: f32,
+    /// Dampling applied to the rotation every timestep.
+    pub rotation_friction: f32,
 }
 
 /// Reset a type of all constraints.
@@ -378,17 +465,4 @@ fn apply_constraints_vec<T>(
     constraints
         .iter_mut()
         .for_each(|constraint| constraint.solve(rigidbodies, dt));
-}
-
-/// Physics settings loaded from a file so it's easier to change them with hot-reloading.
-#[derive(Deserialize)]
-pub struct Settings {
-    /// How many substeps are taken in a single step.
-    pub substeps: u8,
-    /// Gravity applied every frame.
-    pub gravity: f32,
-    /// Damping applied to the velocity every timestep.
-    pub air_friction: f32,
-    /// Dampling applied to the rotation every timestep.
-    pub rotation_friction: f32,
 }

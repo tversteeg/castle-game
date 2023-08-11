@@ -28,6 +28,7 @@ const CRATE: &str = "object.crate-1";
 pub enum DebugScreen {
     #[default]
     Empty,
+    SpawnProjectiles,
     RigidBodyDirections,
     SpriteRotations,
     Collisions,
@@ -38,6 +39,7 @@ impl DebugScreen {
     pub fn title(&self) -> &'static str {
         match self {
             DebugScreen::Empty => "",
+            DebugScreen::SpawnProjectiles => "Spawn Projectiles on Click",
             DebugScreen::RigidBodyDirections => "Rigidbody Directions",
             DebugScreen::SpriteRotations => "Sprite Rotation Test",
             DebugScreen::Collisions => "Collision Detection Test",
@@ -49,7 +51,8 @@ impl DebugScreen {
     /// Go to the next screen.
     pub fn next(&self) -> Self {
         match self {
-            Self::Empty => Self::RigidBodyDirections,
+            Self::Empty => Self::SpawnProjectiles,
+            Self::SpawnProjectiles => Self::RigidBodyDirections,
             Self::RigidBodyDirections => Self::SpriteRotations,
             Self::SpriteRotations => Self::Collisions,
             Self::Collisions => Self::Empty,
@@ -79,7 +82,8 @@ impl DebugDraw {
         &mut self,
         input: &Input,
         physics: &mut PhysicsEngine,
-        projectile: &mut Vec<Projectile>,
+        projectiles: &mut Vec<Projectile>,
+        camera: &Camera,
         dt: f32,
     ) {
         puffin::profile_function!();
@@ -87,6 +91,15 @@ impl DebugDraw {
         // When space is released
         if input.space.is_released() {
             self.screen = self.screen.next();
+        }
+
+        if self.screen == DebugScreen::SpawnProjectiles && input.left_mouse.is_released() {
+            // Spawn a projectile at the mouse coordinates
+            projectiles.push(Projectile::new(
+                camera.translate_from_screen(self.mouse),
+                Vec2::zero(),
+                physics,
+            ));
         }
 
         self.mouse = input.mouse_pos.as_();
@@ -174,11 +187,15 @@ impl DebugDraw {
                 // Draw direction vectors for each rigidbody
                 physics.rigidbody_map().iter().for_each(|(_, rigidbody)| {
                     if rigidbody.is_active() {
-                        self.render_direction(rigidbody.position(), rigidbody.direction(), canvas)
+                        self.render_direction(
+                            camera.translate(rigidbody.position()),
+                            rigidbody.direction(),
+                            canvas,
+                        )
                     }
                 });
             }
-            DebugScreen::Empty => (),
+            DebugScreen::SpawnProjectiles | DebugScreen::Empty => (),
         }
     }
 

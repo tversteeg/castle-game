@@ -127,12 +127,7 @@ impl GameState {
 
         // Update all projectiles
         self.projectiles
-            .iter()
-            .for_each(|projectile| projectile.update(&mut self.physics, dt));
-
-        // Remove rigidbodies that don't exist anymore
-        self.projectiles
-            .retain(|projectile| self.physics.has_rigidbody(projectile.rigidbody));
+            .retain_mut(|projectile| projectile.update(&mut self.physics, dt));
 
         // Update all units
         self.units.iter_mut().for_each(|unit| {
@@ -159,8 +154,13 @@ impl GameState {
 
         // Update debug information
         #[cfg(feature = "debug")]
-        self.debug_state
-            .update(input, &mut self.physics, &mut self.projectiles, dt);
+        self.debug_state.update(
+            input,
+            &mut self.physics,
+            &mut self.projectiles,
+            &self.camera,
+            dt,
+        );
     }
 }
 

@@ -4,10 +4,7 @@ use crate::{
     camera::Camera,
     game::PhysicsEngine,
     object::ObjectSettings,
-    physics::{
-        rigidbody::{RigidBody, RigidBodyIndex},
-        Physics,
-    },
+    physics::{rigidbody::RigidBody, Physics, RigidBodyHandle},
     SIZE,
 };
 
@@ -21,7 +18,7 @@ pub struct Terrain {
     /// Total size of the level.
     pub width: f32,
     /// Physics object reference.
-    pub rigidbody: RigidBodyIndex,
+    pub rigidbody: RigidBodyHandle,
 }
 
 impl Terrain {

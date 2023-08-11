@@ -5,7 +5,7 @@ use crate::{
     game::PhysicsEngine,
     math::Rotation,
     object::ObjectSettings,
-    physics::{rigidbody::RigidBodyIndex, Physics},
+    physics::{Physics, RigidBodyHandle},
     terrain::Terrain,
 };
 
@@ -21,7 +21,7 @@ const AIRFLOW_ANG_VEL_TRESHOLD: f32 = 1.0;
 /// Projectile that can fly.
 pub struct Projectile {
     /// Reference to the physics rigid body.
-    pub rigidbody: RigidBodyIndex,
+    pub rigidbody: RigidBodyHandle,
 }
 
 impl Projectile {
@@ -38,8 +38,12 @@ impl Projectile {
     }
 
     /// Update the physics of the projectile.
-    pub fn update(&self, physics: &mut PhysicsEngine, dt: f32) {
-        let rigidbody = physics.rigidbody_mut(self.rigidbody);
+    ///
+    /// Returns whether it should stay alive.
+    pub fn update(&self, physics: &mut PhysicsEngine, dt: f32) -> bool {
+        puffin::profile_function!();
+
+        let rigidbody = self.rigidbody.rigidbody_mut(physics);
 
         if rigidbody.velocity().magnitude() >= AIRFLOW_VEL_TRESHOLD
             && rigidbody.angular_velocity() < AIRFLOW_ANG_VEL_TRESHOLD
@@ -48,15 +52,17 @@ impl Projectile {
             let dir = Rotation::from_direction(rigidbody.direction());
             let delta_angle = rigidbody.rotation() - dir;
 
-            rigidbody.apply_torque(delta_angle.to_radians() * AIRFLOW_TORQUE * dt);
+            rigidbody.apply_torque(-delta_angle.to_radians() * AIRFLOW_TORQUE * dt);
         }
+
+        !rigidbody.is_sleeping()
     }
 
     /// Render the projectile.
     pub fn render(&self, canvas: &mut [u32], camera: &Camera, physics: &PhysicsEngine) {
         puffin::profile_function!();
 
-        let rigidbody = physics.rigidbody(self.rigidbody);
+        let rigidbody = self.rigidbody.rigidbody(physics);
 
         crate::rotatable_sprite(ASSET_PATH).render(rigidbody.iso(), canvas, camera);
     }
