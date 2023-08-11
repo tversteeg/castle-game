@@ -229,6 +229,8 @@ impl RigidBody {
 
     /// Perform a single (sub-)step with a deltatime.
     pub fn integrate(&mut self, dt: f32) {
+        puffin::profile_function!();
+
         if !self.is_active() {
             return;
         }
@@ -259,6 +261,8 @@ impl RigidBody {
 
     /// Add velocities.
     pub fn update_velocities(&mut self, dt: f32) {
+        puffin::profile_function!();
+
         self.prev_vel = self.vel;
         self.vel = (self.pos - self.prev_pos + self.translation) / dt;
 
@@ -268,6 +272,8 @@ impl RigidBody {
 
     /// Apply translations to the position.
     pub fn apply_translation(&mut self) {
+        puffin::profile_function!();
+
         if !self.is_active() {
             return;
         }
@@ -303,6 +309,8 @@ impl RigidBody {
 
     /// Set the rigidbody to sleeping if the velocities are below the treshold.
     pub fn mark_sleeping(&mut self, dt: f32) {
+        puffin::profile_function!();
+
         if self.is_static() {
             return;
         }
@@ -336,6 +344,8 @@ impl RigidBody {
 
     /// Global position with rotation.
     pub fn iso(&self) -> Iso {
+        puffin::profile_function!();
+
         Iso::new(self.position(), self.rot)
     }
 
@@ -346,6 +356,8 @@ impl RigidBody {
 
     /// Calculate generalized inverse mass at a relative point along the normal vector.
     pub fn inverse_mass_at_relative_point(&self, point: Vec2<f32>, normal: Vec2<f32>) -> f32 {
+        puffin::profile_function!();
+
         if self.is_static() {
             return 0.0;
         }
@@ -358,6 +370,8 @@ impl RigidBody {
 
     /// Calculate the update in rotation when a position change is applied at a specific point.
     pub fn delta_rotation_at_point(&self, point: Vec2<f32>, impulse: Vec2<f32>) -> f32 {
+        puffin::profile_function!();
+
         // Perpendicular dot product of `point` with `impulse`
         let perp_dot = (point.x * impulse.y) - (point.y * impulse.x);
 
@@ -373,6 +387,8 @@ impl RigidBody {
         point: Vec2<f32>,
         sign: f32,
     ) {
+        puffin::profile_function!();
+
         if self.is_static() {
             // Ignore when we're a static body
             return;
@@ -391,6 +407,8 @@ impl RigidBody {
         point: Vec2<f32>,
         sign: f32,
     ) {
+        puffin::profile_function!();
+
         if self.is_static() {
             // Ignore when we're a static body
             return;
@@ -402,6 +420,8 @@ impl RigidBody {
 
     /// Calculate the contact velocity based on a local relative rotated point.
     pub fn contact_velocity(&self, point: Vec2<f32>) -> Vec2<f32> {
+        puffin::profile_function!();
+
         // Perpendicular
         let perp = Vec2::new(-point.y, point.x);
 
@@ -410,6 +430,8 @@ impl RigidBody {
 
     /// Calculate the contact velocity based on a local relative rotated point with the previous velocities.
     pub fn prev_contact_velocity(&self, point: Vec2<f32>) -> Vec2<f32> {
+        puffin::profile_function!();
+
         // Perpendicular
         let perp = Vec2::new(-point.y, point.x);
 
@@ -418,6 +440,8 @@ impl RigidBody {
 
     /// Delta position of a point.
     pub fn relative_motion_at_point(&self, point: Vec2<f32>) -> Vec2<f32> {
+        puffin::profile_function!();
+
         self.pos - self.prev_pos + self.translation + point - self.prev_rot.rotate(point)
     }
 
@@ -440,6 +464,8 @@ impl RigidBody {
     ///
     /// WARNING: `dt` is not from the substep but from the full physics step.
     pub fn predicted_aabr(&self, dt: f32) -> Aabr<f32> {
+        puffin::profile_function!();
+
         // Start with the future aabr
         let mut aabr = self.shape.aabr(Iso::new(
             self.position() + self.vel * PREDICTED_POSITION_MULTIPLIER * dt,
@@ -453,17 +479,47 @@ impl RigidBody {
     }
 
     /// Check if it collides with another rigidbody.
-    pub fn collides(&self, other: &RigidBody) -> SmallVec<[CollisionResponse; 4]> {
+    ///
+    /// This function is very inefficient, use [`Self::push_collisions`].
+    pub fn collides(&self, other: &RigidBody) -> Vec<CollisionResponse> {
+        puffin::profile_function!();
+
         self.shape.collides(self.iso(), &other.shape, other.iso())
+    }
+
+    /// Check if it collides with another rigidbody.
+    ///
+    /// Pushes to a buffer with collision information when it does.
+    pub fn push_collisions(
+        &self,
+        index: RigidBodyIndex,
+        other: &RigidBody,
+        other_index: RigidBodyIndex,
+        collisions: &mut Vec<(RigidBodyIndex, RigidBodyIndex, CollisionResponse)>,
+    ) {
+        puffin::profile_function!();
+
+        self.shape.push_collisions(
+            self.iso(),
+            index,
+            &other.shape,
+            other.iso(),
+            other_index,
+            collisions,
+        );
     }
 
     /// Rotate a point in local space.
     pub fn rotate(&self, point: Vec2<f32>) -> Vec2<f32> {
+        puffin::profile_function!();
+
         self.rot.rotate(point)
     }
 
     /// Calculate the world position of a relative point on this body without rotation in mind.
     pub fn local_to_world(&self, point: Vec2<f32>) -> Vec2<f32> {
+        puffin::profile_function!();
+
         // Then translate it to the position
         self.position() + self.rotate(point)
     }
@@ -495,21 +551,29 @@ impl RigidBody {
 
     /// Combine the static frictions between this and another body.
     pub fn combine_static_frictions(&self, other: &Self) -> f32 {
+        puffin::profile_function!();
+
         (self.static_friction() + other.static_friction()) / 2.0
     }
 
     /// Combine the dynamic frictions between this and another body.
     pub fn combine_dynamic_frictions(&self, other: &Self) -> f32 {
+        puffin::profile_function!();
+
         (self.dynamic_friction() + other.dynamic_friction()) / 2.0
     }
 
     /// Combine the restitutions between this and another body.
     pub fn combine_restitutions(&self, other: &Self) -> f32 {
+        puffin::profile_function!();
+
         (self.restitution + other.restitution) / 2.0
     }
 
     /// Current direction the body is moving in.
     pub fn direction(&self) -> Vec2<f32> {
+        puffin::profile_function!();
+
         (self.pos - self.prev_pos).normalized()
     }
 }

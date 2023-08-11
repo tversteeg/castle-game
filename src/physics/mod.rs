@@ -36,8 +36,20 @@ pub struct Physics<
     dist_constraints: HashMap<ConstraintIndex, DistanceConstraint>,
     /// Dist constraints body key start.
     dist_constraints_key: ConstraintIndex,
+    /// All penetration constraints.
+    ///
+    /// This is a vec that's cleared multiple times per step.
+    penetration_constraints: Vec<PenetrationConstraint>,
     /// Collision grid structure.
     collision_grid: SpatialGrid<RigidBodyIndex, WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
+    /// Cache of broad phase collisions.
+    ///
+    /// This is a performance optimization so the vector doesn't have to be allocated every step.
+    broad_phase_collisions: Vec<(RigidBodyIndex, RigidBodyIndex)>,
+    /// Cache of narrow phase collisions.
+    ///
+    /// This is a performance optimization so the vector doesn't have to be allocated many times every step.
+    narrow_phase_collisions: Vec<(RigidBodyIndex, RigidBodyIndex, CollisionResponse)>,
 }
 
 impl<
@@ -54,14 +66,20 @@ impl<
         let rigidbodies_key = 0;
         let dist_constraints = HashMap::new();
         let dist_constraints_key = 0;
+        let penetration_constraints = Vec::new();
         let collision_grid = SpatialGrid::new();
+        let broad_phase_collisions = Vec::with_capacity(16);
+        let narrow_phase_collisions = Vec::with_capacity(16);
 
         Self {
             rigidbodies,
             rigidbodies_key,
             dist_constraints,
             dist_constraints_key,
+            penetration_constraints,
             collision_grid,
+            broad_phase_collisions,
+            narrow_phase_collisions,
         }
     }
 
@@ -81,11 +99,11 @@ impl<
             reset_constraints(&mut self.dist_constraints);
         }
 
-        let broad_phase = {
+        {
             puffin::profile_scope!("Broad phase collision detection");
             // Do a broad phase collision check to get possible colliding pairs
-            self.collision_broad_phase_vec(dt)
-        };
+            self.collision_broad_phase(dt)
+        }
 
         for _ in 0..substeps {
             puffin::profile_scope!("Substep");
@@ -99,25 +117,22 @@ impl<
                     .for_each(|(_, rigidbody)| rigidbody.integrate(sub_dt));
             }
 
-            let collisions = {
+            {
                 puffin::profile_scope!("Narrow phase collision detection");
 
-                // Do a narrow-phase collision check
-                self.collision_narrow_phase_vec(&broad_phase)
-            };
-
-            let mut penetration_constraints = {
-                puffin::profile_scope!("Collisions to penetration constraints");
-
-                // Resolve collisions into new constraints
-                self.handle_collisions(&collisions)
-            };
+                // Do a narrow-phase collision check and generate penetration constraints
+                self.collision_narrow_phase();
+            }
 
             {
                 puffin::profile_scope!("Apply penetration constraints");
 
                 // Apply the generated penetration constraints
-                apply_constraints_vec(&mut penetration_constraints, &mut self.rigidbodies, sub_dt);
+                apply_constraints_vec(
+                    &mut self.penetration_constraints,
+                    &mut self.rigidbodies,
+                    sub_dt,
+                );
             }
 
             {
@@ -136,7 +151,7 @@ impl<
 
             {
                 puffin::profile_scope!("Solve velocities");
-                self.velocity_solve(&penetration_constraints, sub_dt);
+                self.velocity_solve(sub_dt);
             }
 
             {
@@ -222,84 +237,85 @@ impl<
         &self.rigidbodies
     }
 
-    /// Calculate all pairs of indices for colliding rigid bodies.
-    ///
-    /// It's done in two steps main:
-    ///
-    /// Broad-phase:
-    /// 1. Put all rigid body bounding rectangles in a spatial grid
-    /// 2. Flush the grid again returning all colliding pairs
-    ///
-    /// Narrow-phase:
-    /// 1. Use separating axis theorem to determine the collisions and get the impulses.
+    /// Get the calculated collision pairs with collision information.
     pub fn colliding_rigid_bodies(
         &mut self,
-    ) -> Vec<(RigidBodyIndex, RigidBodyIndex, CollisionResponse)> {
+    ) -> &[(RigidBodyIndex, RigidBodyIndex, CollisionResponse)] {
         puffin::profile_function!();
 
-        // Broad phase
-        let broad_phase = self.collision_broad_phase_vec(0.0);
-
-        // Narrow phase
-        self.collision_narrow_phase_vec(&broad_phase)
-    }
-
-    /// Convert collisions to a list of constraints.
-    fn handle_collisions(
-        &mut self,
-        collisions: &[(RigidBodyIndex, RigidBodyIndex, CollisionResponse)],
-    ) -> Vec<PenetrationConstraint> {
-        puffin::profile_function!();
-
-        collisions
-            .iter()
-            .map(|(a, b, response)| PenetrationConstraint::new([*a, *b], response.clone()))
-            .collect()
+        &self.narrow_phase_collisions
     }
 
     /// Do a broad-phase collision pass to get possible pairs.
     ///
-    /// Returns a list of pairs that might collide.
-    fn collision_broad_phase_vec(&mut self, dt: f32) -> Vec<(RigidBodyIndex, RigidBodyIndex)> {
+    /// Fills the list of broad-phase collisions.
+    fn collision_broad_phase(&mut self, dt: f32) {
         puffin::profile_function!();
 
-        // First put all rigid bodies in the spatial grid
-        self.rigidbodies.iter().for_each(|(index, rigidbody)| {
-            self.collision_grid
-                .store_aabr(rigidbody.predicted_aabr(dt).as_(), *index)
-        });
+        {
+            puffin::profile_scope!("Clear vector");
 
-        // Then flush it to get the rough list of collision pairs
-        self.collision_grid.flush().collect()
+            self.broad_phase_collisions.clear();
+        }
+
+        {
+            puffin::profile_scope!("Insert into spatial grid");
+
+            // First put all rigid bodies in the spatial grid
+            self.rigidbodies.iter().for_each(|(index, rigidbody)| {
+                self.collision_grid
+                    .store_aabr(rigidbody.predicted_aabr(dt).as_(), *index)
+            });
+        }
+
+        {
+            puffin::profile_scope!("Flush spatial grid");
+
+            // Then flush it to get the rough list of collision pairs
+            self.collision_grid
+                .flush_into(&mut self.broad_phase_collisions);
+        }
     }
 
     /// Do a narrow-phase collision pass to get all colliding objects.
     ///
-    /// Returns a list of pairs with collision information.
-    fn collision_narrow_phase_vec(
-        &mut self,
-        collision_pairs: &[(RigidBodyIndex, RigidBodyIndex)],
-    ) -> Vec<(RigidBodyIndex, RigidBodyIndex, CollisionResponse)> {
+    /// Fills the penetration constraint list and the list of collisions.
+    fn collision_narrow_phase(&mut self) {
         puffin::profile_function!();
 
+        {
+            puffin::profile_scope!("Clear vectors");
+
+            self.narrow_phase_collisions.clear();
+            self.penetration_constraints.clear();
+        }
+
         // Narrow-phase with SAT
-        collision_pairs
-            .iter()
-            .filter(|(a, b)| {
-                puffin::profile_scope!("Filter inactive");
+        for (a, b) in self.broad_phase_collisions.iter() {
+            // Ignore inactive collisions
+            if !self.rigidbody(*a).is_active() && !self.rigidbody(*b).is_active() {
+                continue;
+            }
 
-                // Ignore inactive collisions
-                self.rigidbody(*a).is_active() || self.rigidbody(*b).is_active()
-            })
-            .flat_map(|(a, b)| {
-                puffin::profile_scope!("Narrow collision");
+            puffin::profile_scope!("Narrow collision");
 
-                self.rigidbodies[a]
-                    .collides(&self.rigidbodies[b])
-                    .into_iter()
-                    .map(|response| (*a, *b, response))
-            })
-            .collect()
+            self.rigidbodies[a].push_collisions(
+                *a,
+                &self.rigidbodies[b],
+                *b,
+                &mut self.narrow_phase_collisions,
+            );
+        }
+
+        {
+            puffin::profile_scope!("Collision responses to penetration constraints");
+
+            // Generate penetration constraint
+            for (a, b, response) in self.narrow_phase_collisions.iter() {
+                self.penetration_constraints
+                    .push(PenetrationConstraint::new([*a, *b], response.clone()));
+            }
+        }
     }
 
     /// Debug information for all constraints.
@@ -313,8 +329,8 @@ impl<
     }
 
     /// Apply velocity corrections caused by friction and restitution.
-    fn velocity_solve(&mut self, penetration_constraints: &[PenetrationConstraint], sub_dt: f32) {
-        penetration_constraints
+    fn velocity_solve(&mut self, sub_dt: f32) {
+        self.penetration_constraints
             .iter()
             .for_each(|constraint| constraint.solve_velocities(&mut self.rigidbodies, sub_dt));
     }

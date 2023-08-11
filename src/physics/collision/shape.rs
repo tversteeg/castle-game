@@ -7,7 +7,7 @@ use parry2d::{
 use smallvec::SmallVec;
 use vek::{Aabr, Extent2, Vec2};
 
-use crate::math::Iso;
+use crate::{math::Iso, physics::rigidbody::RigidBodyIndex};
 
 use super::CollisionResponse;
 
@@ -52,8 +52,16 @@ impl Shape {
         Aabr { min, max }
     }
 
-    /// Collide with another shape.
-    pub fn collides(&self, a_pos: Iso, b: &Self, b_pos: Iso) -> SmallVec<[CollisionResponse; 4]> {
+    /// Collide with another shape, pushing into a vector.
+    pub fn push_collisions(
+        &self,
+        a_pos: Iso,
+        a_index: RigidBodyIndex,
+        b: &Shape,
+        b_pos: Iso,
+        b_index: RigidBodyIndex,
+        collisions: &mut Vec<(RigidBodyIndex, RigidBodyIndex, CollisionResponse)>,
+    ) {
         puffin::profile_function!();
 
         let a = self;
@@ -79,48 +87,55 @@ impl Shape {
                 .expect("Collision failed");
         }
 
-        manifolds
-            .into_iter()
-            // Ignore all empty manifolds
-            .filter(|manifold| !manifold.points.is_empty())
-            .map(|manifold| {
-                puffin::profile_scope!("Mapping for borrowing");
+        for manifold in manifolds.into_iter() {
+            if manifold.points.is_empty() {
+                continue;
+            }
 
-                // Normal vector that always points to the same location globally
-                let normal = a_pos
-                    .rot
-                    .rotate(Vec2::new(manifold.local_n1.x, manifold.local_n1.y));
+            puffin::profile_scope!("Mapping all contacts in manifold");
 
-                // PERF: remove allocation
-                let contacts = manifold.contacts().to_vec();
+            // Normal vector that always points to the same location globally
+            let normal = a_pos
+                .rot
+                .rotate(Vec2::new(manifold.local_n1.x, manifold.local_n1.y));
 
-                (contacts, normal)
-            })
-            .flat_map(|(contacts, normal)| {
-                puffin::profile_scope!("Mapping all contacts in manifold");
+            for tracked_contact in manifold.contacts().iter() {
+                puffin::profile_scope!("Manifold translation");
 
-                contacts.into_iter().filter_map(move |tracked_contact| {
-                    puffin::profile_scope!("Manifold translation");
+                let local_contact_1 =
+                    Vec2::new(tracked_contact.local_p1.x, tracked_contact.local_p1.y);
+                let local_contact_2 =
+                    Vec2::new(tracked_contact.local_p2.x, tracked_contact.local_p2.y);
+                let penetration = -tracked_contact.dist;
 
-                    let local_contact_1 =
-                        Vec2::new(tracked_contact.local_p1.x, tracked_contact.local_p1.y);
-                    let local_contact_2 =
-                        Vec2::new(tracked_contact.local_p2.x, tracked_contact.local_p2.y);
-                    let penetration = -tracked_contact.dist;
-
-                    // Ignore collisions where there's not enough penetration
-                    if penetration >= MIN_PENETRATION_DISTANCE {
-                        Some(CollisionResponse {
+                // Ignore collisions where there's not enough penetration
+                if penetration >= MIN_PENETRATION_DISTANCE {
+                    collisions.push((
+                        a_index,
+                        b_index,
+                        CollisionResponse {
                             local_contact_1,
                             local_contact_2,
                             normal,
                             penetration,
-                        })
-                    } else {
-                        None
-                    }
-                })
-            })
+                        },
+                    ));
+                }
+            }
+        }
+    }
+
+    /// Collide with another shape.
+    ///
+    /// This function is very inefficient, use [`Self::push_collisions`].
+    pub fn collides(&self, a_pos: Iso, b: &Self, b_pos: Iso) -> Vec<CollisionResponse> {
+        let mut collision_points = Vec::new();
+
+        self.push_collisions(a_pos, 0, b, b_pos, 0, &mut collision_points);
+
+        collision_points
+            .into_iter()
+            .map(|(_, _, response)| response)
             .collect()
     }
 

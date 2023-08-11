@@ -1,10 +1,10 @@
 use std::{
-    collections::HashSet,
     fmt::{Debug, Display},
     hash::Hash,
 };
 
 use arrayvec::ArrayVec;
+use hashbrown::HashSet;
 use itertools::Itertools;
 use vek::{Aabr, Clamp, Extent2, Vec2};
 
@@ -91,6 +91,32 @@ where
         }
 
         pairs.into_iter()
+    }
+
+    /// Flush all buckets into a vector of all matching pairs.
+    ///
+    /// The list of matching pairs doesn't contain the same pairs twice.
+    pub fn flush_into(&mut self, pairs: &mut Vec<(I, I)>) {
+        // Keep track of the already matching collision pairs
+        let mut added = HashSet::new();
+
+        for bucket in self.buckets.iter_mut() {
+            // Combine all items in the bucket
+            bucket
+                // Remove everything from the bucket
+                .take()
+                .into_iter()
+                // Get all possible combinations of values in the bucket as tuples
+                .tuple_combinations()
+                // We don't have to check the order of the pair because the order of entry is guaranteed to be the same for earlier intersections
+                .for_each(|pair: (I, I)| {
+                    if !added.contains(&pair) {
+                        added.insert(pair);
+
+                        pairs.push(pair);
+                    }
+                });
+        }
     }
 
     /// Store an entity AABR rectangle.
