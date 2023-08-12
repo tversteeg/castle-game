@@ -1,6 +1,3 @@
-use std::fmt::Display;
-
-use smallvec::SmallVec;
 use vek::{Aabr, Vec2};
 
 use crate::math::{Iso, Rotation};
@@ -195,6 +192,16 @@ impl RigidBody {
         let mass_properties = self.shape.mass_properties(density);
         self.inv_mass = mass_properties.mass().recip();
         self.inertia = mass_properties.principal_inertia();
+
+        self
+    }
+
+    /// Set the initial rotation.
+    ///
+    /// It's smart to set this to the velocity direction for flying objects with stabilizing torque.
+    pub fn with_rotation(mut self, rotation: Rotation) -> Self {
+        self.rot = rotation;
+        self.prev_rot = rotation;
 
         self
     }

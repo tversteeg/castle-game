@@ -4,7 +4,7 @@ use parry2d::{
     query::{ContactManifold, DefaultQueryDispatcher, PersistentQueryDispatcher},
     shape::{SharedShape, TypedShape},
 };
-use smallvec::SmallVec;
+
 use vek::{Aabr, Extent2, Vec2};
 
 use crate::{math::Iso, physics::rigidbody::RigidBodyIndex};

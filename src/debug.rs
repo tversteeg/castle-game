@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use vek::{Aabr, Extent2, Vec2};
+use vek::{Aabr, Vec2};
 
 use crate::{
     camera::Camera,
@@ -7,13 +7,8 @@ use crate::{
     input::Input,
     math::{Iso, Rotation},
     object::ObjectSettings,
-    physics::{
-        collision::{shape::Shape, CollisionResponse},
-        rigidbody::{RigidBody, RigidBodyIndex},
-        Physics,
-    },
+    physics::{collision::CollisionResponse, rigidbody::RigidBody},
     projectile::Projectile,
-    terrain::Terrain,
     SIZE,
 };
 
@@ -93,7 +88,7 @@ impl DebugDraw {
         physics: &mut PhysicsEngine,
         projectiles: &mut Vec<Projectile>,
         camera: &Camera,
-        dt: f32,
+        _dt: f32,
     ) {
         puffin::profile_function!();
 
@@ -293,13 +288,7 @@ impl DebugDraw {
     }
 
     /// Draw a line.
-    fn render_line(
-        &self,
-        mut start: Vec2<f32>,
-        mut end: Vec2<f32>,
-        canvas: &mut [u32],
-        color: u32,
-    ) {
+    fn render_line(&self, start: Vec2<f32>, end: Vec2<f32>, canvas: &mut [u32], color: u32) {
         for line_2d::Coord { x, y } in line_2d::coords_between(
             line_2d::Coord::new(start.x as i32, start.y as i32),
             line_2d::Coord::new(end.x as i32, end.y as i32),

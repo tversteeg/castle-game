@@ -1,10 +1,10 @@
-use vek::{Extent2, Vec2};
+use vek::Vec2;
 
 use crate::{
     camera::Camera,
     game::PhysicsEngine,
     object::ObjectSettings,
-    physics::{rigidbody::RigidBody, Physics, RigidBodyHandle},
+    physics::{rigidbody::RigidBody, RigidBodyHandle},
     SIZE,
 };
 

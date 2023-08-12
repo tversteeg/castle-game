@@ -21,7 +21,7 @@ rotation_friction = 1.0
 # Debug screen specific settings, press Space to open
 [debug]
 # Which debug section to start in when running the game, 0 is no debug
-start_screen = "broad_phase_collisions"
+start_screen = "spawn_projectiles"
 # Whether to draw physics collider shapes
 draw_physics_colliders = true
 # Whether to draw physics contact points

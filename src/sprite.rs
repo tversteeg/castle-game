@@ -9,11 +9,7 @@ use image::ImageFormat;
 use serde::Deserialize;
 use vek::{Extent2, Vec2};
 
-use crate::{
-    camera::Camera,
-    math::{Iso, Rotation},
-    SIZE,
-};
+use crate::{camera::Camera, math::Iso, SIZE};
 
 /// Sprite that can be drawn on the  canvas.
 #[derive(Debug)]
@@ -26,7 +22,7 @@ pub struct Sprite {
 
 impl Sprite {
     /// Draw the sprite based on a camera offset.
-    pub fn render(&self, canvas: &mut [u32], camera: &Camera, mut offset: Vec2<f32>) {
+    pub fn render(&self, canvas: &mut [u32], camera: &Camera, offset: Vec2<f32>) {
         puffin::profile_function!();
 
         // Get the rendering options based on the camera offset

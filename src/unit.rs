@@ -3,8 +3,8 @@ use serde::Deserialize;
 use vek::Vec2;
 
 use crate::{
-    camera::Camera, game::PhysicsEngine, physics::Physics, projectile::Projectile,
-    random::RandomRangeF32, terrain::Terrain, timer::Timer,
+    camera::Camera, game::PhysicsEngine, projectile::Projectile, random::RandomRangeF32,
+    terrain::Terrain, timer::Timer,
 };
 
 /// All unit types.
@@ -60,7 +60,7 @@ impl Unit {
     /// When a projectile is returned one is spawned.
     pub fn update(
         &mut self,
-        terrain: &Terrain,
+        _terrain: &Terrain,
         dt: f32,
         physics: &mut PhysicsEngine,
     ) -> Option<Projectile> {
@@ -93,7 +93,7 @@ impl Unit {
             let velocity = self.settings().projectile_velocity.value();
 
             Some(Projectile::new(
-                self.pos,
+                self.pos + self.settings().projectile_spawn_offset,
                 Vec2::new(velocity, -velocity),
                 physics,
             ))
@@ -160,6 +160,8 @@ pub struct Settings {
     pub walk_speed: f32,
     /// Interval in seconds for when a new projectile is thrown.
     pub projectile_spawn_interval: f32,
+    /// Offset in pixels from the center of the unit body from where the projectile is thrown.
+    pub projectile_spawn_offset: Vec2<f32>,
     /// How fast a projectile is thrown.
     pub projectile_velocity: RandomRangeF32,
     /// How long the hands are hidden after launching a projectile.

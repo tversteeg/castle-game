@@ -10,6 +10,8 @@ walk_speed = -2.5
 
 # Interval in seconds for when a new projectile is thrown
 projectile_spawn_interval = 10
+# Don't let the projectile spawn in the ground
+projectile_spawn_offset = { x = 0, y = -10 }
 # How fast a projectile is thrown
 projectile_velocity = 70
 # How long the hands are hidden after launching a projectile in seconds

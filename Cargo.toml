@@ -19,7 +19,7 @@ debug = ["line_2d"]
 
 [dependencies]
 winit = "0.28.6"
-log = "0.4.19"
+log = "0.4.20"
 web-time = "0.2.0"
 pixels = "0.13.0"
 bytemuck = "1.13.1"
@@ -40,7 +40,7 @@ line_2d = { version = "0.5.3", optional = true }
 smallvec = { version = "1.11.0", features = ["union", "const_generics"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tokio = { version = "1.30.0", features = ["macros", "sync", "rt-multi-thread"] }
+tokio = { version = "1.31.0", features = ["macros", "sync", "rt-multi-thread"] }
 fastrand = "2.0.0"
 puffin = "0.16.0"
 puffin_http = "0.13.0"

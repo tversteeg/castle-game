@@ -6,7 +6,7 @@ use std::{
 use arrayvec::ArrayVec;
 use hashbrown::HashSet;
 use itertools::Itertools;
-use vek::{Aabr, Clamp, Extent2, Vec2};
+use vek::{Aabr, Vec2};
 
 /// Spatial hash grid with fixed buckets divided over an area so potential collision pairs can be found quickly.
 ///

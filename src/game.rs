@@ -83,7 +83,7 @@ impl GameState {
     }
 
     /// Draw a frame.
-    pub fn render(&mut self, canvas: &mut [u32], frame_time: f32) {
+    pub fn render(&mut self, canvas: &mut [u32], _frame_time: f32) {
         self.terrain.render(canvas, &self.camera);
 
         // Render all units
