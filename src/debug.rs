@@ -26,11 +26,18 @@ const CRATE: &str = "object.crate-1";
 #[derive(Debug, Default, Clone, Copy, PartialEq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DebugScreen {
+    /// Show nothing.
     #[default]
     Empty,
+    /// Spawn projectiles on click.
     SpawnProjectiles,
+    /// Show arrows following the direction of all rigidbodies.
     RigidBodyDirections,
+    /// Render a view of the broadphase collision grid.
+    BroadPhaseCollisions,
+    /// Show the calculated rotsprite rotations with the mouse pointer.
     SpriteRotations,
+    /// Draw static bodies with collision information.
     Collisions,
 }
 
@@ -41,6 +48,7 @@ impl DebugScreen {
             DebugScreen::Empty => "",
             DebugScreen::SpawnProjectiles => "Spawn Projectiles on Click",
             DebugScreen::RigidBodyDirections => "Rigidbody Directions",
+            DebugScreen::BroadPhaseCollisions => "Broad Phase Collision Grid",
             DebugScreen::SpriteRotations => "Sprite Rotation Test",
             DebugScreen::Collisions => "Collision Detection Test",
         }
@@ -53,7 +61,8 @@ impl DebugScreen {
         match self {
             Self::Empty => Self::SpawnProjectiles,
             Self::SpawnProjectiles => Self::RigidBodyDirections,
-            Self::RigidBodyDirections => Self::SpriteRotations,
+            Self::RigidBodyDirections => Self::BroadPhaseCollisions,
+            Self::BroadPhaseCollisions => Self::SpriteRotations,
             Self::SpriteRotations => Self::Collisions,
             Self::Collisions => Self::Empty,
         }
@@ -106,7 +115,7 @@ impl DebugDraw {
     }
 
     /// Draw things for debugging purposes.
-    pub fn render(&self, physics: &PhysicsEngine, camera: &Camera, canvas: &mut [u32]) {
+    pub fn render(&self, physics: &mut PhysicsEngine, camera: &Camera, canvas: &mut [u32]) {
         puffin::profile_function!();
 
         // Draw vertices and lines
@@ -194,6 +203,24 @@ impl DebugDraw {
                         )
                     }
                 });
+            }
+            DebugScreen::BroadPhaseCollisions => {
+                let (width, step, grid) = physics.broad_phase_grid(0.0);
+
+                for (index, bucket_size) in grid.iter().enumerate() {
+                    if *bucket_size == 0 {
+                        continue;
+                    }
+
+                    let x = (index % width) as f32 * step;
+                    let y = (index / width) as f32 * step;
+
+                    self.render_text(
+                        &format!("{bucket_size}"),
+                        camera.translate(Vec2::new(x, y)),
+                        canvas,
+                    );
+                }
             }
             DebugScreen::SpawnProjectiles | DebugScreen::Empty => (),
         }

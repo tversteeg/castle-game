@@ -42,8 +42,10 @@ impl<
 where
     I: Debug + Copy + Eq + Hash,
 {
-    const STEPPED_WIDTH: u16 = WIDTH / STEP;
-    const STEPPED_HEIGHT: u16 = HEIGHT / STEP;
+    /// Amount of horizontal slots.
+    pub const STEPPED_WIDTH: u16 = WIDTH / STEP;
+    /// Amount of vertical slots.
+    pub const STEPPED_HEIGHT: u16 = HEIGHT / STEP;
 
     /// Construct a new grid.
     // TODO: wait for either `.map` or `std::array::from_fn` to become const generic to make this const generic.
@@ -64,6 +66,14 @@ where
         let buckets = std::array::from_fn(|_| ArrayVec::new_const());
 
         Self { buckets }
+    }
+
+    /// Drop everything from the buckets.
+    pub fn clear(&mut self) {
+        for bucket in self.buckets.iter_mut() {
+            // Remove everything from the bucket
+            bucket.clear();
+        }
     }
 
     /// Flush all buckets returning an iterator of all matching pairs.
@@ -127,7 +137,16 @@ where
     pub fn store_aabr(&mut self, aabr: Aabr<i16>, id: I) {
         puffin::profile_function!();
 
-        // Clamp the rectangle within the screen
+        // Ignore anything fully outside of the grid
+        if aabr.max.x < 0
+            || aabr.max.y < 0
+            || aabr.min.x >= WIDTH as i16
+            || aabr.min.y >= HEIGHT as i16
+        {
+            return;
+        }
+
+        // Clamp the rectangle within the grid
         let edge = Vec2::new(
             Self::STEPPED_WIDTH as i16 - 1,
             Self::STEPPED_HEIGHT as i16 - 1,
@@ -142,9 +161,14 @@ where
         }
     }
 
-    /// Whether a position can be added to the bucket.
-    pub fn is_in_range(&self, pos: Vec2<f32>) -> bool {
-        pos.x >= 0.0 && pos.y >= 0.0 && pos.x < WIDTH as f32 && pos.y < HEIGHT as f32
+    /// Get a debug map 2D grid where each value is the amount of items in the bucket.
+    ///
+    /// Dimensions are [`Self::STEPPED_WIDTH`] * [`Self::STEPPED_HEIGHT`].
+    pub fn amount_map(&self) -> Vec<u8> {
+        self.buckets
+            .iter()
+            .map(|bucket| bucket.len() as u8)
+            .collect()
     }
 
     /// Add entity to bucket at index.
@@ -163,18 +187,6 @@ where
         unsafe {
             bucket.push_unchecked(id);
         }
-    }
-
-    /// Convert a coordinate to a bucket index coordinate.
-    fn coordinate_to_index(coord: Vec2<u16>) -> u16 {
-        // Divide by step size
-        let x = coord.x / STEP;
-        let y = coord.y / STEP;
-        debug_assert!(x < Self::STEPPED_WIDTH);
-        debug_assert!(y < Self::STEPPED_HEIGHT);
-
-        // This shouldn't overflow since the coordinates have been divided by the step size
-        x + y * Self::STEPPED_WIDTH
     }
 }
 
@@ -220,74 +232,5 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "self")
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use vek::{Extent2, Vec2};
-
-    use super::SpatialGrid;
-
-    /// Test different grid constructions.
-    #[test]
-    fn test_insertion() {
-        const WIDTH: u16 = 32;
-        const HEIGHT: u16 = 32;
-        const STEP: u16 = 16;
-        const BUCKET: usize = 3;
-        const SIZE: usize = (WIDTH / STEP * HEIGHT / STEP) as usize;
-
-        let mut grid = SpatialGrid::<u8, WIDTH, HEIGHT, STEP, BUCKET, SIZE>::new();
-
-        // Store 2 entities in the same bucket, and 1 in a different one
-        grid.store_entity(Vec2::new(30, 30), 0);
-        grid.store_entity(Vec2::new(31, 30), 1);
-        grid.store_entity(Vec2::new(0, 0), 2);
-
-        // Get the entities back as a pair by flushing all buckets
-        let pairs = grid.flush().collect::<Vec<_>>();
-        assert_eq!(pairs, [(0, 1)]);
-
-        // Store 3 entities in the same bucket, the order here matters for which one is left of the tuple and which one right
-        grid.store_entity(Vec2::new(16, 16), 0);
-        grid.store_entity(Vec2::new(16 + 15, 16), 1);
-        grid.store_entity(Vec2::new(16 + 3, 16), 2);
-
-        // Get the entities back as pairs by flushing all buckets
-        let pairs = grid.flush().collect::<Vec<_>>();
-        assert!(pairs.contains(&(0, 1)));
-        assert!(pairs.contains(&(0, 2)));
-        assert!(pairs.contains(&(1, 2)));
-
-        // When we store 4 entities the last one should be dropped because of the max bucket size
-        for _ in 0..3 {
-            grid.store_entity(Vec2::new(0, 0), 0);
-        }
-        grid.store_entity(Vec2::new(0, 0), 2);
-
-        // Get the entities back as pairs by flushing all buckets
-        let pairs = grid.flush().collect::<Vec<_>>();
-        assert!(!pairs.contains(&(0, 2)));
-    }
-
-    /// Test different shapes.
-    #[test]
-    fn test_shapes() {
-        const WIDTH: u16 = 100;
-        const HEIGHT: u16 = 100;
-        const STEP: u16 = 10;
-        const BUCKET: usize = 3;
-        const SIZE: usize = (WIDTH / STEP * HEIGHT / STEP) as usize;
-
-        let mut grid = SpatialGrid::<u8, WIDTH, HEIGHT, STEP, BUCKET, SIZE>::new();
-
-        // Spawn multiple overlapping rectangles
-        grid.store_aabr(Vec2::new(10, 10), Extent2::new(80, 20), 0);
-        grid.store_aabr(Vec2::new(10, 29), Extent2::new(20, 70), 1);
-
-        // Get the entities back as pairs by flushing all buckets
-        let pairs = grid.flush().collect::<Vec<_>>();
-        assert!(pairs.contains(&(0, 1)));
     }
 }

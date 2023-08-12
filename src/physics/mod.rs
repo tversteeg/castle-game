@@ -108,14 +108,16 @@ impl<
 
         {
             puffin::profile_scope!("Reset constraints");
+
             // Reset every constraint for calculating the sub-steps since they are iterative
             reset_constraints(&mut self.dist_constraints);
         }
 
         {
             puffin::profile_scope!("Broad phase collision detection");
+
             // Do a broad phase collision check to get possible colliding pairs
-            self.collision_broad_phase(dt)
+            self.collision_broad_phase(dt);
         }
 
         for _ in 0..substeps {
@@ -265,12 +267,35 @@ impl<
         &self.narrow_phase_collisions
     }
 
+    /// Calculate and return a 2D grid of the broad phase check.
+    ///
+    /// The deltatime argument is for calculating future possible positions of the bodies.
+    ///
+    /// This adds all rigidbodies to the grid, counts the amount of items in a bucket and drops everything.
+    /// Because of that this very slow function.
+    ///
+    /// The amount of horizontal items of the grid is returned as the first item in the tuple.
+    /// The distance between each grid element is the second element.
+    pub fn broad_phase_grid(&mut self, dt: f32) -> (usize, f32, Vec<u8>) {
+        self.fill_spatial_grid(dt);
+
+        let grid = self.collision_grid.amount_map();
+
+        // Reset the grid again so it doesn't interfere with collision detection
+        self.collision_grid.clear();
+
+        (
+            SpatialGrid::<RigidBodyIndex, WIDTH, HEIGHT, STEP, BUCKET, SIZE>::STEPPED_WIDTH
+                as usize,
+            STEP as f32,
+            grid,
+        )
+    }
+
     /// Do a broad-phase collision pass to get possible pairs.
     ///
     /// Fills the list of broad-phase collisions.
     fn collision_broad_phase(&mut self, dt: f32) {
-        puffin::profile_function!();
-
         {
             puffin::profile_scope!("Clear vector");
 
@@ -280,11 +305,7 @@ impl<
         {
             puffin::profile_scope!("Insert into spatial grid");
 
-            // First put all rigid bodies in the spatial grid
-            self.rigidbodies.iter().for_each(|(index, rigidbody)| {
-                self.collision_grid
-                    .store_aabr(rigidbody.predicted_aabr(dt).as_(), *index)
-            });
+            self.fill_spatial_grid(dt);
         }
 
         {
@@ -294,6 +315,17 @@ impl<
             self.collision_grid
                 .flush_into(&mut self.broad_phase_collisions);
         }
+    }
+
+    /// Fill the spatial grid with AABR information from the rigidbodies.
+    fn fill_spatial_grid(&mut self, dt: f32) {
+        puffin::profile_function!();
+
+        // First put all rigid bodies in the spatial grid
+        self.rigidbodies.iter().for_each(|(index, rigidbody)| {
+            self.collision_grid
+                .store_aabr(rigidbody.predicted_aabr(dt).as_(), *index)
+        });
     }
 
     /// Do a narrow-phase collision pass to get all colliding objects.

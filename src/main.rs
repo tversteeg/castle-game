@@ -29,7 +29,7 @@ use tokio::runtime::Runtime;
 use vek::Extent2;
 
 /// Window size.
-pub const SIZE: Extent2<usize> = Extent2::new(360, 360);
+pub const SIZE: Extent2<usize> = Extent2::new(640, 360);
 /// Updates per second of the update loop.
 const UPDATES_PER_SECOND: u32 = 60;
 

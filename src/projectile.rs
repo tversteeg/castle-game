@@ -45,14 +45,15 @@ impl Projectile {
 
         let rigidbody = self.rigidbody.rigidbody_mut(physics);
 
-        if rigidbody.velocity().magnitude() >= AIRFLOW_VEL_TRESHOLD
+        let velocity = rigidbody.velocity().magnitude();
+        if velocity >= AIRFLOW_VEL_TRESHOLD
             && rigidbody.angular_velocity() < AIRFLOW_ANG_VEL_TRESHOLD
         {
             // Let the projectile rotate toward the projectile, simulating air flow
             let dir = Rotation::from_direction(rigidbody.direction());
             let delta_angle = rigidbody.rotation() - dir;
 
-            rigidbody.apply_torque(-delta_angle.to_radians() * AIRFLOW_TORQUE * dt);
+            rigidbody.apply_torque(delta_angle.to_radians() * AIRFLOW_TORQUE * velocity * dt);
         }
 
         !rigidbody.is_sleeping()
