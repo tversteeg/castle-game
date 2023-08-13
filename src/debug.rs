@@ -26,10 +26,6 @@ pub enum DebugScreen {
     Empty,
     /// Spawn projectiles on click.
     SpawnProjectiles,
-    /// Show arrows following the direction of all rigidbodies.
-    RigidBodyDirections,
-    /// Render a view of the broadphase collision grid.
-    BroadPhaseCollisions,
     /// Show the calculated rotsprite rotations with the mouse pointer.
     SpriteRotations,
     /// Draw static bodies with collision information.
@@ -42,8 +38,6 @@ impl DebugScreen {
         match self {
             DebugScreen::Empty => "",
             DebugScreen::SpawnProjectiles => "Spawn Projectiles on Click",
-            DebugScreen::RigidBodyDirections => "Rigidbody Directions",
-            DebugScreen::BroadPhaseCollisions => "Broad Phase Collision Grid",
             DebugScreen::SpriteRotations => "Sprite Rotation Test",
             DebugScreen::Collisions => "Collision Detection Test",
         }
@@ -55,9 +49,7 @@ impl DebugScreen {
     pub fn next(&self) -> Self {
         match self {
             Self::Empty => Self::SpawnProjectiles,
-            Self::SpawnProjectiles => Self::RigidBodyDirections,
-            Self::RigidBodyDirections => Self::BroadPhaseCollisions,
-            Self::BroadPhaseCollisions => Self::SpriteRotations,
+            Self::SpawnProjectiles => Self::SpriteRotations,
             Self::SpriteRotations => Self::Collisions,
             Self::Collisions => Self::Empty,
         }
@@ -68,6 +60,12 @@ impl DebugScreen {
 pub struct DebugDraw {
     /// What debug info to show.
     screen: DebugScreen,
+    /// Whether to draw the collision grid.
+    ///
+    /// Number signifies which grid level to draw at least.
+    show_grid: i8,
+    /// Whether to draw the rotation vectors.
+    show_rotations: bool,
     /// Mouse position.
     mouse: Vec2<f64>,
 }
@@ -77,8 +75,15 @@ impl DebugDraw {
     pub fn new() -> Self {
         let mouse = Vec2::zero();
         let screen = crate::settings().debug.start_screen;
+        let show_grid = -1;
+        let show_rotations = false;
 
-        Self { screen, mouse }
+        Self {
+            screen,
+            mouse,
+            show_grid,
+            show_rotations,
+        }
     }
 
     /// Update the debug state.
@@ -95,6 +100,15 @@ impl DebugDraw {
         // When space is released
         if input.space.is_released() {
             self.screen = self.screen.next();
+        }
+        if input.r.is_released() {
+            self.show_rotations = !self.show_rotations;
+        }
+        if input.g.is_released() {
+            self.show_grid -= 1;
+            if self.show_grid == -2 {
+                self.show_grid = 3;
+            }
         }
 
         if self.screen == DebugScreen::SpawnProjectiles && input.left_mouse.is_released() {
@@ -138,6 +152,38 @@ impl DebugDraw {
             Vec2::new(SIZE.w as f64 - 100.0, 10.0),
             canvas,
         );
+
+        if self.show_rotations {
+            // Draw direction vectors for each rigidbody
+            physics.rigidbody_map().iter().for_each(|(_, rigidbody)| {
+                if rigidbody.is_active() {
+                    self.render_direction(
+                        camera.translate(rigidbody.position()),
+                        rigidbody.direction(),
+                        canvas,
+                    )
+                }
+            });
+        }
+
+        if self.show_grid >= 0 {
+            let (width, step, grid) = physics.broad_phase_grid(0.0);
+
+            for (index, bucket_size) in grid.iter().enumerate() {
+                if *bucket_size < self.show_grid as u8 {
+                    continue;
+                }
+
+                let x = (index % width) as f64 * step;
+                let y = (index / width) as f64 * step;
+
+                self.render_text(
+                    &format!("{bucket_size}"),
+                    camera.translate(Vec2::new(x, y)),
+                    canvas,
+                );
+            }
+        }
 
         match self.screen {
             DebugScreen::SpriteRotations => {
@@ -185,36 +231,6 @@ impl DebugDraw {
                     for response in shape.collides(iso, &shape, mouse_iso) {
                         self.render_collision_response(&response, iso, mouse_iso, canvas);
                     }
-                }
-            }
-            DebugScreen::RigidBodyDirections => {
-                // Draw direction vectors for each rigidbody
-                physics.rigidbody_map().iter().for_each(|(_, rigidbody)| {
-                    if rigidbody.is_active() {
-                        self.render_direction(
-                            camera.translate(rigidbody.position()),
-                            rigidbody.direction(),
-                            canvas,
-                        )
-                    }
-                });
-            }
-            DebugScreen::BroadPhaseCollisions => {
-                let (width, step, grid) = physics.broad_phase_grid(0.0);
-
-                for (index, bucket_size) in grid.iter().enumerate() {
-                    if *bucket_size == 0 {
-                        continue;
-                    }
-
-                    let x = (index % width) as f64 * step;
-                    let y = (index / width) as f64 * step;
-
-                    self.render_text(
-                        &format!("{bucket_size}"),
-                        camera.translate(Vec2::new(x, y)),
-                        canvas,
-                    );
                 }
             }
             DebugScreen::SpawnProjectiles | DebugScreen::Empty => (),

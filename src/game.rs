@@ -25,7 +25,7 @@ pub type PhysicsEngine = Physics<
 >;
 
 /// Physics grid step size.
-const PHYSICS_GRID_STEP: u16 = 10;
+const PHYSICS_GRID_STEP: u16 = 8;
 /// Biggest map size.
 const MAX_MAP_WIDTH: u16 = 640;
 /// Maximum amount of physics objects in a single tile.

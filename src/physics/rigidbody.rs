@@ -2,7 +2,7 @@ use vek::{Aabr, Vec2};
 
 use crate::math::{Iso, Rotation};
 
-use super::collision::{shape::Shape, CollisionResponse};
+use super::collision::{shape::Shape, CollisionResponse, CollisionState};
 
 /// How far away we predict the impulses to move us for checking the collision during the next full deltatime.
 const PREDICTED_POSITION_MULTIPLIER: f64 = 2.0;
@@ -470,6 +470,11 @@ impl RigidBody {
     pub fn predicted_aabr(&self, dt: f64) -> Aabr<f64> {
         puffin::profile_function!();
 
+        // If we are static or sleeping there's nothing to predict
+        if !self.is_active() {
+            return self.aabr();
+        }
+
         // Start with the future aabr
         let mut aabr = self.shape.aabr(Iso::new(
             self.position() + self.vel * PREDICTED_POSITION_MULTIPLIER * dt,
@@ -499,14 +504,12 @@ impl RigidBody {
         a_data: K,
         b: &RigidBody,
         b_data: K,
-        collisions: &mut Vec<(K, K, CollisionResponse)>,
+        state: &mut CollisionState<K>,
     ) where
         K: Clone,
     {
-        puffin::profile_function!();
-
         self.shape
-            .push_collisions(self.iso(), a_data, &b.shape, b.iso(), b_data, collisions);
+            .push_collisions(self.iso(), a_data, &b.shape, b.iso(), b_data, state);
     }
 
     /// Rotate a point in local space.

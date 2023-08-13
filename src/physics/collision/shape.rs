@@ -9,10 +9,7 @@ use vek::{Aabr, Extent2, Vec2};
 
 use crate::math::Iso;
 
-use super::CollisionResponse;
-
-/// Distance at which the collisions will be detected before actually touching.
-const PREDICTION_DISTANCE: f64 = 0.1;
+use super::{CollisionResponse, CollisionState};
 
 /// Distance at which we count a collision as valid.
 const MIN_PENETRATION_DISTANCE: f64 = 0.00001;
@@ -60,41 +57,36 @@ impl Shape {
         b: &Shape,
         b_pos: Iso,
         b_data: K,
-        collisions: &mut Vec<(K, K, CollisionResponse)>,
+        state: &mut CollisionState<K>,
     ) where
         K: Clone,
     {
-        puffin::profile_function!();
-
         let a = self;
 
-        // Check collision and return contact information
-        let mut manifolds: Vec<ContactManifold<(), ()>> = Vec::new();
+        let a_pos_na: Isometry2<f64> = a_pos.into();
+        let b_pos_na: Isometry2<f64> = b_pos.into();
+        let ab_pos = a_pos_na.inv_mul(&b_pos_na);
 
         {
             puffin::profile_scope!("Finding collision contacts");
 
-            let a_pos_na: Isometry2<f64> = a_pos.into();
-            let b_pos_na: Isometry2<f64> = b_pos.into();
-            let ab_pos = a_pos_na.inv_mul(&b_pos_na);
             DefaultQueryDispatcher
                 .contact_manifolds(
                     &ab_pos,
                     a.0.as_ref(),
                     b.0.as_ref(),
-                    PREDICTION_DISTANCE,
-                    &mut manifolds,
+                    0.0,
+                    &mut state.manifolds,
                     &mut None,
                 )
                 .expect("Collision failed");
         }
 
-        for manifold in manifolds.into_iter() {
+        puffin::profile_scope!("Mapping all contacts in manifold");
+        for manifold in state.manifolds.iter() {
             if manifold.points.is_empty() {
                 continue;
             }
-
-            puffin::profile_scope!("Mapping all contacts in manifold");
 
             // Normal vector that always points to the same location globally
             let normal = a_pos
@@ -102,8 +94,6 @@ impl Shape {
                 .rotate(Vec2::new(manifold.local_n1.x, manifold.local_n1.y));
 
             for tracked_contact in manifold.contacts().iter() {
-                puffin::profile_scope!("Manifold translation");
-
                 let local_contact_1 =
                     Vec2::new(tracked_contact.local_p1.x, tracked_contact.local_p1.y);
                 let local_contact_2 =
@@ -112,7 +102,7 @@ impl Shape {
 
                 // Ignore collisions where there's not enough penetration
                 if penetration >= MIN_PENETRATION_DISTANCE {
-                    collisions.push((
+                    state.collisions.push((
                         a_data.clone(),
                         b_data.clone(),
                         CollisionResponse {
@@ -131,11 +121,11 @@ impl Shape {
     ///
     /// This function is very inefficient, use [`Self::push_collisions`].
     pub fn collides(&self, a_pos: Iso, b: &Self, b_pos: Iso) -> Vec<CollisionResponse> {
-        let mut collision_points = Vec::new();
+        let mut collision_state = CollisionState::new();
+        self.push_collisions(a_pos, 0, b, b_pos, 0, &mut collision_state);
 
-        self.push_collisions(a_pos, 0, b, b_pos, 0, &mut collision_points);
-
-        collision_points
+        collision_state
+            .collisions
             .into_iter()
             .map(|(_, _, response)| response)
             .collect()

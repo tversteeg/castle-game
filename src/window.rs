@@ -151,6 +151,12 @@ where
                     Some(VirtualKeyCode::Space) => {
                         g.game.2.space.handle_bool(state == &ElementState::Pressed)
                     }
+                    Some(VirtualKeyCode::R) => {
+                        g.game.2.r.handle_bool(state == &ElementState::Pressed)
+                    }
+                    Some(VirtualKeyCode::G) => {
+                        g.game.2.g.handle_bool(state == &ElementState::Pressed)
+                    }
                     // Close the window when the <ESC> key is pressed
                     Some(VirtualKeyCode::Escape) => g.exit(),
                     _ => (),

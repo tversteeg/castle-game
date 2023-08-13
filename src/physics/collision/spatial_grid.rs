@@ -138,11 +138,7 @@ where
         puffin::profile_function!();
 
         // Ignore anything fully outside of the grid
-        if aabr.max.x < 0
-            || aabr.max.y < 0
-            || aabr.min.x >= WIDTH as i16
-            || aabr.min.y >= HEIGHT as i16
-        {
+        if !self.is_aabr_in_range(aabr) {
             return;
         }
 
@@ -159,6 +155,17 @@ where
                 self.add_to_bucket(x as u16 + y as u16 * Self::STEPPED_WIDTH, id);
             }
         }
+    }
+
+    /// Whether an AABR can be stored.
+    pub fn is_aabr_in_range(&self, aabr: Aabr<i16>) -> bool {
+        puffin::profile_function!();
+
+        // Ignore anything fully outside of the grid
+        !(aabr.max.x < 0
+            || aabr.max.y < 0
+            || aabr.min.x >= WIDTH as i16
+            || aabr.min.y >= HEIGHT as i16)
     }
 
     /// Get a debug map 2D grid where each value is the amount of items in the bucket.

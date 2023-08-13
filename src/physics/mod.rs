@@ -6,14 +6,17 @@ pub mod collision;
 pub mod constraint;
 pub mod rigidbody;
 
-use std::rc::{Rc, Weak};
+use std::{
+    ops::Deref,
+    rc::{Rc, Weak},
+};
 
 use serde::Deserialize;
 use slotmap::{DefaultKey, HopSlotMap, Key, KeyData};
 use vek::Vec2;
 
 use self::{
-    collision::{spatial_grid::SpatialGrid, CollisionResponse},
+    collision::{spatial_grid::SpatialGrid, CollisionResponse, CollisionState},
     constraint::{distance::DistanceConstraint, penetration::PenetrationConstraint, Constraint},
     rigidbody::RigidBody,
 };
@@ -47,10 +50,10 @@ pub struct Physics<
     ///
     /// This is a performance optimization so the vector doesn't have to be allocated every step.
     broad_phase_collisions: Vec<(RigidBodyKey, RigidBodyKey)>,
-    /// Cache of narrow phase collisions.
+    /// Narrow phase collision state cache.
     ///
     /// This is a performance optimization so the vector doesn't have to be allocated many times every step.
-    narrow_phase_collisions: Vec<(RigidBodyKey, RigidBodyKey, CollisionResponse)>,
+    narrow_phase_state: CollisionState<RigidBodyKey>,
 }
 
 impl<
@@ -69,7 +72,7 @@ impl<
         let penetration_constraints = Vec::new();
         let collision_grid = SpatialGrid::new();
         let broad_phase_collisions = Vec::with_capacity(16);
-        let narrow_phase_collisions = Vec::with_capacity(16);
+        let narrow_phase_state = CollisionState::new();
 
         Self {
             rigidbodies,
@@ -78,7 +81,7 @@ impl<
             penetration_constraints,
             collision_grid,
             broad_phase_collisions,
-            narrow_phase_collisions,
+            narrow_phase_state,
         }
     }
 
@@ -229,8 +232,6 @@ impl<
 
     /// Reference to a rigid body.
     pub fn rigidbody(&self, rigidbody: RigidBodyKey) -> &RigidBody {
-        puffin::profile_function!();
-
         self.rigidbodies
             .get(rigidbody)
             .expect("Rigid body does not exist")
@@ -238,8 +239,6 @@ impl<
 
     /// Mutable reference to a rigid body.
     pub fn rigidbody_mut(&mut self, rigidbody: RigidBodyKey) -> &mut RigidBody {
-        puffin::profile_function!();
-
         self.rigidbodies
             .get_mut(rigidbody)
             .expect("Rigid body does not exist")
@@ -247,16 +246,12 @@ impl<
 
     /// Reference to all rigid bodies.
     pub fn rigidbody_map(&self) -> &HopSlotMap<RigidBodyKey, RigidBody> {
-        puffin::profile_function!();
-
         &self.rigidbodies
     }
 
     /// Get the calculated collision pairs with collision information.
     pub fn colliding_rigid_bodies(&mut self) -> &[(RigidBodyKey, RigidBodyKey, CollisionResponse)] {
-        puffin::profile_function!();
-
-        &self.narrow_phase_collisions
+        &self.narrow_phase_state.collisions
     }
 
     /// Calculate and return a 2D grid of the broad phase check.
@@ -283,15 +278,17 @@ impl<
         )
     }
 
+    /// Whether a rigidbody is still in the grid range.
+    pub fn is_rigidbody_on_grid(&self, rigidbody: RigidBodyKey) -> bool {
+        self.collision_grid
+            .is_aabr_in_range(self.rigidbody(rigidbody).aabr().as_())
+    }
+
     /// Do a broad-phase collision pass to get possible pairs.
     ///
     /// Fills the list of broad-phase collisions.
     fn collision_broad_phase(&mut self, dt: f64) {
-        {
-            puffin::profile_scope!("Clear vector");
-
-            self.broad_phase_collisions.clear();
-        }
+        self.broad_phase_collisions.clear();
 
         {
             puffin::profile_scope!("Insert into spatial grid");
@@ -323,14 +320,8 @@ impl<
     ///
     /// Fills the penetration constraint list and the list of collisions.
     fn collision_narrow_phase(&mut self) {
-        puffin::profile_function!();
-
-        {
-            puffin::profile_scope!("Clear vectors");
-
-            self.narrow_phase_collisions.clear();
-            self.penetration_constraints.clear();
-        }
+        self.narrow_phase_state.clear();
+        self.penetration_constraints.clear();
 
         // Narrow-phase with SAT
         for (a, b) in self.broad_phase_collisions.iter() {
@@ -345,7 +336,7 @@ impl<
                 *a,
                 &self.rigidbodies[*b],
                 *b,
-                &mut self.narrow_phase_collisions,
+                &mut self.narrow_phase_state,
             );
         }
 
@@ -353,7 +344,7 @@ impl<
             puffin::profile_scope!("Collision responses to penetration constraints");
 
             // Generate penetration constraint
-            for (a, b, response) in self.narrow_phase_collisions.iter() {
+            for (a, b, response) in self.narrow_phase_state.collisions.iter() {
                 self.penetration_constraints
                     .push(PenetrationConstraint::new([*a, *b], response.clone()));
             }
@@ -430,6 +421,14 @@ impl RigidBodyHandle {
     /// Create a weak reference to the rigidbody.
     pub fn downgrade(&self) -> Weak<RigidBodyKey> {
         Rc::downgrade(&self.0)
+    }
+}
+
+impl Deref for RigidBodyHandle {
+    type Target = RigidBodyKey;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
