@@ -5,63 +5,60 @@ use crate::math::{Iso, Rotation};
 use super::collision::{shape::Shape, CollisionResponse};
 
 /// How far away we predict the impulses to move us for checking the collision during the next full deltatime.
-const PREDICTED_POSITION_MULTIPLIER: f32 = 2.0;
-
-/// Rigidbody index type.
-pub type RigidBodyIndex = u32;
+const PREDICTED_POSITION_MULTIPLIER: f64 = 2.0;
 
 /// Represents any physics object that can have constraints applied.
 #[derive(Clone, Default)]
 pub struct RigidBody {
     /// Global position.
-    pos: Vec2<f32>,
+    pos: Vec2<f64>,
     /// Previous position.
-    prev_pos: Vec2<f32>,
+    prev_pos: Vec2<f64>,
     /// Global offset that will be added to the body.
-    translation: Vec2<f32>,
+    translation: Vec2<f64>,
     /// Velocity.
-    vel: Vec2<f32>,
+    vel: Vec2<f64>,
     /// Previous velocity.
-    prev_vel: Vec2<f32>,
+    prev_vel: Vec2<f64>,
     /// Orientation in radians.
     rot: Rotation,
     /// Previous orientation.
     prev_rot: Rotation,
     /// Angular velocity.
-    ang_vel: f32,
+    ang_vel: f64,
     /// Previous angular velocity.
-    prev_ang_vel: f32,
+    prev_ang_vel: f64,
     /// Inertia tensor, corresponds to mass in rotational terms.
     ///
     /// Torque needed for an angular acceleration.
-    inertia: f32,
+    inertia: f64,
     /// Linear damping.
-    lin_damping: f32,
+    lin_damping: f64,
     /// Angular damping.
-    ang_damping: f32,
+    ang_damping: f64,
     /// External forces.
-    ext_force: Vec2<f32>,
+    ext_force: Vec2<f64>,
     // External torque.
-    ext_torque: f32,
+    ext_torque: f64,
     /// Inverse of the mass.
-    inv_mass: f32,
+    inv_mass: f64,
     /// Friction coefficient, for now there's no difference between dynamic and static friction.
-    friction: f32,
+    friction: f64,
     /// Restitution coefficient, how bouncy collisions are.
-    restitution: f32,
+    restitution: f64,
     /// Collision shape.
     shape: Shape,
     /// If > 0 we are sleeping, which means we don't have to calculate a lot of steps.
     ///
     /// After a certain time the velocity and position will be set to zero.
-    time_sleeping: f32,
+    time_sleeping: f64,
 }
 
 impl RigidBody {
     /// Construct a new rigidbody without movements.
     ///
     /// Gravity is applied as an external force.
-    pub fn new<S>(pos: Vec2<f32>, shape: S) -> Self
+    pub fn new<S>(pos: Vec2<f64>, shape: S) -> Self
     where
         S: Into<Shape>,
     {
@@ -79,11 +76,11 @@ impl RigidBody {
 
     /// Construct a new rigidbody with acceleration.
     pub fn new_external_force<S>(
-        pos: Vec2<f32>,
-        ext_force: Vec2<f32>,
-        lin_damping: f32,
-        ang_damping: f32,
-        density: f32,
+        pos: Vec2<f64>,
+        ext_force: Vec2<f64>,
+        lin_damping: f64,
+        ang_damping: f64,
+        density: f64,
         shape: S,
     ) -> Self
     where
@@ -130,7 +127,7 @@ impl RigidBody {
     }
 
     /// Construct a fixed rigidbody with infinite mass and no gravity.
-    pub fn new_fixed<S>(pos: Vec2<f32>, shape: S) -> Self
+    pub fn new_fixed<S>(pos: Vec2<f64>, shape: S) -> Self
     where
         S: Into<Shape>,
     {
@@ -178,7 +175,7 @@ impl RigidBody {
     }
 
     /// Apply velocity after creating a rigidbody.
-    pub fn with_velocity(mut self, velocity: Vec2<f32>) -> Self {
+    pub fn with_velocity(mut self, velocity: Vec2<f64>) -> Self {
         self.vel = velocity;
         self.prev_vel = velocity;
 
@@ -188,7 +185,7 @@ impl RigidBody {
     /// Set the density.
     ///
     /// This will change the mass and inertia.
-    pub fn with_density(mut self, density: f32) -> Self {
+    pub fn with_density(mut self, density: f64) -> Self {
         let mass_properties = self.shape.mass_properties(density);
         self.inv_mass = mass_properties.mass().recip();
         self.inertia = mass_properties.principal_inertia();
@@ -207,35 +204,35 @@ impl RigidBody {
     }
 
     /// Set the dynamic and static frictions.
-    pub fn with_friction(mut self, friction: f32) -> Self {
+    pub fn with_friction(mut self, friction: f64) -> Self {
         self.friction = friction;
 
         self
     }
 
     /// Set the restitution.
-    pub fn with_restitution(mut self, restitution: f32) -> Self {
+    pub fn with_restitution(mut self, restitution: f64) -> Self {
         self.restitution = restitution;
 
         self
     }
 
     /// Set the linear damping.
-    pub fn with_linear_damping(mut self, linear_damping: f32) -> Self {
+    pub fn with_linear_damping(mut self, linear_damping: f64) -> Self {
         self.lin_damping = linear_damping;
 
         self
     }
 
     /// Set the angular damping.
-    pub fn with_angular_damping(mut self, angular_damping: f32) -> Self {
+    pub fn with_angular_damping(mut self, angular_damping: f64) -> Self {
         self.ang_damping = angular_damping;
 
         self
     }
 
     /// Perform a single (sub-)step with a deltatime.
-    pub fn integrate(&mut self, dt: f32) {
+    pub fn integrate(&mut self, dt: f64) {
         puffin::profile_function!();
 
         if !self.is_active() {
@@ -267,7 +264,7 @@ impl RigidBody {
     }
 
     /// Add velocities.
-    pub fn update_velocities(&mut self, dt: f32) {
+    pub fn update_velocities(&mut self, dt: f64) {
         puffin::profile_function!();
 
         self.prev_vel = self.vel;
@@ -290,22 +287,22 @@ impl RigidBody {
     }
 
     /// Apply a force by moving the position, which will trigger velocity increments.
-    pub fn apply_force(&mut self, force: Vec2<f32>) {
+    pub fn apply_force(&mut self, force: Vec2<f64>) {
         self.translation += force;
     }
 
     /// Apply a rotational force in radians.
-    pub fn apply_rotational_force(&mut self, force: f32) {
+    pub fn apply_rotational_force(&mut self, force: f64) {
         self.rot += force;
     }
 
     /// Apply torque from an external source.
-    pub fn apply_torque(&mut self, torque: f32) {
+    pub fn apply_torque(&mut self, torque: f64) {
         self.ext_torque += torque;
     }
 
     /// Set global position.
-    pub fn set_position(&mut self, pos: Vec2<f32>, force: bool) {
+    pub fn set_position(&mut self, pos: Vec2<f64>, force: bool) {
         self.pos = pos;
         if !force {
             self.prev_pos = pos;
@@ -315,7 +312,7 @@ impl RigidBody {
     }
 
     /// Set the rigidbody to sleeping if the velocities are below the treshold.
-    pub fn mark_sleeping(&mut self, dt: f32) {
+    pub fn mark_sleeping(&mut self, dt: f64) {
         puffin::profile_function!();
 
         if self.is_static() {
@@ -335,17 +332,17 @@ impl RigidBody {
     }
 
     /// Global position.
-    pub fn position(&self) -> Vec2<f32> {
+    pub fn position(&self) -> Vec2<f64> {
         self.pos + self.translation
     }
 
     /// Global linear velocity.
-    pub fn velocity(&self) -> Vec2<f32> {
+    pub fn velocity(&self) -> Vec2<f64> {
         self.vel
     }
 
     /// Global angular velocity.
-    pub fn angular_velocity(&self) -> f32 {
+    pub fn angular_velocity(&self) -> f64 {
         self.ang_vel
     }
 
@@ -362,7 +359,7 @@ impl RigidBody {
     }
 
     /// Calculate generalized inverse mass at a relative point along the normal vector.
-    pub fn inverse_mass_at_relative_point(&self, point: Vec2<f32>, normal: Vec2<f32>) -> f32 {
+    pub fn inverse_mass_at_relative_point(&self, point: Vec2<f64>, normal: Vec2<f64>) -> f64 {
         puffin::profile_function!();
 
         if self.is_static() {
@@ -376,7 +373,7 @@ impl RigidBody {
     }
 
     /// Calculate the update in rotation when a position change is applied at a specific point.
-    pub fn delta_rotation_at_point(&self, point: Vec2<f32>, impulse: Vec2<f32>) -> f32 {
+    pub fn delta_rotation_at_point(&self, point: Vec2<f64>, impulse: Vec2<f64>) -> f64 {
         puffin::profile_function!();
 
         // Perpendicular dot product of `point` with `impulse`
@@ -390,9 +387,9 @@ impl RigidBody {
     // TODO: can we remove the sign by directly negating the impulse?
     pub fn apply_positional_impulse(
         &mut self,
-        positional_impulse: Vec2<f32>,
-        point: Vec2<f32>,
-        sign: f32,
+        positional_impulse: Vec2<f64>,
+        point: Vec2<f64>,
+        sign: f64,
     ) {
         puffin::profile_function!();
 
@@ -410,9 +407,9 @@ impl RigidBody {
     /// Apply a velocity change at a point.
     pub fn apply_velocity_impulse(
         &mut self,
-        velocity_impulse: Vec2<f32>,
-        point: Vec2<f32>,
-        sign: f32,
+        velocity_impulse: Vec2<f64>,
+        point: Vec2<f64>,
+        sign: f64,
     ) {
         puffin::profile_function!();
 
@@ -426,7 +423,7 @@ impl RigidBody {
     }
 
     /// Calculate the contact velocity based on a local relative rotated point.
-    pub fn contact_velocity(&self, point: Vec2<f32>) -> Vec2<f32> {
+    pub fn contact_velocity(&self, point: Vec2<f64>) -> Vec2<f64> {
         puffin::profile_function!();
 
         // Perpendicular
@@ -436,7 +433,7 @@ impl RigidBody {
     }
 
     /// Calculate the contact velocity based on a local relative rotated point with the previous velocities.
-    pub fn prev_contact_velocity(&self, point: Vec2<f32>) -> Vec2<f32> {
+    pub fn prev_contact_velocity(&self, point: Vec2<f64>) -> Vec2<f64> {
         puffin::profile_function!();
 
         // Perpendicular
@@ -446,31 +443,31 @@ impl RigidBody {
     }
 
     /// Delta position of a point.
-    pub fn relative_motion_at_point(&self, point: Vec2<f32>) -> Vec2<f32> {
+    pub fn relative_motion_at_point(&self, point: Vec2<f64>) -> Vec2<f64> {
         puffin::profile_function!();
 
         self.pos - self.prev_pos + self.translation + point - self.prev_rot.rotate(point)
     }
 
     /// Inverse of the inertia tensor.
-    pub fn inverse_inertia(&self) -> f32 {
+    pub fn inverse_inertia(&self) -> f64 {
         self.inertia.recip()
     }
 
     /// Axis-aligned bounding rectangle.
-    pub fn aabr(&self) -> Aabr<f32> {
+    pub fn aabr(&self) -> Aabr<f64> {
         self.shape.aabr(self.iso())
     }
 
     /// Vertices for the body.
-    pub fn vertices(&self) -> Vec<Vec2<f32>> {
+    pub fn vertices(&self) -> Vec<Vec2<f64>> {
         self.shape.vertices(self.iso())
     }
 
     /// Axis-aligned bounding rectangle with a predicted future position added.
     ///
     /// WARNING: `dt` is not from the substep but from the full physics step.
-    pub fn predicted_aabr(&self, dt: f32) -> Aabr<f32> {
+    pub fn predicted_aabr(&self, dt: f64) -> Aabr<f64> {
         puffin::profile_function!();
 
         // Start with the future aabr
@@ -497,34 +494,30 @@ impl RigidBody {
     /// Check if it collides with another rigidbody.
     ///
     /// Pushes to a buffer with collision information when it does.
-    pub fn push_collisions(
+    pub fn push_collisions<K>(
         &self,
-        index: RigidBodyIndex,
-        other: &RigidBody,
-        other_index: RigidBodyIndex,
-        collisions: &mut Vec<(RigidBodyIndex, RigidBodyIndex, CollisionResponse)>,
-    ) {
+        a_data: K,
+        b: &RigidBody,
+        b_data: K,
+        collisions: &mut Vec<(K, K, CollisionResponse)>,
+    ) where
+        K: Clone,
+    {
         puffin::profile_function!();
 
-        self.shape.push_collisions(
-            self.iso(),
-            index,
-            &other.shape,
-            other.iso(),
-            other_index,
-            collisions,
-        );
+        self.shape
+            .push_collisions(self.iso(), a_data, &b.shape, b.iso(), b_data, collisions);
     }
 
     /// Rotate a point in local space.
-    pub fn rotate(&self, point: Vec2<f32>) -> Vec2<f32> {
+    pub fn rotate(&self, point: Vec2<f64>) -> Vec2<f64> {
         puffin::profile_function!();
 
         self.rot.rotate(point)
     }
 
     /// Calculate the world position of a relative point on this body without rotation in mind.
-    pub fn local_to_world(&self, point: Vec2<f32>) -> Vec2<f32> {
+    pub fn local_to_world(&self, point: Vec2<f64>) -> Vec2<f64> {
         puffin::profile_function!();
 
         // Then translate it to the position
@@ -547,38 +540,38 @@ impl RigidBody {
     }
 
     /// Friction that needs to be overcome before resting objects start sliding.
-    pub fn static_friction(&self) -> f32 {
+    pub fn static_friction(&self) -> f64 {
         self.friction
     }
 
     /// Friction that's applied to dynamic moving object after static friction has been overcome.
-    pub fn dynamic_friction(&self) -> f32 {
+    pub fn dynamic_friction(&self) -> f64 {
         self.friction
     }
 
     /// Combine the static frictions between this and another body.
-    pub fn combine_static_frictions(&self, other: &Self) -> f32 {
+    pub fn combine_static_frictions(&self, other: &Self) -> f64 {
         puffin::profile_function!();
 
         (self.static_friction() + other.static_friction()) / 2.0
     }
 
     /// Combine the dynamic frictions between this and another body.
-    pub fn combine_dynamic_frictions(&self, other: &Self) -> f32 {
+    pub fn combine_dynamic_frictions(&self, other: &Self) -> f64 {
         puffin::profile_function!();
 
         (self.dynamic_friction() + other.dynamic_friction()) / 2.0
     }
 
     /// Combine the restitutions between this and another body.
-    pub fn combine_restitutions(&self, other: &Self) -> f32 {
+    pub fn combine_restitutions(&self, other: &Self) -> f64 {
         puffin::profile_function!();
 
         (self.restitution + other.restitution) / 2.0
     }
 
     /// Current direction the body is moving in.
-    pub fn direction(&self) -> Vec2<f32> {
+    pub fn direction(&self) -> Vec2<f64> {
         puffin::profile_function!();
 
         (self.pos - self.prev_pos).normalized()

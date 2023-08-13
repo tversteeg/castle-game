@@ -1,13 +1,13 @@
 use std::ops::{Add, AddAssign, Neg, Sub, SubAssign};
 
-use parry2d::na::{Isometry2, Vector2};
+use parry2d_f64::na::{Isometry2, Vector2};
 use vek::Vec2;
 
 /// Position with a rotation.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Iso {
     /// Position before being rotated.
-    pub pos: Vec2<f32>,
+    pub pos: Vec2<f64>,
     /// Rotation.
     pub rot: Rotation,
 }
@@ -16,7 +16,7 @@ impl Iso {
     /// Construct from a position and a rotation.
     pub fn new<P, R>(pos: P, rot: R) -> Self
     where
-        P: Into<Vec2<f32>>,
+        P: Into<Vec2<f64>>,
         R: Into<Rotation>,
     {
         let pos = pos.into();
@@ -28,7 +28,7 @@ impl Iso {
     /// Construct from a position with a rotation of zero.
     pub fn from_pos<P>(pos: P) -> Self
     where
-        P: Into<Vec2<f32>>,
+        P: Into<Vec2<f64>>,
     {
         let pos = pos.into();
         let rot = Rotation::zero();
@@ -37,18 +37,18 @@ impl Iso {
     }
 
     /// Rotate a relative point and add the position.
-    pub fn translate(&self, point: Vec2<f32>) -> Vec2<f32> {
+    pub fn translate(&self, point: Vec2<f64>) -> Vec2<f64> {
         self.pos + self.rot.rotate(point)
     }
 }
 
-impl From<(Vec2<f32>, Rotation)> for Iso {
-    fn from((pos, rot): (Vec2<f32>, Rotation)) -> Self {
+impl From<(Vec2<f64>, Rotation)> for Iso {
+    fn from((pos, rot): (Vec2<f64>, Rotation)) -> Self {
         Self { pos, rot }
     }
 }
 
-impl From<Iso> for Isometry2<f32> {
+impl From<Iso> for Isometry2<f64> {
     fn from(value: Iso) -> Self {
         Isometry2::new(
             Vector2::new(value.pos.x, value.pos.y),
@@ -63,9 +63,9 @@ impl From<Iso> for Isometry2<f32> {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rotation {
     /// Cosine part of the rotation.
-    cos: f32,
+    cos: f64,
     /// Sine part of the rotation.
-    sin: f32,
+    sin: f64,
 }
 
 impl Rotation {
@@ -77,46 +77,46 @@ impl Rotation {
     }
 
     /// Create from radians.
-    pub fn from_radians(rotation: f32) -> Self {
+    pub fn from_radians(rotation: f64) -> Self {
         let (sin, cos) = rotation.sin_cos();
 
         Self { sin, cos }
     }
 
     /// Create from degrees.
-    pub fn from_degrees(rotation: f32) -> Self {
+    pub fn from_degrees(rotation: f64) -> Self {
         Self::from_radians(rotation.to_radians())
     }
 
     /// Create from a direction vector.
     ///
     /// Vector is assumed to be normalized.
-    pub fn from_direction(dir: Vec2<f32>) -> Self {
+    pub fn from_direction(dir: Vec2<f64>) -> Self {
         Self::from_radians(dir.y.atan2(dir.x))
     }
 
     /// Convert to radians.
-    pub fn to_radians(self) -> f32 {
+    pub fn to_radians(self) -> f64 {
         self.sin.atan2(self.cos)
     }
 
     /// Convert to degrees.
-    pub fn to_degrees(self) -> f32 {
+    pub fn to_degrees(self) -> f64 {
         self.to_radians().to_degrees()
     }
 
     /// Rotate a point.
-    pub fn rotate(&self, point: Vec2<f32>) -> Vec2<f32> {
+    pub fn rotate(&self, point: Vec2<f64>) -> Vec2<f64> {
         point.rotated_z(self.to_radians())
     }
 
     /// Sine.
-    pub fn sin(&self) -> f32 {
+    pub fn sin(&self) -> f64 {
         self.sin
     }
 
     /// Cosine.
-    pub fn cos(&self) -> f32 {
+    pub fn cos(&self) -> f64 {
         self.cos
     }
 }
@@ -127,14 +127,14 @@ impl Default for Rotation {
     }
 }
 
-impl From<f32> for Rotation {
-    fn from(value: f32) -> Self {
+impl From<f64> for Rotation {
+    fn from(value: f64) -> Self {
         Self::from_radians(value)
     }
 }
 
-impl AddAssign<f32> for Rotation {
-    fn add_assign(&mut self, rhs: f32) {
+impl AddAssign<f64> for Rotation {
+    fn add_assign(&mut self, rhs: f64) {
         *self = *self + rhs;
     }
 }
@@ -145,10 +145,10 @@ impl AddAssign<Self> for Rotation {
     }
 }
 
-impl Add<f32> for Rotation {
+impl Add<f64> for Rotation {
     type Output = Self;
 
-    fn add(self, rhs: f32) -> Self::Output {
+    fn add(self, rhs: f64) -> Self::Output {
         if rhs.is_sign_positive() {
             self + Self::from_radians(rhs)
         } else {
@@ -174,8 +174,8 @@ impl SubAssign<Self> for Rotation {
     }
 }
 
-impl SubAssign<f32> for Rotation {
-    fn sub_assign(&mut self, rhs: f32) {
+impl SubAssign<f64> for Rotation {
+    fn sub_assign(&mut self, rhs: f64) {
         *self = *self - rhs;
     }
 }
@@ -188,10 +188,10 @@ impl Sub<Self> for Rotation {
     }
 }
 
-impl Sub<f32> for Rotation {
+impl Sub<f64> for Rotation {
     type Output = Self;
 
-    fn sub(self, rhs: f32) -> Self::Output {
+    fn sub(self, rhs: f64) -> Self::Output {
         if rhs.is_sign_positive() {
             self - Self::from_radians(rhs)
         } else {
@@ -225,15 +225,15 @@ mod tests {
         assert_eq!((a + b).to_degrees().round() as i16, 135);
         assert_eq!((a - b).to_degrees().round() as i16, 45);
 
-        assert_eq!((a + 45f32.to_radians()).to_degrees().round() as i16, 135);
-        assert_eq!((a + 180f32.to_radians()).to_degrees().round() as i16, -90);
-        assert_eq!((a - 180f32.to_radians()).to_degrees().round() as i16, -90);
-        assert_eq!((a - 90f32.to_radians()).to_degrees().round() as i16, 0);
+        assert_eq!((a + 45f64.to_radians()).to_degrees().round() as i16, 135);
+        assert_eq!((a + 180f64.to_radians()).to_degrees().round() as i16, -90);
+        assert_eq!((a - 180f64.to_radians()).to_degrees().round() as i16, -90);
+        assert_eq!((a - 90f64.to_radians()).to_degrees().round() as i16, 0);
         assert_eq!(a - 1.0, a + -1.0);
 
-        a -= 10f32.to_radians();
+        a -= 10f64.to_radians();
         assert_eq!(a.to_degrees().round() as i16, 80);
-        a += 10f32.to_radians();
+        a += 10f64.to_radians();
         assert_eq!(a.to_degrees().round() as i16, 90);
     }
 }

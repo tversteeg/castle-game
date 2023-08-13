@@ -8,13 +8,13 @@ use crate::{
 /// Spear asset path.
 const ASSET_PATH: &str = "projectile.spear-1";
 /// Airflow torque strength.
-const AIRFLOW_TORQUE: f32 = 30.0;
+const AIRFLOW_TORQUE: f64 = 30.0;
 /// Angular velocity of the projectile must be lower than this.
-const AIRFLOW_ANG_VEL_CUTOFF: f32 = 1.0;
+const AIRFLOW_ANG_VEL_CUTOFF: f64 = 1.0;
 /// Projectile velocity must be over this treshold before airflow is applied.
-const AIRFLOW_VEL_TRESHOLD: f32 = 50.0;
+const AIRFLOW_VEL_TRESHOLD: f64 = 50.0;
 /// Only apply the force when the offset of the rotation is this close.
-const AIRFLOW_ROT_RANGE: f32 = 0.5;
+const AIRFLOW_ROT_RANGE: f64 = 0.5;
 
 /// Projectile that can fly.
 pub struct Projectile {
@@ -24,7 +24,7 @@ pub struct Projectile {
 
 impl Projectile {
     /// Create a new projectile.
-    pub fn new(pos: Vec2<f32>, vel: Vec2<f32>, physics: &mut PhysicsEngine) -> Self {
+    pub fn new(pos: Vec2<f64>, vel: Vec2<f64>, physics: &mut PhysicsEngine) -> Self {
         puffin::profile_function!();
 
         // Load the object definition for properties of the object
@@ -46,7 +46,7 @@ impl Projectile {
     /// Update the physics of the projectile.
     ///
     /// Returns whether it should stay alive.
-    pub fn update(&self, physics: &mut PhysicsEngine, dt: f32) -> bool {
+    pub fn update(&self, physics: &mut PhysicsEngine, dt: f64) -> bool {
         puffin::profile_function!();
 
         let rigidbody = self.rigidbody.rigidbody_mut(physics);

@@ -38,10 +38,10 @@ impl Compound for ObjectSettings {
                 if *width == 0.0 || *height == 0.0 {
                     let sprite = cache.load::<Sprite>(id)?.read();
                     if *width == 0.0 {
-                        *width = sprite.width() as f32;
+                        *width = sprite.width() as f64;
                     }
                     if *height == 0.0 {
-                        *height = sprite.height() as f32;
+                        *height = sprite.height() as f64;
                     }
                 }
             }
@@ -68,7 +68,7 @@ impl Compound for ObjectSettings {
                         (0..sprite.height())
                             // Find the top pixel that's non-transparent as the top of the heigthfield
                             .find(|y| !sprite.is_pixel_transparent(Vec2::new(x, *y)))
-                            .unwrap_or(sprite.height()) as f32
+                            .unwrap_or(sprite.height()) as f64
                             + *height_offset
                     })
                     .collect();
@@ -90,7 +90,7 @@ pub struct ObjectSettingsImpl {
 
 impl ObjectSettingsImpl {
     /// Construct a rigidbody from the metadata.
-    pub fn rigidbody(&self, pos: Vec2<f32>) -> RigidBody {
+    pub fn rigidbody(&self, pos: Vec2<f64>) -> RigidBody {
         if self.physics.is_fixed {
             RigidBody::new_fixed(pos, self.shape())
         } else {
@@ -111,7 +111,7 @@ impl ObjectSettingsImpl {
             }
             ColliderSettings::Heightmap {
                 spacing, heights, ..
-            } => Shape::heightmap(heights, *spacing as f32),
+            } => Shape::heightmap(heights, *spacing as f64),
         }
     }
 }
@@ -131,19 +131,19 @@ struct PhysicsSettings {
     /// Mass is density times area.
     ///
     /// Doesn't apply when this is a static object.
-    density: f32,
+    density: f64,
     /// Friction coefficient for both static and dynamic friction.
-    friction: f32,
+    friction: f64,
     /// Restitution coefficiont for bounciness.
-    restitution: f32,
+    restitution: f64,
     /// Linear damping.
     ///
     /// Doesn't apply when this is a static object.
-    linear_damping: f32,
+    linear_damping: f64,
     /// Angular damping.
     ///
     /// Doesn't apply when this is a static object.
-    angular_damping: f32,
+    angular_damping: f64,
 }
 
 impl Default for PhysicsSettings {
@@ -166,10 +166,10 @@ enum ColliderSettings {
     Rectangle {
         /// Width of the collider, if `0.0` the sprite size is used.
         #[serde(default)]
-        width: f32,
+        width: f64,
         /// Height of the collider, if `0.0` the sprite size is used.
         #[serde(default)]
-        height: f32,
+        height: f64,
     },
     Heightmap {
         /// How many X pixels will be skipped before the next sample is taken.
@@ -178,9 +178,9 @@ enum ColliderSettings {
         spacing: u32,
         /// How much height below a pixel is used for the collision shape.
         #[serde(default)]
-        height_offset: f32,
+        height_offset: f64,
         /// List of heights, will be calculated from the image.
         #[serde(default)]
-        heights: Vec<f32>,
+        heights: Vec<f64>,
     },
 }

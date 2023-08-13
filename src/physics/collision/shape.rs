@@ -1,4 +1,4 @@
-use parry2d::{
+use parry2d_f64::{
     mass_properties::MassProperties,
     na::{DVector, Isometry2, Vector2},
     query::{ContactManifold, DefaultQueryDispatcher, PersistentQueryDispatcher},
@@ -7,15 +7,15 @@ use parry2d::{
 
 use vek::{Aabr, Extent2, Vec2};
 
-use crate::{math::Iso, physics::rigidbody::RigidBodyIndex};
+use crate::math::Iso;
 
 use super::CollisionResponse;
 
 /// Distance at which the collisions will be detected before actually touching.
-const PREDICTION_DISTANCE: f32 = 0.1;
+const PREDICTION_DISTANCE: f64 = 0.1;
 
 /// Distance at which we count a collision as valid.
-const MIN_PENETRATION_DISTANCE: f32 = 0.00001;
+const MIN_PENETRATION_DISTANCE: f64 = 0.00001;
 
 /// Different shapes.
 #[derive(Clone)]
@@ -23,26 +23,26 @@ pub struct Shape(SharedShape);
 
 impl Shape {
     /// Create a rectangle.
-    pub fn rectangle(size: Extent2<f32>) -> Self {
+    pub fn rectangle(size: Extent2<f64>) -> Self {
         let shape = SharedShape::cuboid(size.w / 2.0, size.h / 2.0);
 
         Self(shape)
     }
 
     /// Create a horizontal heightmap.
-    pub fn heightmap(heights: &[f32], spacing: f32) -> Self {
+    pub fn heightmap(heights: &[f64], spacing: f64) -> Self {
         puffin::profile_function!();
 
         let shape = SharedShape::heightfield(
             DVector::from_row_slice(heights),
-            Vector2::new(spacing * (heights.len() - 1) as f32, 1.0),
+            Vector2::new(spacing * (heights.len() - 1) as f64, 1.0),
         );
 
         Self(shape)
     }
 
     /// Axis aligned bounding box.
-    pub fn aabr(&self, iso: Iso) -> Aabr<f32> {
+    pub fn aabr(&self, iso: Iso) -> Aabr<f64> {
         puffin::profile_function!();
 
         let aabb = self.0.compute_aabb(&iso.into());
@@ -53,15 +53,17 @@ impl Shape {
     }
 
     /// Collide with another shape, pushing into a vector.
-    pub fn push_collisions(
+    pub fn push_collisions<K>(
         &self,
         a_pos: Iso,
-        a_index: RigidBodyIndex,
+        a_data: K,
         b: &Shape,
         b_pos: Iso,
-        b_index: RigidBodyIndex,
-        collisions: &mut Vec<(RigidBodyIndex, RigidBodyIndex, CollisionResponse)>,
-    ) {
+        b_data: K,
+        collisions: &mut Vec<(K, K, CollisionResponse)>,
+    ) where
+        K: Clone,
+    {
         puffin::profile_function!();
 
         let a = self;
@@ -72,8 +74,8 @@ impl Shape {
         {
             puffin::profile_scope!("Finding collision contacts");
 
-            let a_pos_na: Isometry2<f32> = a_pos.into();
-            let b_pos_na: Isometry2<f32> = b_pos.into();
+            let a_pos_na: Isometry2<f64> = a_pos.into();
+            let b_pos_na: Isometry2<f64> = b_pos.into();
             let ab_pos = a_pos_na.inv_mul(&b_pos_na);
             DefaultQueryDispatcher
                 .contact_manifolds(
@@ -111,8 +113,8 @@ impl Shape {
                 // Ignore collisions where there's not enough penetration
                 if penetration >= MIN_PENETRATION_DISTANCE {
                     collisions.push((
-                        a_index,
-                        b_index,
+                        a_data.clone(),
+                        b_data.clone(),
                         CollisionResponse {
                             local_contact_1,
                             local_contact_2,
@@ -140,12 +142,12 @@ impl Shape {
     }
 
     /// Calculate different values based on the shape and density.
-    pub fn mass_properties(&self, density: f32) -> MassProperties {
+    pub fn mass_properties(&self, density: f64) -> MassProperties {
         self.0.mass_properties(density)
     }
 
     /// Get a list of vertices for the shape.
-    pub fn vertices(&self, iso: Iso) -> Vec<Vec2<f32>> {
+    pub fn vertices(&self, iso: Iso) -> Vec<Vec2<f64>> {
         match self.0.as_typed_shape() {
             TypedShape::Cuboid(rect) => rect.to_polyline(),
             TypedShape::HeightField(height) => height.to_polyline().0,

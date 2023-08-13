@@ -7,14 +7,14 @@ use vek::Vec2;
 #[derive(Default)]
 pub struct Camera {
     /// X position.
-    x: f32,
+    x: f64,
     /// Y position.
-    y: f32,
+    y: f64,
 }
 
 impl Camera {
     /// Pan the camera.
-    pub fn pan(&mut self, x: f32, y: f32, min_x: f32, max_x: f32) {
+    pub fn pan(&mut self, x: f64, y: f64, min_x: f64, max_x: f64) {
         self.x = (self.x + x).clamp(min_x, max_x);
         self.y += y;
     }
@@ -25,12 +25,12 @@ impl Camera {
     }
 
     /// Transform a world space vec2 into camera space.
-    pub fn translate(&self, point: Vec2<f32>) -> Vec2<f32> {
+    pub fn translate(&self, point: Vec2<f64>) -> Vec2<f64> {
         point - Vec2::new(self.x, self.y)
     }
 
     /// Transform a vec2 from screenspace into world space.
-    pub fn translate_from_screen(&self, point: Vec2<f32>) -> Vec2<f32> {
+    pub fn translate_from_screen(&self, point: Vec2<f64>) -> Vec2<f64> {
         point + Vec2::new(self.x, self.y)
     }
 }

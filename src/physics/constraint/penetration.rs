@@ -1,10 +1,7 @@
-use hashbrown::HashMap;
+use slotmap::HopSlotMap;
 use vek::Vec2;
 
-use crate::physics::{
-    collision::CollisionResponse,
-    rigidbody::{RigidBody, RigidBodyIndex},
-};
+use crate::physics::{collision::CollisionResponse, rigidbody::RigidBody, RigidBodyKey};
 
 use super::{Constraint, PositionalConstraint};
 
@@ -12,24 +9,24 @@ use super::{Constraint, PositionalConstraint};
 #[derive(Debug, Clone)]
 pub struct PenetrationConstraint {
     /// Object A.
-    pub a: RigidBodyIndex,
+    pub a: RigidBodyKey,
     /// Object B.
-    pub b: RigidBodyIndex,
+    pub b: RigidBodyKey,
     /// Collision response.
     pub response: CollisionResponse,
     /// Lambda value.
     ///
     /// Must be reset every frame.
-    normal_lambda: f32,
+    normal_lambda: f64,
     /// Normal lambda value.
-    pub tangent_lambda: f32,
+    pub tangent_lambda: f64,
 }
 
 impl PenetrationConstraint {
     /// Constrain two rigidbodies with a spring so they can't be try to resolve the distance between them.
     ///
     /// RigidBodys must be indices.
-    pub fn new(rigidbodies: [RigidBodyIndex; 2], response: CollisionResponse) -> Self {
+    pub fn new(rigidbodies: [RigidBodyKey; 2], response: CollisionResponse) -> Self {
         let normal_lambda = 0.0;
         let tangent_lambda = 0.0;
         let [a, b] = rigidbodies;
@@ -44,17 +41,17 @@ impl PenetrationConstraint {
     }
 
     /// Local attachment for object A.
-    pub fn a_attachment(&self) -> Vec2<f32> {
+    pub fn a_attachment(&self) -> Vec2<f64> {
         self.response.local_contact_1
     }
 
     /// Local attachment for object B.
-    pub fn b_attachment(&self) -> Vec2<f32> {
+    pub fn b_attachment(&self) -> Vec2<f64> {
         self.response.local_contact_2
     }
 
     /// Calculate and apply friction between bodies.
-    pub fn solve_friction(&mut self, a: &mut RigidBody, b: &mut RigidBody, dt: f32) {
+    pub fn solve_friction(&mut self, a: &mut RigidBody, b: &mut RigidBody, dt: f64) {
         puffin::profile_function!();
 
         // Rotate the attachments
@@ -71,7 +68,7 @@ impl PenetrationConstraint {
 
         // Relative tangential movement
         let (sliding_tangent, sliding_len) = delta_pos_tangent.normalized_and_get_magnitude();
-        if sliding_len <= std::f32::EPSILON
+        if sliding_len <= std::f64::EPSILON
             || sliding_len >= a.combine_static_frictions(b) * self.response.penetration
         {
             // Sliding is outside of the static zone, dynamic friction applies here
@@ -87,7 +84,7 @@ impl PenetrationConstraint {
             [a, b],
             dt,
         );
-        if tangent_delta_lambda.abs() <= std::f32::EPSILON {
+        if tangent_delta_lambda.abs() <= std::f64::EPSILON {
             // Nothing will change, do nothing
             return;
         }
@@ -100,16 +97,16 @@ impl PenetrationConstraint {
     }
 
     /// Calculate and apply contact velocities after solve step.
-    pub fn solve_velocities(&self, rigidbodies: &mut HashMap<RigidBodyIndex, RigidBody>, dt: f32) {
+    pub fn solve_velocities(&self, rigidbodies: &mut HopSlotMap<RigidBodyKey, RigidBody>, dt: f64) {
         puffin::profile_function!();
 
-        if self.lambda().abs() <= std::f32::EPSILON {
+        if self.lambda().abs() <= std::f64::EPSILON {
             // Nothing happened in this constraint
             return;
         }
 
         let [a, b] = rigidbodies
-            .get_many_mut([&self.a, &self.b])
+            .get_disjoint_mut([self.a, self.b])
             .expect("Couldn't get rigidbodies for penetration constraint");
 
         // Rotate the attachments
@@ -133,7 +130,7 @@ impl PenetrationConstraint {
         let tangent_vel_magnitude = tangent_vel.magnitude();
 
         // Dynamic friction
-        let dynamic_friction_impulse = if tangent_vel_magnitude <= std::f32::EPSILON {
+        let dynamic_friction_impulse = if tangent_vel_magnitude <= std::f64::EPSILON {
             Vec2::zero()
         } else {
             let normal_impulse = self.normal_lambda / dt;
@@ -158,7 +155,7 @@ impl PenetrationConstraint {
         // Calcule the new velocity
         let delta_vel = dynamic_friction_impulse + restitution_impulse;
         let (delta_vel_normal, delta_vel_magnitude) = delta_vel.normalized_and_get_magnitude();
-        if delta_vel_magnitude <= std::f32::EPSILON {
+        if delta_vel_magnitude <= std::f64::EPSILON {
             return;
         }
 
@@ -167,7 +164,7 @@ impl PenetrationConstraint {
         let b_generalized_inverse_mass =
             b.inverse_mass_at_relative_point(b_attachment, delta_vel_normal);
         let generalized_inverse_mass_sum = a_generalized_inverse_mass + b_generalized_inverse_mass;
-        if generalized_inverse_mass_sum <= std::f32::EPSILON {
+        if generalized_inverse_mass_sum <= std::f64::EPSILON {
             // Avoid divisions by zero
             return;
         }
@@ -179,17 +176,17 @@ impl PenetrationConstraint {
     }
 }
 
-impl Constraint for PenetrationConstraint {
-    fn solve(&mut self, rigidbodies: &mut HashMap<RigidBodyIndex, RigidBody>, dt: f32) {
+impl Constraint<2> for PenetrationConstraint {
+    fn solve(&mut self, rigidbodies: &mut HopSlotMap<RigidBodyKey, RigidBody>, dt: f64) {
         puffin::profile_function!();
 
-        if self.response.penetration <= std::f32::EPSILON {
+        if self.response.penetration <= std::f64::EPSILON {
             // Ignore fake collisions
             return;
         }
 
         let [a, b] = rigidbodies
-            .get_many_mut([&self.a, &self.b])
+            .get_disjoint_mut([self.a, self.b])
             .expect("Couldn't get rigidbodies for penetration constraint");
 
         // Ignore sleeping or static bodies
@@ -204,11 +201,11 @@ impl Constraint for PenetrationConstraint {
         self.solve_friction(a, b, dt);
     }
 
-    fn lambda(&self) -> f32 {
+    fn lambda(&self) -> f64 {
         self.normal_lambda
     }
 
-    fn set_lambda(&mut self, lambda: f32) {
+    fn set_lambda(&mut self, lambda: f64) {
         self.normal_lambda = lambda;
     }
 
@@ -217,18 +214,22 @@ impl Constraint for PenetrationConstraint {
         self.normal_lambda = 0.0;
         self.tangent_lambda = 0.0;
     }
+
+    fn rigidbody_keys(&self) -> [RigidBodyKey; 2] {
+        [self.a, self.b]
+    }
 }
 
 impl PositionalConstraint for PenetrationConstraint {
-    fn gradient(&self, _a_global_position: Vec2<f32>, _b_global_position: Vec2<f32>) -> Vec2<f32> {
+    fn gradient(&self, _a_global_position: Vec2<f64>, _b_global_position: Vec2<f64>) -> Vec2<f64> {
         self.response.normal
     }
 
-    fn magnitude(&self, _a_global_position: Vec2<f32>, _b_global_position: Vec2<f32>) -> f32 {
+    fn magnitude(&self, _a_global_position: Vec2<f64>, _b_global_position: Vec2<f64>) -> f64 {
         self.response.penetration
     }
 
-    fn compliance(&self) -> f32 {
+    fn compliance(&self) -> f64 {
         0.00001
     }
 }

@@ -1,10 +1,10 @@
 use std::{
+    collections::HashSet,
     fmt::{Debug, Display},
     hash::Hash,
 };
 
 use arrayvec::ArrayVec;
-use hashbrown::HashSet;
 use itertools::Itertools;
 use vek::{Aabr, Vec2};
 

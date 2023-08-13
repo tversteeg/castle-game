@@ -88,7 +88,7 @@ async fn run() -> Result<()> {
             puffin::profile_scope!("Update");
 
             // Update the game
-            g.update(input, dt);
+            g.update(input, dt as f64);
 
             puffin::GlobalProfiler::lock().new_frame();
         },
@@ -102,7 +102,7 @@ async fn run() -> Result<()> {
                 puffin::profile_scope!("Render");
 
                 // Draw the game
-                g.render(buffer, frame_time);
+                g.render(buffer, frame_time as f64);
             }
         },
     )

@@ -3,7 +3,7 @@ use serde::Deserialize;
 use vek::Vec2;
 
 use crate::{
-    camera::Camera, game::PhysicsEngine, projectile::Projectile, random::RandomRangeF32,
+    camera::Camera, game::PhysicsEngine, projectile::Projectile, random::RandomRangeF64,
     terrain::Terrain, timer::Timer,
 };
 
@@ -33,16 +33,16 @@ pub struct Unit {
     /// Type of the unit, used to find the settings.
     r#type: UnitType,
     /// Absolute position.
-    pos: Vec2<f32>,
+    pos: Vec2<f64>,
     /// Timer for throwing a spear.
     projectile_timer: Timer,
     /// How long to hide the hands after a spear is thrown.
-    hide_hands_delay: f32,
+    hide_hands_delay: f64,
 }
 
 impl Unit {
     /// Create a new unit.
-    pub fn new(pos: Vec2<f32>, r#type: UnitType) -> Self {
+    pub fn new(pos: Vec2<f64>, r#type: UnitType) -> Self {
         let projectile_timer = Timer::new(r#type.settings().projectile_spawn_interval);
 
         let hide_hands_delay = 0.0;
@@ -61,7 +61,7 @@ impl Unit {
     pub fn update(
         &mut self,
         _terrain: &Terrain,
-        dt: f32,
+        dt: f64,
         physics: &mut PhysicsEngine,
     ) -> Option<Projectile> {
         puffin::profile_function!();
@@ -130,11 +130,11 @@ impl Unit {
     }
 
     /// Where the unit collides with the ground.
-    fn ground_collision_point(&self) -> Vec2<f32> {
+    fn ground_collision_point(&self) -> Vec2<f64> {
         let base_asset_path = &self.settings().base_asset_path;
         let sprite = crate::sprite(base_asset_path);
 
-        (sprite.width() as f32 / 2.0, sprite.height() as f32 - 2.0).into()
+        (sprite.width() as f64 / 2.0, sprite.height() as f64 - 2.0).into()
     }
 
     /// The settings for this unit.
@@ -157,15 +157,15 @@ pub struct Settings {
     /// Who the unit belongs to.
     pub allegiance: Allegiance,
     /// How many pixels a unit moves in a second.
-    pub walk_speed: f32,
+    pub walk_speed: f64,
     /// Interval in seconds for when a new projectile is thrown.
-    pub projectile_spawn_interval: f32,
+    pub projectile_spawn_interval: f64,
     /// Offset in pixels from the center of the unit body from where the projectile is thrown.
-    pub projectile_spawn_offset: Vec2<f32>,
+    pub projectile_spawn_offset: Vec2<f64>,
     /// How fast a projectile is thrown.
-    pub projectile_velocity: RandomRangeF32,
+    pub projectile_velocity: RandomRangeF64,
     /// How long the hands are hidden after launching a projectile.
-    pub hide_hands_delay: f32,
+    pub hide_hands_delay: f64,
 }
 
 impl Asset for Settings {

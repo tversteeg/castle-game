@@ -83,7 +83,7 @@ impl GameState {
     }
 
     /// Draw a frame.
-    pub fn render(&mut self, canvas: &mut [u32], _frame_time: f32) {
+    pub fn render(&mut self, canvas: &mut [u32], _frame_time: f64) {
         self.terrain.render(canvas, &self.camera);
 
         // Render all units
@@ -103,7 +103,7 @@ impl GameState {
     }
 
     /// Update a frame and handle user input.
-    pub fn update(&mut self, input: &Input, dt: f32) {
+    pub fn update(&mut self, input: &Input, dt: f64) {
         let settings = crate::settings();
 
         // Move the camera based on the mouse position
@@ -112,14 +112,14 @@ impl GameState {
                 -settings.pan_speed * dt,
                 0.0,
                 0.0,
-                (self.level_width - SIZE.w as u32) as f32,
+                (self.level_width - SIZE.w as u32) as f64,
             );
         } else if input.mouse_pos.x >= SIZE.w as i32 - settings.pan_edge_offset {
             self.camera.pan(
                 settings.pan_speed * dt,
                 0.0,
                 0.0,
-                (self.level_width - SIZE.w as u32) as f32,
+                (self.level_width - SIZE.w as u32) as f64,
             );
         }
 
@@ -148,7 +148,7 @@ impl GameState {
         if self.enemy_unit_spawner.update(dt) {
             // Spawn a unit at the upper edge of the terrain image
             self.units.push(Unit::new(
-                (self.level_width as f32 - 10.0, self.terrain.y).into(),
+                (self.level_width as f64 - 10.0, self.terrain.y).into(),
                 UnitType::EnemySpear,
             ));
         }
@@ -171,11 +171,11 @@ pub struct Settings {
     /// Distance from the edge at which the camera will pan.
     pub pan_edge_offset: i32,
     /// How many pixels per second the camera will pan.
-    pub pan_speed: f32,
+    pub pan_speed: f64,
     /// Interval in seconds for when a unit spawns.
-    pub unit_spawn_interval: f32,
+    pub unit_spawn_interval: f64,
     /// Interval in seconds for when an enemy unit spawns.
-    pub enemy_unit_spawn_interval: f32,
+    pub enemy_unit_spawn_interval: f64,
     /// Physics settings.
     pub physics: PhysicsSettings,
     /// Debug settings.

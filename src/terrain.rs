@@ -14,9 +14,9 @@ pub const ASSET_PATH: &str = "level.grass-1";
 /// Destructible terrain buffer.
 pub struct Terrain {
     /// Y offset of the sprite.
-    pub y: f32,
+    pub y: f64,
     /// Total size of the level.
-    pub width: f32,
+    pub width: f64,
     /// Physics object reference.
     pub rigidbody: RigidBodyHandle,
 }
@@ -28,8 +28,8 @@ impl Terrain {
         let sprite = crate::sprite(ASSET_PATH);
         let shape = object.shape();
 
-        let width = sprite.width() as f32;
-        let y = SIZE.h as f32 - sprite.height() as f32;
+        let width = sprite.width() as f64;
+        let y = SIZE.h as f64 - sprite.height() as f64;
 
         // Create a heightmap for the terrain
         let rigidbody =

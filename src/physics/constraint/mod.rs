@@ -1,45 +1,71 @@
 pub mod distance;
 pub mod penetration;
 
-use hashbrown::HashMap;
+use slotmap::HopSlotMap;
 use vek::Vec2;
 
-use super::{RigidBody, RigidBodyIndex};
-
-/// Constraint index type.
-pub type ConstraintIndex = u32;
+use super::{RigidBody, RigidBodyKey};
 
 /// XPBD constraint between one or more rigid bodies.
-pub trait Constraint {
+pub trait Constraint<const RIGIDBODIES: usize> {
     /// Current stored lambda.
-    fn lambda(&self) -> f32;
+    fn lambda(&self) -> f64;
 
     /// Set the lambda.
-    fn set_lambda(&mut self, lambda: f32);
+    fn set_lambda(&mut self, lambda: f64);
 
     /// Solve the constraint.
     ///
     /// Applies the force immediately to the rigidbodies.
-    fn solve(&mut self, rigidbodies: &mut HashMap<RigidBodyIndex, RigidBody>, dt: f32);
+    fn solve(&mut self, rigidbodies: &mut HopSlotMap<RigidBodyKey, RigidBody>, dt: f64);
+
+    /// Array of indices for each rigidbody that the constraint needs.
+    fn rigidbody_keys(&self) -> [RigidBodyKey; RIGIDBODIES];
 
     /// Reset the constraint at the beginning of a step (not a sub-step).
     fn reset(&mut self) {
         self.set_lambda(0.0);
     }
 
-    /// Calculate a generic form of the lambda update.
-    fn delta_lambda<const AMOUNT: usize>(
-        lambda: f32,
-        magnitude: f32,
-        compliance: f32,
-        gradients: [Vec2<f32>; AMOUNT],
-        attachments: [Vec2<f32>; AMOUNT],
-        bodies: [&RigidBody; AMOUNT],
-        dt: f32,
-    ) -> f32 {
+    /// Mutable references to all rigidbodies used in the constraint.
+    fn rigidbodies<'a>(
+        &self,
+        rigidbodies: &'a HopSlotMap<RigidBodyKey, RigidBody>,
+    ) -> [&'a RigidBody; RIGIDBODIES] {
         puffin::profile_function!();
 
-        let generalized_inverse_mass_sum: f32 = gradients
+        self.rigidbody_keys().map(|key| {
+            rigidbodies
+                .get(key)
+                .expect("Couldn't get rigidbody for contraint")
+        })
+    }
+
+    /// Mutable references to all rigidbodies used in the constraint.
+    fn rigidbodies_mut<'a>(
+        &self,
+        rigidbodies: &'a mut HopSlotMap<RigidBodyKey, RigidBody>,
+    ) -> [&'a mut RigidBody; RIGIDBODIES] {
+        puffin::profile_function!();
+
+        rigidbodies
+            .get_disjoint_mut(self.rigidbody_keys())
+            .expect("Couldn't get rigidbodies for constraint")
+    }
+
+    /// Calculate a generic form of the lambda update.
+    fn delta_lambda<const AMOUNT: usize>(
+        lambda: f64,
+        magnitude: f64,
+        compliance: f64,
+        gradients: [Vec2<f64>; AMOUNT],
+        attachments: [Vec2<f64>; AMOUNT],
+        bodies: [&RigidBody; AMOUNT],
+        dt: f64,
+    ) -> f64 {
+        puffin::profile_function!();
+
+        let generalized_inverse_mass_sum: f64 = gradients
             .into_iter()
             .zip(attachments)
             .zip(bodies)
@@ -48,7 +74,7 @@ pub trait Constraint {
             })
             .sum();
 
-        if generalized_inverse_mass_sum <= std::f32::EPSILON {
+        if generalized_inverse_mass_sum <= std::f64::EPSILON {
             // Avoid divisions by zero
             return 0.0;
         }
@@ -60,15 +86,15 @@ pub trait Constraint {
 }
 
 /// Constraint specialization for position restrictions.
-pub trait PositionalConstraint: Constraint {
+pub trait PositionalConstraint: Constraint<2> {
     /// Direction normalized vector.
-    fn gradient(&self, a_world_position: Vec2<f32>, b_world_position: Vec2<f32>) -> Vec2<f32>;
+    fn gradient(&self, a_world_position: Vec2<f64>, b_world_position: Vec2<f64>) -> Vec2<f64>;
 
     /// Magnitude.
-    fn magnitude(&self, a_world_position: Vec2<f32>, b_world_position: Vec2<f32>) -> f32;
+    fn magnitude(&self, a_world_position: Vec2<f64>, b_world_position: Vec2<f64>) -> f64;
 
     /// Compliance.
-    fn compliance(&self) -> f32;
+    fn compliance(&self) -> f64;
 
     /// Calculate and apply the forces from the implemented methods.
     ///
@@ -76,10 +102,10 @@ pub trait PositionalConstraint: Constraint {
     fn apply(
         &mut self,
         a: &mut RigidBody,
-        a_attachment: Vec2<f32>,
+        a_attachment: Vec2<f64>,
         b: &mut RigidBody,
-        b_attachment: Vec2<f32>,
-        dt: f32,
+        b_attachment: Vec2<f64>,
+        dt: f64,
     ) {
         puffin::profile_function!();
 
@@ -101,7 +127,7 @@ pub trait PositionalConstraint: Constraint {
             [a, b],
             dt,
         );
-        if delta_lambda.abs() <= std::f32::EPSILON {
+        if delta_lambda.abs() <= std::f64::EPSILON {
             // Nothing will change, do nothing
             return;
         }

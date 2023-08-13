@@ -69,7 +69,7 @@ pub struct DebugDraw {
     /// What debug info to show.
     screen: DebugScreen,
     /// Mouse position.
-    mouse: Vec2<f32>,
+    mouse: Vec2<f64>,
 }
 
 impl DebugDraw {
@@ -88,7 +88,7 @@ impl DebugDraw {
         physics: &mut PhysicsEngine,
         projectiles: &mut Vec<Projectile>,
         camera: &Camera,
-        _dt: f32,
+        _dt: f64,
     ) {
         puffin::profile_function!();
 
@@ -135,7 +135,7 @@ impl DebugDraw {
         // Draw how many rigidbodies there are
         self.render_text(
             &format!("Rigidbodies: {}", physics.rigidbody_map().len()),
-            Vec2::new(SIZE.w as f32 - 100.0, 10.0),
+            Vec2::new(SIZE.w as f64 - 100.0, 10.0),
             canvas,
         );
 
@@ -144,7 +144,7 @@ impl DebugDraw {
                 // Draw rotating sprites
                 for (index, asset) in [SPEAR, CRATE].iter().enumerate() {
                     self.render_rotatable_to_mouse_sprite(
-                        Vec2::new(50.0, 50.0 + index as f32 * 50.0),
+                        Vec2::new(50.0, 50.0 + index as f64 * 50.0),
                         asset,
                         canvas,
                     );
@@ -155,7 +155,7 @@ impl DebugDraw {
                 let object = crate::asset::<ObjectSettings>(CRATE);
                 let shape = object.shape();
 
-                let mouse_iso = Iso::new(self.mouse.as_(), Rotation::from_degrees(23f32));
+                let mouse_iso = Iso::new(self.mouse.as_(), Rotation::from_degrees(23f64));
 
                 // Detect collisions with the heightmap
                 let level_object = crate::asset::<ObjectSettings>(LEVEL);
@@ -173,10 +173,10 @@ impl DebugDraw {
 
                 for (index, rot) in [0, 90, 45, 23].into_iter().enumerate() {
                     let pos = Vec2::new(
-                        SIZE.w as f32 / 2.0 - 60.0 + index as f32 * 30.0,
-                        SIZE.h as f32 / 2.0,
+                        SIZE.w as f64 / 2.0 - 60.0 + index as f64 * 30.0,
+                        SIZE.h as f64 / 2.0,
                     );
-                    let rot = Rotation::from_degrees(rot as f32);
+                    let rot = Rotation::from_degrees(rot as f64);
                     let iso = Iso::new(pos, rot);
 
                     self.render_rotatable_sprite(iso, CRATE, canvas);
@@ -207,8 +207,8 @@ impl DebugDraw {
                         continue;
                     }
 
-                    let x = (index % width) as f32 * step;
-                    let y = (index / width) as f32 * step;
+                    let x = (index % width) as f64 * step;
+                    let y = (index / width) as f64 * step;
 
                     self.render_text(
                         &format!("{bucket_size}"),
@@ -236,29 +236,29 @@ impl DebugDraw {
     /// Draw a rotatable sprite towards the mouse.
     fn render_rotatable_to_mouse_sprite(
         &self,
-        pos: Vec2<f32>,
+        pos: Vec2<f64>,
         sprite_path: &str,
         canvas: &mut [u32],
     ) {
         // Draw rotating sprites
-        let delta: Vec2<f32> = (self.mouse - pos).numcast().unwrap_or_default();
+        let delta: Vec2<f64> = (self.mouse - pos).numcast().unwrap_or_default();
         let rot = delta.y.atan2(delta.x);
         self.render_rotatable_sprite(Iso::new(pos, rot), sprite_path, canvas);
     }
 
     /// Render text.
-    fn render_text(&self, text: &str, pos: Vec2<f32>, canvas: &mut [u32]) {
+    fn render_text(&self, text: &str, pos: Vec2<f64>, canvas: &mut [u32]) {
         crate::font("font.debug").render(text, pos, canvas);
     }
 
     /// Draw a debug direction vector.
-    fn render_direction(&self, pos: Vec2<f32>, dir: Vec2<f32>, canvas: &mut [u32]) {
+    fn render_direction(&self, pos: Vec2<f64>, dir: Vec2<f64>, canvas: &mut [u32]) {
         self.render_rotatable_sprite(Iso::new(pos, dir.y.atan2(dir.x)), "debug.vector", canvas)
     }
 
     /// Draw a bounding rectangle.
-    fn render_aabr(&self, aabr: Aabr<f32>, canvas: &mut [u32], color: u32) {
-        if aabr.max.x >= SIZE.w as f32 || aabr.max.y >= SIZE.h as f32 {
+    fn render_aabr(&self, aabr: Aabr<f64>, canvas: &mut [u32], color: u32) {
+        if aabr.max.x >= SIZE.w as f64 || aabr.max.y >= SIZE.h as f64 {
             return;
         }
 
@@ -279,7 +279,7 @@ impl DebugDraw {
     }
 
     /// Draw a tiny circle.
-    fn render_circle(&self, pos: Vec2<f32>, canvas: &mut [u32], color: u32) {
+    fn render_circle(&self, pos: Vec2<f64>, canvas: &mut [u32], color: u32) {
         self.render_point(pos, canvas, color);
         self.render_point(pos + Vec2::new(0.0, 1.0), canvas, color);
         self.render_point(pos + Vec2::new(1.0, 0.0), canvas, color);
@@ -288,7 +288,7 @@ impl DebugDraw {
     }
 
     /// Draw a line.
-    fn render_line(&self, start: Vec2<f32>, end: Vec2<f32>, canvas: &mut [u32], color: u32) {
+    fn render_line(&self, start: Vec2<f64>, end: Vec2<f64>, canvas: &mut [u32], color: u32) {
         for line_2d::Coord { x, y } in line_2d::coords_between(
             line_2d::Coord::new(start.x as i32, start.y as i32),
             line_2d::Coord::new(end.x as i32, end.y as i32),
@@ -298,7 +298,7 @@ impl DebugDraw {
     }
 
     /// Draw a single point.
-    fn render_point(&self, pos: Vec2<f32>, canvas: &mut [u32], color: u32) {
+    fn render_point(&self, pos: Vec2<f64>, canvas: &mut [u32], color: u32) {
         let pos = pos.as_::<usize>();
 
         if pos.x >= SIZE.w || pos.y >= SIZE.h {
@@ -309,8 +309,8 @@ impl DebugDraw {
     }
 
     /// Draw a vector with a magnitude.
-    fn render_vector(&self, pos: Vec2<f32>, vec: Vec2<f32>, canvas: &mut [u32]) {
-        let color = 0xFF00AAAA | ((vec.magnitude() * 20.0).clamp(0.0, 0xFF as f32) as u32) << 16;
+    fn render_vector(&self, pos: Vec2<f64>, vec: Vec2<f64>, canvas: &mut [u32]) {
+        let color = 0xFF00AAAA | ((vec.magnitude() * 20.0).clamp(0.0, 0xFF as f64) as u32) << 16;
 
         self.render_line(pos, pos + (vec * 4.0).as_(), canvas, color);
         self.render_circle(pos + vec.as_(), canvas, color);

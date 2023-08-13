@@ -1,4 +1,4 @@
-use std::{borrow::Cow, f32::consts::TAU, num::NonZeroU16};
+use std::{borrow::Cow, f64::consts::TAU, num::NonZeroU16};
 
 use assets_manager::{
     loader::{Loader, TomlLoader},
@@ -22,7 +22,7 @@ pub struct Sprite {
 
 impl Sprite {
     /// Draw the sprite based on a camera offset.
-    pub fn render(&self, canvas: &mut [u32], camera: &Camera, offset: Vec2<f32>) {
+    pub fn render(&self, canvas: &mut [u32], camera: &Camera, offset: Vec2<f64>) {
         puffin::profile_function!();
 
         // Get the rendering options based on the camera offset
@@ -95,7 +95,7 @@ impl RotatableSprite {
     pub fn with_fill_circle(
         sprite: Sprite,
         metadata: RotatableSpriteMetadata,
-        sprite_rotation_offset: f32,
+        sprite_rotation_offset: f64,
     ) -> Self {
         let buffer = sprite.into_blit_buffer();
 
@@ -129,9 +129,9 @@ impl RotatableSprite {
         let rotation = iso.rot.to_radians();
 
         // Calculate rotation based on nearest point
-        let index = (rotation / TAU * self.0.len() as f32)
+        let index = (rotation / TAU * self.0.len() as f64)
             .round()
-            .rem_euclid(self.0.len() as f32) as usize;
+            .rem_euclid(self.0.len() as f64) as usize;
 
         let sprite = &self.0[index];
 

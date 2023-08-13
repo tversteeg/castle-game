@@ -8,19 +8,20 @@ pub mod rigidbody;
 
 use std::rc::{Rc, Weak};
 
-use hashbrown::HashMap;
-
 use serde::Deserialize;
+use slotmap::{DefaultKey, HopSlotMap, Key, KeyData};
 use vek::Vec2;
 
 use self::{
     collision::{spatial_grid::SpatialGrid, CollisionResponse},
-    constraint::{
-        distance::DistanceConstraint, penetration::PenetrationConstraint, Constraint,
-        ConstraintIndex,
-    },
-    rigidbody::{RigidBody, RigidBodyIndex},
+    constraint::{distance::DistanceConstraint, penetration::PenetrationConstraint, Constraint},
+    rigidbody::RigidBody,
 };
+
+/// Rigid body index type.
+pub type RigidBodyKey = DefaultKey;
+/// Distance constraint index type.
+pub type DistanceConstraintKey = DefaultKey;
 
 /// Physics simulation state.
 pub struct Physics<
@@ -31,29 +32,25 @@ pub struct Physics<
     const SIZE: usize,
 > {
     /// List of all rigidbodies, accessed by index.
-    rigidbodies: HashMap<RigidBodyIndex, RigidBody>,
+    rigidbodies: HopSlotMap<RigidBodyKey, RigidBody>,
     /// List of references to the rigidbody handles so that when a handle is dropped from anywhere we can also destroy the rigidbody.
-    rigidbody_references: Vec<(Weak<RigidBodyIndex>, RigidBodyIndex)>,
-    /// Rigid body key start.
-    rigidbodies_key: RigidBodyIndex,
+    rigidbody_references: Vec<(Weak<RigidBodyKey>, RigidBodyKey)>,
     /// All distance constraints.
-    dist_constraints: HashMap<ConstraintIndex, DistanceConstraint>,
-    /// Dist constraints body key start.
-    dist_constraints_key: ConstraintIndex,
+    dist_constraints: HopSlotMap<DistanceConstraintKey, DistanceConstraint>,
     /// All penetration constraints.
     ///
     /// This is a vec that's cleared multiple times per step.
     penetration_constraints: Vec<PenetrationConstraint>,
     /// Collision grid structure.
-    collision_grid: SpatialGrid<RigidBodyIndex, WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
+    collision_grid: SpatialGrid<RigidBodyKey, WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
     /// Cache of broad phase collisions.
     ///
     /// This is a performance optimization so the vector doesn't have to be allocated every step.
-    broad_phase_collisions: Vec<(RigidBodyIndex, RigidBodyIndex)>,
+    broad_phase_collisions: Vec<(RigidBodyKey, RigidBodyKey)>,
     /// Cache of narrow phase collisions.
     ///
     /// This is a performance optimization so the vector doesn't have to be allocated many times every step.
-    narrow_phase_collisions: Vec<(RigidBodyIndex, RigidBodyIndex, CollisionResponse)>,
+    narrow_phase_collisions: Vec<(RigidBodyKey, RigidBodyKey, CollisionResponse)>,
 }
 
 impl<
@@ -66,11 +63,9 @@ impl<
 {
     /// Create the new state.
     pub fn new() -> Self {
-        let rigidbodies = HashMap::new();
-        let rigidbodies_key = 0;
+        let rigidbodies = HopSlotMap::new();
         let rigidbody_references = Vec::new();
-        let dist_constraints = HashMap::new();
-        let dist_constraints_key = 0;
+        let dist_constraints = HopSlotMap::new();
         let penetration_constraints = Vec::new();
         let collision_grid = SpatialGrid::new();
         let broad_phase_collisions = Vec::with_capacity(16);
@@ -78,10 +73,8 @@ impl<
 
         Self {
             rigidbodies,
-            rigidbodies_key,
             rigidbody_references,
             dist_constraints,
-            dist_constraints_key,
             penetration_constraints,
             collision_grid,
             broad_phase_collisions,
@@ -90,14 +83,14 @@ impl<
     }
 
     /// Simulate a single step.
-    pub fn step(&mut self, dt: f32) {
+    pub fn step(&mut self, dt: f64) {
         puffin::profile_function!(format!("{dt}"));
 
         let settings = &crate::settings().physics;
         let substeps = settings.substeps;
 
         // Deltatime for each sub-step
-        let sub_dt = dt / substeps as f32;
+        let sub_dt = dt / substeps as f64;
 
         {
             puffin::profile_scope!("Remove dropped rigidbodies");
@@ -197,14 +190,14 @@ impl<
     ///
     /// Returns a rigidbody reference.
     pub fn add_rigidbody(&mut self, rigidbody: RigidBody) -> RigidBodyHandle {
-        self.rigidbodies_key += 1;
-        self.rigidbodies.insert(self.rigidbodies_key, rigidbody);
+        // Insert the rigidbody getting a key
+        let key = self.rigidbodies.insert(rigidbody);
 
-        let handle = RigidBodyHandle(Rc::new(self.rigidbodies_key));
+        // Wrap the key in a reference-counted handle so we can handle its destruction later
+        let handle = RigidBodyHandle(Rc::new(key));
 
         // Store a weak reference to the handle so we can destroy it when the handle is dropped
-        self.rigidbody_references
-            .push((handle.downgrade(), self.rigidbodies_key));
+        self.rigidbody_references.push((handle.downgrade(), key));
 
         handle
     }
@@ -212,56 +205,55 @@ impl<
     /// Add a distance constraint between two rigidbodies.
     pub fn add_distance_constraint(
         &mut self,
-        a: RigidBodyIndex,
-        a_attachment: Vec2<f32>,
-        b: RigidBodyIndex,
-        b_attachment: Vec2<f32>,
-        rest_dist: f32,
-        compliance: f32,
-    ) -> ConstraintIndex {
-        self.dist_constraints_key += 1;
-        self.dist_constraints.insert(
-            self.dist_constraints_key,
-            DistanceConstraint::new(a, a_attachment, b, b_attachment, rest_dist, compliance),
-        );
-
-        self.dist_constraints_key
+        a: RigidBodyKey,
+        a_attachment: Vec2<f64>,
+        b: RigidBodyKey,
+        b_attachment: Vec2<f64>,
+        rest_dist: f64,
+        compliance: f64,
+    ) -> DistanceConstraintKey {
+        self.dist_constraints.insert(DistanceConstraint::new(
+            a,
+            a_attachment,
+            b,
+            b_attachment,
+            rest_dist,
+            compliance,
+        ))
     }
 
     /// Check whether a rigidbody is still alive.
-    pub fn has_rigidbody(&self, rigidbody: RigidBodyIndex) -> bool {
-        self.rigidbodies.contains_key(&rigidbody)
+    pub fn has_rigidbody(&self, rigidbody: RigidBodyKey) -> bool {
+        self.rigidbodies.contains_key(rigidbody)
     }
 
     /// Reference to a rigid body.
-    pub fn rigidbody(&self, rigidbody: RigidBodyIndex) -> &RigidBody {
+    pub fn rigidbody(&self, rigidbody: RigidBodyKey) -> &RigidBody {
         puffin::profile_function!();
 
         self.rigidbodies
-            .get(&rigidbody)
+            .get(rigidbody)
             .expect("Rigid body does not exist")
     }
 
     /// Mutable reference to a rigid body.
-    pub fn rigidbody_mut(&mut self, rigidbody: RigidBodyIndex) -> &mut RigidBody {
+    pub fn rigidbody_mut(&mut self, rigidbody: RigidBodyKey) -> &mut RigidBody {
         puffin::profile_function!();
 
         self.rigidbodies
-            .get_mut(&rigidbody)
+            .get_mut(rigidbody)
             .expect("Rigid body does not exist")
     }
 
     /// Reference to all rigid bodies.
-    pub fn rigidbody_map(&self) -> &HashMap<RigidBodyIndex, RigidBody> {
+    pub fn rigidbody_map(&self) -> &HopSlotMap<RigidBodyKey, RigidBody> {
         puffin::profile_function!();
 
         &self.rigidbodies
     }
 
     /// Get the calculated collision pairs with collision information.
-    pub fn colliding_rigid_bodies(
-        &mut self,
-    ) -> &[(RigidBodyIndex, RigidBodyIndex, CollisionResponse)] {
+    pub fn colliding_rigid_bodies(&mut self) -> &[(RigidBodyKey, RigidBodyKey, CollisionResponse)] {
         puffin::profile_function!();
 
         &self.narrow_phase_collisions
@@ -276,7 +268,7 @@ impl<
     ///
     /// The amount of horizontal items of the grid is returned as the first item in the tuple.
     /// The distance between each grid element is the second element.
-    pub fn broad_phase_grid(&mut self, dt: f32) -> (usize, f32, Vec<u8>) {
+    pub fn broad_phase_grid(&mut self, dt: f64) -> (usize, f64, Vec<u8>) {
         self.fill_spatial_grid(dt);
 
         let grid = self.collision_grid.amount_map();
@@ -285,9 +277,8 @@ impl<
         self.collision_grid.clear();
 
         (
-            SpatialGrid::<RigidBodyIndex, WIDTH, HEIGHT, STEP, BUCKET, SIZE>::STEPPED_WIDTH
-                as usize,
-            STEP as f32,
+            SpatialGrid::<RigidBodyKey, WIDTH, HEIGHT, STEP, BUCKET, SIZE>::STEPPED_WIDTH as usize,
+            STEP as f64,
             grid,
         )
     }
@@ -295,7 +286,7 @@ impl<
     /// Do a broad-phase collision pass to get possible pairs.
     ///
     /// Fills the list of broad-phase collisions.
-    fn collision_broad_phase(&mut self, dt: f32) {
+    fn collision_broad_phase(&mut self, dt: f64) {
         {
             puffin::profile_scope!("Clear vector");
 
@@ -318,13 +309,13 @@ impl<
     }
 
     /// Fill the spatial grid with AABR information from the rigidbodies.
-    fn fill_spatial_grid(&mut self, dt: f32) {
+    fn fill_spatial_grid(&mut self, dt: f64) {
         puffin::profile_function!();
 
         // First put all rigid bodies in the spatial grid
         self.rigidbodies.iter().for_each(|(index, rigidbody)| {
             self.collision_grid
-                .store_aabr(rigidbody.predicted_aabr(dt).as_(), *index)
+                .store_aabr(rigidbody.predicted_aabr(dt).as_(), index)
         });
     }
 
@@ -350,9 +341,9 @@ impl<
 
             puffin::profile_scope!("Narrow collision");
 
-            self.rigidbodies[a].push_collisions(
+            self.rigidbodies[*a].push_collisions(
                 *a,
-                &self.rigidbodies[b],
+                &self.rigidbodies[*b],
                 *b,
                 &mut self.narrow_phase_collisions,
             );
@@ -370,7 +361,7 @@ impl<
     }
 
     /// Debug information for all constraints.
-    pub fn debug_info_constraints(&self) -> Vec<(Vec2<f32>, Vec2<f32>)> {
+    pub fn debug_info_constraints(&self) -> Vec<(Vec2<f64>, Vec2<f64>)> {
         puffin::profile_function!();
 
         self.dist_constraints
@@ -380,7 +371,7 @@ impl<
     }
 
     /// Apply velocity corrections caused by friction and restitution.
-    fn velocity_solve(&mut self, sub_dt: f32) {
+    fn velocity_solve(&mut self, sub_dt: f64) {
         self.penetration_constraints
             .iter()
             .for_each(|constraint| constraint.solve_velocities(&mut self.rigidbodies, sub_dt));
@@ -391,7 +382,7 @@ impl<
         self.rigidbody_references.retain(|(reference, rigidbody)| {
             if reference.strong_count() == 0 {
                 // Remove the rigidbody
-                self.rigidbodies.remove(rigidbody);
+                self.rigidbodies.remove(*rigidbody);
 
                 false
             } else {
@@ -403,7 +394,7 @@ impl<
 
 /// Handle that will destroy the rigidbody when it's dropped.
 #[derive(Debug, Clone)]
-pub struct RigidBodyHandle(Rc<RigidBodyIndex>);
+pub struct RigidBodyHandle(Rc<RigidBodyKey>);
 
 impl RigidBodyHandle {
     /// Get a reference to the rigidbody this is a handle from.
@@ -437,7 +428,7 @@ impl RigidBodyHandle {
     }
 
     /// Create a weak reference to the rigidbody.
-    pub fn downgrade(&self) -> Weak<RigidBodyIndex> {
+    pub fn downgrade(&self) -> Weak<RigidBodyKey> {
         Rc::downgrade(&self.0)
     }
 }
@@ -448,17 +439,18 @@ pub struct Settings {
     /// How many substeps are taken in a single step.
     pub substeps: u8,
     /// Gravity applied every frame.
-    pub gravity: f32,
+    pub gravity: f64,
     /// Damping applied to the velocity every timestep.
-    pub air_friction: f32,
+    pub air_friction: f64,
     /// Dampling applied to the rotation every timestep.
-    pub rotation_friction: f32,
+    pub rotation_friction: f64,
 }
 
 /// Reset a type of all constraints.
-fn reset_constraints<T>(constraints: &mut HashMap<ConstraintIndex, T>)
+fn reset_constraints<K, T, const RIGIDBODIES: usize>(constraints: &mut HopSlotMap<K, T>)
 where
-    T: Constraint,
+    K: Key,
+    T: Constraint<RIGIDBODIES>,
 {
     puffin::profile_function!();
 
@@ -468,12 +460,13 @@ where
 }
 
 /// Apply a type of constraints to all rigidbodies.
-fn apply_constraints<T>(
-    constraints: &mut HashMap<ConstraintIndex, T>,
-    rigidbodies: &mut HashMap<RigidBodyIndex, RigidBody>,
-    dt: f32,
+fn apply_constraints<K, T, const RIGIDBODIES: usize>(
+    constraints: &mut HopSlotMap<K, T>,
+    rigidbodies: &mut HopSlotMap<RigidBodyKey, RigidBody>,
+    dt: f64,
 ) where
-    T: Constraint,
+    K: Key,
+    T: Constraint<RIGIDBODIES>,
 {
     puffin::profile_function!();
 
@@ -484,12 +477,12 @@ fn apply_constraints<T>(
 }
 
 /// Apply a type of constraints as an iterator to all rigidbodies.
-fn apply_constraints_vec<T>(
+fn apply_constraints_vec<T, const RIGIDBODIES: usize>(
     constraints: &mut [T],
-    rigidbodies: &mut HashMap<RigidBodyIndex, RigidBody>,
-    dt: f32,
+    rigidbodies: &mut HopSlotMap<RigidBodyKey, RigidBody>,
+    dt: f64,
 ) where
-    T: Constraint,
+    T: Constraint<RIGIDBODIES>,
 {
     puffin::profile_function!();
 

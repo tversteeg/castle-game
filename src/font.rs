@@ -16,7 +16,7 @@ pub struct Font {
 impl Font {
     /// Load a font from image bytes.
     /// Render text on a pixel buffer.
-    pub fn render(&self, text: &str, pos: Vec2<f32>, canvas: &mut [u32]) {
+    pub fn render(&self, text: &str, pos: Vec2<f64>, canvas: &mut [u32]) {
         puffin::profile_function!();
 
         // First character in the image

@@ -7,11 +7,11 @@ use vek::Vec2;
 #[derive(Debug, Clone, PartialEq)]
 pub struct CollisionResponse {
     /// Local position of contact point 1.
-    pub local_contact_1: Vec2<f32>,
+    pub local_contact_1: Vec2<f64>,
     /// Local position of contact point 2.
-    pub local_contact_2: Vec2<f32>,
+    pub local_contact_2: Vec2<f64>,
     /// Normalized direction of collision.
-    pub normal: Vec2<f32>,
+    pub normal: Vec2<f64>,
     /// Distance of penetration between objects.
-    pub penetration: f32,
+    pub penetration: f64,
 }
