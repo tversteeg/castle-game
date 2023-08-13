@@ -52,7 +52,7 @@ impl PenetrationConstraint {
 
     /// Calculate and apply friction between bodies.
     pub fn solve_friction(&mut self, a: &mut RigidBody, b: &mut RigidBody, dt: f64) {
-        puffin::profile_function!();
+        puffin::profile_scope!("Solve friction");
 
         // Rotate the attachments
         let a_attachment = a.rotate(self.a_attachment());
@@ -98,7 +98,7 @@ impl PenetrationConstraint {
 
     /// Calculate and apply contact velocities after solve step.
     pub fn solve_velocities(&self, rigidbodies: &mut HopSlotMap<RigidBodyKey, RigidBody>, dt: f64) {
-        puffin::profile_function!();
+        puffin::profile_scope!("Solve velocities");
 
         if self.lambda().abs() <= std::f64::EPSILON {
             // Nothing happened in this constraint
@@ -178,7 +178,7 @@ impl PenetrationConstraint {
 
 impl Constraint<2> for PenetrationConstraint {
     fn solve(&mut self, rigidbodies: &mut HopSlotMap<RigidBodyKey, RigidBody>, dt: f64) {
-        puffin::profile_function!();
+        puffin::profile_scope!("Solve penetration constraint");
 
         if self.response.penetration <= std::f64::EPSILON {
             // Ignore fake collisions

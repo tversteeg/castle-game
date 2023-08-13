@@ -37,6 +37,7 @@ impl Iso {
     }
 
     /// Rotate a relative point and add the position.
+    #[inline]
     pub fn translate(&self, point: Vec2<f64>) -> Vec2<f64> {
         self.pos + self.rot.rotate(point)
     }
@@ -70,13 +71,15 @@ pub struct Rotation {
 
 impl Rotation {
     /// With no rotation, points to the right.
-    pub fn zero() -> Self {
+    #[inline]
+    pub const fn zero() -> Self {
         let (sin, cos) = (0.0, 0.0);
 
         Self { sin, cos }
     }
 
     /// Create from radians.
+    #[inline]
     pub fn from_radians(rotation: f64) -> Self {
         let (sin, cos) = rotation.sin_cos();
 
@@ -84,6 +87,7 @@ impl Rotation {
     }
 
     /// Create from degrees.
+    #[inline]
     pub fn from_degrees(rotation: f64) -> Self {
         Self::from_radians(rotation.to_radians())
     }
@@ -91,31 +95,37 @@ impl Rotation {
     /// Create from a direction vector.
     ///
     /// Vector is assumed to be normalized.
+    #[inline]
     pub fn from_direction(dir: Vec2<f64>) -> Self {
         Self::from_radians(dir.y.atan2(dir.x))
     }
 
     /// Convert to radians.
+    #[inline]
     pub fn to_radians(self) -> f64 {
         self.sin.atan2(self.cos)
     }
 
     /// Convert to degrees.
+    #[inline]
     pub fn to_degrees(self) -> f64 {
         self.to_radians().to_degrees()
     }
 
     /// Rotate a point.
+    #[inline]
     pub fn rotate(&self, point: Vec2<f64>) -> Vec2<f64> {
         point.rotated_z(self.to_radians())
     }
 
     /// Sine.
+    #[inline]
     pub fn sin(&self) -> f64 {
         self.sin
     }
 
     /// Cosine.
+    #[inline]
     pub fn cos(&self) -> f64 {
         self.cos
     }
@@ -160,6 +170,7 @@ impl Add<f64> for Rotation {
 impl Add<Self> for Rotation {
     type Output = Self;
 
+    #[inline]
     fn add(self, rhs: Self) -> Self::Output {
         Self {
             cos: self.cos * rhs.cos - self.sin * rhs.sin,

@@ -11,9 +11,6 @@ use crate::math::Iso;
 
 use super::{CollisionResponse, CollisionState};
 
-/// Distance at which we count a collision as valid.
-const MIN_PENETRATION_DISTANCE: f64 = 0.00001;
-
 /// Different shapes.
 #[derive(Clone)]
 pub struct Shape(SharedShape);
@@ -100,19 +97,16 @@ impl Shape {
                     Vec2::new(tracked_contact.local_p2.x, tracked_contact.local_p2.y);
                 let penetration = -tracked_contact.dist;
 
-                // Ignore collisions where there's not enough penetration
-                if penetration >= MIN_PENETRATION_DISTANCE {
-                    state.collisions.push((
-                        a_data.clone(),
-                        b_data.clone(),
-                        CollisionResponse {
-                            local_contact_1,
-                            local_contact_2,
-                            normal,
-                            penetration,
-                        },
-                    ));
-                }
+                state.collisions.push((
+                    a_data.clone(),
+                    b_data.clone(),
+                    CollisionResponse {
+                        local_contact_1,
+                        local_contact_2,
+                        normal,
+                        penetration,
+                    },
+                ));
             }
         }
     }

@@ -87,7 +87,7 @@ impl<
 
     /// Simulate a single step.
     pub fn step(&mut self, dt: f64) {
-        puffin::profile_function!(format!("{dt}"));
+        puffin::profile_scope!("Physics step");
 
         let settings = &crate::settings().physics;
         let substeps = settings.substeps;
@@ -467,12 +467,10 @@ fn apply_constraints<K, T, const RIGIDBODIES: usize>(
     K: Key,
     T: Constraint<RIGIDBODIES>,
 {
-    puffin::profile_function!();
-
-    for (_, constraint) in constraints.iter_mut() {
-        // Solve the constraints
-        constraint.solve(rigidbodies, dt);
-    }
+    // Solve the constraints
+    constraints
+        .iter_mut()
+        .for_each(|(_, constraint)| constraint.solve(rigidbodies, dt))
 }
 
 /// Apply a type of constraints as an iterator to all rigidbodies.
@@ -483,8 +481,6 @@ fn apply_constraints_vec<T, const RIGIDBODIES: usize>(
 ) where
     T: Constraint<RIGIDBODIES>,
 {
-    puffin::profile_function!();
-
     // Solve the constraints
     constraints
         .iter_mut()

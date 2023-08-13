@@ -1,9 +1,6 @@
 use std::ops::Deref;
 
-use assets_manager::{
-    loader::{Loader, TomlLoader},
-    AnyCache, Asset, BoxedError, Compound, SharedString,
-};
+use assets_manager::{loader::TomlLoader, AnyCache, Asset, BoxedError, Compound, SharedString};
 use serde::Deserialize;
 use vek::{Extent2, Vec2};
 
@@ -13,14 +10,32 @@ use crate::{
 };
 
 /// Loadable object with physics.
-#[derive(Deserialize)]
-pub struct ObjectSettings(ObjectSettingsImpl);
+pub struct ObjectSettings {
+    settings: ObjectSettingsImpl,
+    /// Pre-computed shape that can be cloned.
+    ///
+    /// This is good for performance because parry shared shapes are shared by a reference counter.
+    shape: Shape,
+}
 
-impl Deref for ObjectSettings {
-    type Target = ObjectSettingsImpl;
+impl ObjectSettings {
+    /// Construct a rigidbody from the metadata.
+    pub fn rigidbody(&self, pos: Vec2<f64>) -> RigidBody {
+        if self.settings.physics.is_fixed {
+            RigidBody::new_fixed(pos, self.shape())
+        } else {
+            RigidBody::new(pos, self.shape())
+                .with_density(self.settings.physics.density)
+                .with_friction(self.settings.physics.friction)
+                .with_restitution(self.settings.physics.restitution)
+                .with_linear_damping(self.settings.physics.linear_damping)
+                .with_angular_damping(self.settings.physics.angular_damping)
+        }
+    }
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
+    /// Copy a shape reference.
+    pub fn shape(&self) -> Shape {
+        self.shape.clone()
     }
 }
 
@@ -75,7 +90,9 @@ impl Compound for ObjectSettings {
             }
         };
 
-        Ok(Self(settings))
+        let shape = settings.construct_shape();
+
+        Ok(Self { shape, settings })
     }
 }
 
@@ -89,22 +106,8 @@ pub struct ObjectSettingsImpl {
 }
 
 impl ObjectSettingsImpl {
-    /// Construct a rigidbody from the metadata.
-    pub fn rigidbody(&self, pos: Vec2<f64>) -> RigidBody {
-        if self.physics.is_fixed {
-            RigidBody::new_fixed(pos, self.shape())
-        } else {
-            RigidBody::new(pos, self.shape())
-                .with_density(self.physics.density)
-                .with_friction(self.physics.friction)
-                .with_restitution(self.physics.restitution)
-                .with_linear_damping(self.physics.linear_damping)
-                .with_angular_damping(self.physics.angular_damping)
-        }
-    }
-
     /// Construct a collider shape from the metadata.
-    pub fn shape(&self) -> Shape {
+    pub fn construct_shape(&self) -> Shape {
         match &self.collider {
             ColliderSettings::Rectangle { width, height } => {
                 Shape::rectangle(Extent2::new(*width, *height))

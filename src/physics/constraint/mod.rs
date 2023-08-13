@@ -32,7 +32,7 @@ pub trait Constraint<const RIGIDBODIES: usize> {
         &self,
         rigidbodies: &'a HopSlotMap<RigidBodyKey, RigidBody>,
     ) -> [&'a RigidBody; RIGIDBODIES] {
-        puffin::profile_function!();
+        puffin::profile_scope!("Rigidbodies");
 
         self.rigidbody_keys().map(|key| {
             rigidbodies
@@ -46,7 +46,7 @@ pub trait Constraint<const RIGIDBODIES: usize> {
         &self,
         rigidbodies: &'a mut HopSlotMap<RigidBodyKey, RigidBody>,
     ) -> [&'a mut RigidBody; RIGIDBODIES] {
-        puffin::profile_function!();
+        puffin::profile_scope!("Rigidbodies mut");
 
         rigidbodies
             .get_disjoint_mut(self.rigidbody_keys())
@@ -63,7 +63,7 @@ pub trait Constraint<const RIGIDBODIES: usize> {
         bodies: [&RigidBody; AMOUNT],
         dt: f64,
     ) -> f64 {
-        puffin::profile_function!();
+        puffin::profile_scope!("Delta lambda");
 
         let generalized_inverse_mass_sum: f64 = gradients
             .into_iter()
@@ -107,7 +107,7 @@ pub trait PositionalConstraint: Constraint<2> {
         b_attachment: Vec2<f64>,
         dt: f64,
     ) {
-        puffin::profile_function!();
+        puffin::profile_scope!("Apply positional constraint forces");
 
         let a_world_position = a.local_to_world(a_attachment);
         let b_world_position = b.local_to_world(b_attachment);
