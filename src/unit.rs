@@ -60,17 +60,16 @@ impl Unit {
     /// When a projectile is returned one is spawned.
     pub fn update(
         &mut self,
-        _terrain: &Terrain,
+        terrain: &Terrain,
         dt: f64,
         physics: &mut PhysicsEngine,
     ) -> Option<Projectile> {
         puffin::profile_function!();
 
-        /*
-        if !terrain.point_collides(self.pos.numcast().unwrap_or_default()) {
+        if !terrain.point_collides(self.pos, physics) {
             // No collision with the terrain, the unit falls down
             self.pos.y += 1.0;
-        } else if terrain.point_collides((self.pos - (0.0, 1.0)).numcast().unwrap_or_default()) {
+        } else if terrain.point_collides(self.pos - (0.0, 1.0), physics) {
             // The unit has sunk into the terrain, move it up
             self.pos.y -= 1.0;
         } else {
@@ -78,7 +77,6 @@ impl Unit {
             let walk_speed = self.settings().walk_speed;
             self.pos.x += walk_speed * dt;
         }
-        */
 
         // Update hands delay
         if self.hide_hands_delay > 0.0 {

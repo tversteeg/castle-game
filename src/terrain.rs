@@ -19,6 +19,8 @@ pub struct Terrain {
     pub width: f64,
     /// Physics object reference.
     pub rigidbody: RigidBodyHandle,
+    /// Array of the top collision point heights of the terrain for ecah pixel.
+    top_heights: Vec<u16>,
 }
 
 impl Terrain {
@@ -35,10 +37,13 @@ impl Terrain {
         let rigidbody =
             physics.add_rigidbody(RigidBody::new_fixed(Vec2::new(width / 2.0, y), shape));
 
+        let top_heights = sprite.top_heights();
+
         Self {
             rigidbody,
             y,
             width,
+            top_heights,
         }
     }
 
@@ -47,5 +52,20 @@ impl Terrain {
         puffin::profile_function!();
 
         crate::sprite(ASSET_PATH).render(canvas, camera, Vec2::new(0.0, self.y));
+    }
+
+    /// Whether a point collides with the terrain.
+    ///
+    /// This doesn't use the collision shape but the actual pixels of the image.
+    pub fn point_collides(&self, point: Vec2<f64>, physics: &PhysicsEngine) -> bool {
+        // Convert the position to a coordinate that can be used as an index
+        let offset = point - self.rigidbody.rigidbody(physics).position() + (self.width / 2.0, 0.0);
+
+        if offset.y < 0.0 || offset.x < 0.0 || offset.x >= self.width {
+            false
+        } else {
+            // Collides if the top height is smaller than the position
+            (self.top_heights[offset.x as usize] as f64) < offset.y
+        }
     }
 }

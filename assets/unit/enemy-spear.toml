@@ -6,7 +6,7 @@ hands_asset_path = "unit.spear-hands-1"
 projectile_asset_path = "projectile.spear-1"
 
 # How many pixels a unit moves in a second
-walk_speed = -2.5
+walk_speed = -10
 
 # Interval in seconds for when a new projectile is thrown
 projectile_spawn_interval = 10
@@ -15,4 +15,4 @@ projectile_spawn_offset = { x = 0, y = -10 }
 # How fast a projectile is thrown
 projectile_velocity = 70
 # How long the hands are hidden after launching a projectile in seconds
-hide_hands_delay = 9
+hide_hands_delay = 2

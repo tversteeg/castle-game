@@ -15,4 +15,4 @@ projectile_spawn_offset = { x = 0, y = -10 }
 # How fast a projectile is thrown
 projectile_velocity = { min = 60, max = 120 }
 # How long the hands are hidden after launching a projectile in seconds
-hide_hands_delay = 9
+hide_hands_delay = 2

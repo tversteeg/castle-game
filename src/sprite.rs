@@ -60,6 +60,21 @@ impl Sprite {
     pub fn into_blit_buffer(self) -> BlitBuffer {
         self.sprite
     }
+
+    /// Calculate the highest non-transparent pixels of an image.
+    pub fn top_heights(&self) -> Vec<u16> {
+        puffin::profile_scope!("Sprite top heights");
+
+        (0..self.width())
+            .map(|x| {
+                // Loop over each Y value to find the first pixel that is not transparent
+                (0..self.height())
+                    .find(|y| !self.is_pixel_transparent(Vec2::new(x, *y)))
+                    // If nothing is found just use the bottom
+                    .unwrap_or(self.height()) as u16
+            })
+            .collect()
+    }
 }
 
 impl Asset for Sprite {
