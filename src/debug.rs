@@ -66,6 +66,8 @@ pub struct DebugDraw {
     show_grid: i8,
     /// Whether to draw the rotation vectors.
     show_rotations: bool,
+    /// Whether to draw collision outlines.
+    show_colliders: bool,
     /// Mouse position.
     mouse: Vec2<f64>,
 }
@@ -77,12 +79,14 @@ impl DebugDraw {
         let screen = crate::settings().debug.start_screen;
         let show_grid = -1;
         let show_rotations = false;
+        let show_colliders = false;
 
         Self {
             screen,
             mouse,
             show_grid,
             show_rotations,
+            show_colliders,
         }
     }
 
@@ -103,6 +107,9 @@ impl DebugDraw {
         }
         if input.r.is_released() {
             self.show_rotations = !self.show_rotations;
+        }
+        if input.c.is_released() {
+            self.show_colliders = !self.show_colliders;
         }
         if input.g.is_released() {
             self.show_grid -= 1;
@@ -127,22 +134,6 @@ impl DebugDraw {
     pub fn render(&self, physics: &mut PhysicsEngine, camera: &Camera, canvas: &mut [u32]) {
         puffin::profile_function!();
 
-        // Draw vertices and lines
-        if crate::settings().debug.draw_physics_colliders {
-            physics
-                .rigidbody_map()
-                .iter()
-                .for_each(|(_, rigidbody)| self.render_collider(rigidbody, camera, canvas));
-        }
-
-        if crate::settings().debug.draw_physics_contacts {
-            // Draw attachment positions
-            for (a, b) in physics.debug_info_constraints() {
-                self.render_circle(camera.translate(a).as_(), canvas, 0xFFFF0000);
-                self.render_circle(camera.translate(b).as_(), canvas, 0xFFFF00FF);
-            }
-        }
-
         // Draw which screen we are on
         self.render_text(self.screen.title(), Vec2::new(20.0, 30.0), canvas);
 
@@ -152,6 +143,20 @@ impl DebugDraw {
             Vec2::new(SIZE.w as f64 - 100.0, 10.0),
             canvas,
         );
+
+        // Draw vertices and lines
+        if self.show_colliders {
+            physics
+                .rigidbody_map()
+                .iter()
+                .for_each(|(_, rigidbody)| self.render_collider(rigidbody, camera, canvas));
+
+            // Draw attachment positions
+            for (a, b) in physics.debug_info_constraints() {
+                self.render_circle(camera.translate(a).as_(), canvas, 0xFFFF0000);
+                self.render_circle(camera.translate(b).as_(), canvas, 0xFFFF00FF);
+            }
+        }
 
         if self.show_rotations {
             // Draw direction vectors for each rigidbody
@@ -389,8 +394,6 @@ impl DebugDraw {
 pub struct DebugSettings {
     /// Which section to start in when pressing space.
     pub start_screen: DebugScreen,
-    /// Whether to draw physics collider shapes.
-    pub draw_physics_colliders: bool,
     /// Whether to draw physics contact points.
     pub draw_physics_contacts: bool,
 }
