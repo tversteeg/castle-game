@@ -1,3 +1,4 @@
+use hecs::{Entity, World};
 use vek::{Aabr, Vec2};
 
 use crate::math::{Iso, Rotation};
@@ -589,3 +590,66 @@ impl RigidBody {
         (self.pos - self.prev_pos).normalized()
     }
 }
+
+/// Collection of rigidbodies.
+///
+/// This is internally an ECS.
+pub struct RigidBodyWorld {
+    /// ECS world.
+    world: World,
+}
+
+impl RigidBodyWorld {
+    /// Instantiate with no rigidbodies yet.
+    pub fn new() -> Self {
+        let world = World::default();
+
+        Self { world }
+    }
+
+    /// Spawn a dynamic rigidbody.
+    pub fn spawn_dynamic(&mut self, position: Vec2<f64>, velocity: Vec2<f64>) -> Entity {
+        let pos = Position(position);
+        let prev_pos = PrevPosition(position);
+        let vel = Velocity(velocity);
+
+        self.world.spawn((pos, prev_pos, vel))
+    }
+
+    /// Perform an integration step on all rigidbodies where it applies.
+    pub fn integrate(&mut self, dt: f64) {
+        // Store position
+        for (_id, (pos, prev_pos)) in self.world.query_mut::<(&mut Position, &mut PrevPosition)>() {
+            prev_pos.0 = pos.0;
+        }
+
+        // Store velocity
+        for (_id, (vel, prev_vel)) in self.world.query_mut::<(&mut Velocity, &mut PrevVelocity)>() {
+            prev_vel.0 = vel.0;
+        }
+    }
+}
+
+impl Default for RigidBodyWorld {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Absolute position in the world.
+struct Position(Vec2<f64>);
+
+/// Absolute position in the world for the previous step.
+struct PrevPosition(Vec2<f64>);
+
+/// Linear velocity.
+struct Velocity(Vec2<f64>);
+
+/// Linear velocity for the previous step.
+struct PrevVelocity(Vec2<f64>);
+
+/// Linear damping.
+struct LinearDamping(Vec2<f64>);
+
+/// Inverse of the mass of a rigidbody.
+struct InvMass(f64);
