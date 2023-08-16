@@ -5,7 +5,10 @@ use serde::Deserialize;
 use vek::{Extent2, Vec2};
 
 use crate::{
-    physics::{collision::shape::Shape, rigidbody::RigidBody},
+    physics::{
+        collision::shape::Shape,
+        rigidbody::{RigidBody, RigidBodyBuilder},
+    },
     sprite::Sprite,
 };
 
@@ -20,11 +23,12 @@ pub struct ObjectSettings {
 
 impl ObjectSettings {
     /// Construct a rigidbody from the metadata.
-    pub fn rigidbody(&self, pos: Vec2<f64>) -> RigidBody {
+    pub fn rigidbody_builder(&self, pos: Vec2<f64>) -> RigidBodyBuilder {
         if self.settings.physics.is_fixed {
-            RigidBody::new_fixed(pos, self.shape())
+            RigidBodyBuilder::new_static(pos).with_collider(self.shape())
         } else {
-            RigidBody::new(pos, self.shape())
+            RigidBodyBuilder::new(pos)
+                .with_collider(self.shape())
                 .with_density(self.settings.physics.density)
                 .with_friction(self.settings.physics.friction)
                 .with_restitution(self.settings.physics.restitution)

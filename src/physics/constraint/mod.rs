@@ -1,10 +1,15 @@
-pub mod distance;
+//pub mod distance;
 pub mod penetration;
 
-use slotmap::HopSlotMap;
+use hecs::{Bundle, Entity, World};
 use vek::Vec2;
 
-use super::{RigidBody, RigidBodyKey};
+use crate::physics::rigidbody::{ApplyPositionalImpulse, InverseMassAtRelativePoint, LocalToWorld};
+
+use super::{
+    rigidbody::{Inertia, InvMass, Orientation, Position, Translation},
+    RigidBody, RigidBodyKey,
+};
 
 /// XPBD constraint between one or more rigid bodies.
 pub trait Constraint<const RIGIDBODIES: usize> {
@@ -17,40 +22,11 @@ pub trait Constraint<const RIGIDBODIES: usize> {
     /// Solve the constraint.
     ///
     /// Applies the force immediately to the rigidbodies.
-    fn solve(&mut self, rigidbodies: &mut HopSlotMap<RigidBodyKey, RigidBody>, dt: f64);
-
-    /// Array of indices for each rigidbody that the constraint needs.
-    fn rigidbody_keys(&self) -> [RigidBodyKey; RIGIDBODIES];
+    fn solve(&mut self, world: &mut World, dt: f64);
 
     /// Reset the constraint at the beginning of a step (not a sub-step).
     fn reset(&mut self) {
         self.set_lambda(0.0);
-    }
-
-    /// Mutable references to all rigidbodies used in the constraint.
-    fn rigidbodies<'a>(
-        &self,
-        rigidbodies: &'a HopSlotMap<RigidBodyKey, RigidBody>,
-    ) -> [&'a RigidBody; RIGIDBODIES] {
-        puffin::profile_scope!("Rigidbodies");
-
-        self.rigidbody_keys().map(|key| {
-            rigidbodies
-                .get(key)
-                .expect("Couldn't get rigidbody for contraint")
-        })
-    }
-
-    /// Mutable references to all rigidbodies used in the constraint.
-    fn rigidbodies_mut<'a>(
-        &self,
-        rigidbodies: &'a mut HopSlotMap<RigidBodyKey, RigidBody>,
-    ) -> [&'a mut RigidBody; RIGIDBODIES] {
-        puffin::profile_scope!("Rigidbodies mut");
-
-        rigidbodies
-            .get_disjoint_mut(self.rigidbody_keys())
-            .expect("Couldn't get rigidbodies for constraint")
     }
 
     /// Calculate a generic form of the lambda update.
@@ -60,7 +36,7 @@ pub trait Constraint<const RIGIDBODIES: usize> {
         compliance: f64,
         gradients: [Vec2<f64>; AMOUNT],
         attachments: [Vec2<f64>; AMOUNT],
-        bodies: [&RigidBody; AMOUNT],
+        bodies: [(&InvMass, &Inertia); AMOUNT],
         dt: f64,
     ) -> f64 {
         puffin::profile_scope!("Delta lambda");
@@ -101,22 +77,40 @@ pub trait PositionalConstraint: Constraint<2> {
     /// Updates the lambda.
     fn apply(
         &mut self,
-        a: &mut RigidBody,
+        a: Entity,
         a_attachment: Vec2<f64>,
-        b: &mut RigidBody,
+        b: Entity,
         b_attachment: Vec2<f64>,
+        world: &mut World,
         dt: f64,
     ) {
         puffin::profile_scope!("Apply positional constraint forces");
 
-        let a_world_position = a.local_to_world(a_attachment);
-        let b_world_position = b.local_to_world(b_attachment);
+        // Used for querying the ECS
+        #[derive(Bundle)]
+        struct RigidBody {
+            pos: Position,
+            trans: Translation,
+            rot: Orientation,
+            inv_mass: InvMass,
+            inertia: Inertia,
+        }
+
+        let a = world
+            .query_one_mut::<&mut RigidBody>(a)
+            .expect("Could not get rigidbody");
+        let b = world
+            .query_one_mut::<&mut RigidBody>(b)
+            .expect("Could not get rigidbody");
+
+        let a_world_position = (&a.pos, &a.trans, &a.rot).local_to_world(a_attachment);
+        let b_world_position = (&b.pos, &b.trans, &b.rot).local_to_world(b_attachment);
 
         let gradient = self.gradient(a_world_position, b_world_position);
 
         // Rotate the attachments
-        let a_attachment = a.rotate(a_attachment);
-        let b_attachment = b.rotate(b_attachment);
+        let a_attachment = a.rot.rotate(a_attachment);
+        let b_attachment = b.rot.rotate(b_attachment);
 
         let delta_lambda = Self::delta_lambda(
             self.lambda(),
@@ -124,7 +118,7 @@ pub trait PositionalConstraint: Constraint<2> {
             self.compliance(),
             [gradient, gradient],
             [a_attachment, b_attachment],
-            [a, b],
+            [(&a.inv_mass, &a.inertia), (&b.inv_mass, &b.inertia)],
             dt,
         );
         if delta_lambda.abs() <= std::f64::EPSILON {
@@ -137,7 +131,15 @@ pub trait PositionalConstraint: Constraint<2> {
 
         // Apply impulse
         let positional_impulse = gradient * delta_lambda;
-        a.apply_positional_impulse(positional_impulse, a_attachment, 1.0);
-        b.apply_positional_impulse(positional_impulse, b_attachment, -1.0);
+        (&mut a.trans, &mut a.rot, &a.inv_mass, &a.inertia).apply_positional_impulse(
+            positional_impulse,
+            a_attachment,
+            1.0,
+        );
+        (&mut b.trans, &mut b.rot, &b.inv_mass, &b.inertia).apply_positional_impulse(
+            positional_impulse,
+            b_attachment,
+            -1.0,
+        );
     }
 }

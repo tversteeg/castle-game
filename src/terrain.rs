@@ -4,7 +4,7 @@ use crate::{
     camera::Camera,
     game::PhysicsEngine,
     object::ObjectSettings,
-    physics::{rigidbody::RigidBody, RigidBodyHandle},
+    physics::rigidbody::{RigidBody, RigidBodyBuilder, RigidBodyHandle},
     SIZE,
 };
 
@@ -34,8 +34,9 @@ impl Terrain {
         let y = SIZE.h as f64 - sprite.height() as f64;
 
         // Create a heightmap for the terrain
-        let rigidbody =
-            physics.add_rigidbody(RigidBody::new_fixed(Vec2::new(width / 2.0, y), shape));
+        let rigidbody = RigidBodyBuilder::new_static(Vec2::new(width / 2.0, y))
+            .with_collider(shape)
+            .spawn(physics);
 
         let top_heights = sprite.top_heights();
 
@@ -59,7 +60,7 @@ impl Terrain {
     /// This doesn't use the collision shape but the actual pixels of the image.
     pub fn point_collides(&self, point: Vec2<f64>, physics: &PhysicsEngine) -> bool {
         // Convert the position to a coordinate that can be used as an index
-        let offset = point - self.rigidbody.rigidbody(physics).position() + (self.width / 2.0, 0.0);
+        let offset = point - self.rigidbody.position(physics) + (self.width / 2.0, 0.0);
 
         if offset.y < 0.0 || offset.x < 0.0 || offset.x >= self.width {
             false

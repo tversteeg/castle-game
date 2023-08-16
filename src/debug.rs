@@ -138,18 +138,22 @@ impl DebugDraw {
         self.render_text(self.screen.title(), Vec2::new(20.0, 30.0), canvas);
 
         // Draw how many rigidbodies there are
+        /*
         self.render_text(
             &format!("Rigidbodies: {}", physics.rigidbody_map().len()),
             Vec2::new(SIZE.w as f64 - 100.0, 10.0),
             canvas,
         );
+        */
 
         // Draw vertices and lines
         if self.show_colliders {
+            /*
             physics
                 .rigidbody_map()
                 .iter()
                 .for_each(|(_, rigidbody)| self.render_collider(rigidbody, camera, canvas));
+            */
 
             // Draw attachment positions
             for (a, b) in physics.debug_info_constraints() {
@@ -160,6 +164,7 @@ impl DebugDraw {
 
         if self.show_rotations {
             // Draw direction vectors for each rigidbody
+            /*
             physics.rigidbody_map().iter().for_each(|(_, rigidbody)| {
                 if rigidbody.is_active() {
                     self.render_direction(
@@ -169,6 +174,7 @@ impl DebugDraw {
                     )
                 }
             });
+            */
         }
 
         if self.show_grid >= 0 {
