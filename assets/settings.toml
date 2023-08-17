@@ -18,7 +18,7 @@ air_friction = 1.0
 # Dampling applied to rotations every timestep
 rotation_friction = 1.0
 
-# Debug screen specific settings, press Space to open
+# Debug screen specific settings, press 'n' to go to next screen
 [debug]
 # Which debug section to start in when running the game, 0 is no debug
 start_screen = "spawn_projectiles"

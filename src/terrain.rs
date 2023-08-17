@@ -4,7 +4,7 @@ use crate::{
     camera::Camera,
     game::PhysicsEngine,
     object::ObjectSettings,
-    physics::rigidbody::{RigidBody, RigidBodyBuilder, RigidBodyHandle},
+    physics::rigidbody::{RigidBodyBuilder, RigidBodyHandle},
     SIZE,
 };
 

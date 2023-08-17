@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use vek::{Aabr, Vec2};
+use vek::{Aabr, Extent2, Vec2};
 
 use crate::{
     camera::Camera,
@@ -7,7 +7,11 @@ use crate::{
     input::Input,
     math::{Iso, Rotation},
     object::ObjectSettings,
-    physics::{collision::CollisionResponse, rigidbody::RigidBody},
+    physics::{
+        collision::{shape::Shape, CollisionResponse},
+        rigidbody::{RigidBodyBuilder, RigidBodyHandle},
+        Physics,
+    },
     projectile::Projectile,
     SIZE,
 };
@@ -26,6 +30,8 @@ pub enum DebugScreen {
     Empty,
     /// Spawn projectiles on click.
     SpawnProjectiles,
+    /// Spawn cubes on click in a local engine which can be stepped through by pressing down or 's'.
+    SpawnCubes,
     /// Show the calculated rotsprite rotations with the mouse pointer.
     SpriteRotations,
     /// Draw static bodies with collision information.
@@ -38,6 +44,7 @@ impl DebugScreen {
         match self {
             DebugScreen::Empty => "",
             DebugScreen::SpawnProjectiles => "Spawn Projectiles on Click",
+            DebugScreen::SpawnCubes => "Spawn Cubes on Click in Local Engine",
             DebugScreen::SpriteRotations => "Sprite Rotation Test",
             DebugScreen::Collisions => "Collision Detection Test",
         }
@@ -49,7 +56,8 @@ impl DebugScreen {
     pub fn next(&self) -> Self {
         match self {
             Self::Empty => Self::SpawnProjectiles,
-            Self::SpawnProjectiles => Self::SpriteRotations,
+            Self::SpawnProjectiles => Self::SpawnCubes,
+            Self::SpawnCubes => Self::SpriteRotations,
             Self::SpriteRotations => Self::Collisions,
             Self::Collisions => Self::Empty,
         }
@@ -68,8 +76,17 @@ pub struct DebugDraw {
     show_rotations: bool,
     /// Whether to draw collision outlines.
     show_colliders: bool,
+    /// Whether to draw collisions.
+    show_collisions: bool,
     /// Mouse position.
     mouse: Vec2<f64>,
+    /// Local physics engine for box test.
+    physics:
+        Physics<{ SIZE.w as u16 }, { SIZE.h as u16 }, 10, 4, { (SIZE.w / 10) * (SIZE.h / 10) }>,
+    /// Local boxes.
+    boxes: Vec<RigidBodyHandle>,
+    /// Platform.
+    platform: RigidBodyHandle,
 }
 
 impl DebugDraw {
@@ -80,6 +97,16 @@ impl DebugDraw {
         let show_grid = -1;
         let show_rotations = false;
         let show_colliders = false;
+        let show_collisions = false;
+        let mut physics = Physics::new();
+        let boxes = Vec::new();
+
+        // Spawn a big platform
+        let platform = RigidBodyBuilder::new_static(Vec2::new(SIZE.w / 2, SIZE.h - 100).as_())
+            .with_collider(Shape::rectangle(Extent2::new(SIZE.w / 2, 50).as_()))
+            .with_friction(0.7)
+            .with_restitution(0.0)
+            .spawn(&mut physics);
 
         Self {
             screen,
@@ -87,6 +114,10 @@ impl DebugDraw {
             show_grid,
             show_rotations,
             show_colliders,
+            show_collisions,
+            physics,
+            boxes,
+            platform,
         }
     }
 
@@ -97,24 +128,43 @@ impl DebugDraw {
         physics: &mut PhysicsEngine,
         projectiles: &mut Vec<Projectile>,
         camera: &Camera,
-        _dt: f64,
+        dt: f64,
     ) {
         puffin::profile_function!();
 
         // When space is released
-        if input.space.is_released() {
+        if input.n.is_released() {
             self.screen = self.screen.next();
         }
         if input.r.is_released() {
             self.show_rotations = !self.show_rotations;
         }
         if input.c.is_released() {
+            self.show_collisions = !self.show_collisions;
+        }
+        if input.o.is_released() {
             self.show_colliders = !self.show_colliders;
         }
         if input.g.is_released() {
             self.show_grid -= 1;
             if self.show_grid == -2 {
                 self.show_grid = 3;
+            }
+        }
+
+        if self.screen == DebugScreen::SpawnCubes {
+            if input.space.is_pressed() {
+                self.physics.step(dt);
+            }
+
+            if input.left_mouse.is_released() {
+                // Spawn a projectile at the mouse coordinates, camera doesn't apply to local physics engine
+                let object = crate::asset::<ObjectSettings>(CRATE);
+                self.boxes.push(
+                    object
+                        .rigidbody_builder(self.mouse)
+                        .spawn(&mut self.physics),
+                );
             }
         }
 
@@ -131,52 +181,158 @@ impl DebugDraw {
     }
 
     /// Draw things for debugging purposes.
-    pub fn render(&self, physics: &mut PhysicsEngine, camera: &Camera, canvas: &mut [u32]) {
+    pub fn render(&mut self, physics: &mut PhysicsEngine, camera: &Camera, canvas: &mut [u32]) {
         puffin::profile_function!();
 
         // Draw which screen we are on
-        self.render_text(self.screen.title(), Vec2::new(20.0, 30.0), canvas);
-
-        // Draw how many rigidbodies there are
-        /*
         self.render_text(
-            &format!("Rigidbodies: {}", physics.rigidbody_map().len()),
-            Vec2::new(SIZE.w as f64 - 100.0, 10.0),
+            &format!(
+                "{}\n\n[N] Next debug screen\n[C] Show collisions: {}\n[O] Show colliders: {}\n[G] Show broad-phase grid: {}\n[R] Show rotations: {}\n[Space] Step through boxes example",
+                self.screen.title(),
+                self.show_collisions,
+                self.show_colliders,
+                self.show_grid,
+                self.show_rotations,
+            ),
+            Vec2::new(20.0, 30.0),
             canvas,
         );
-        */
 
-        // Draw vertices and lines
-        if self.show_colliders {
-            /*
-            physics
-                .rigidbody_map()
-                .iter()
-                .for_each(|(_, rigidbody)| self.render_collider(rigidbody, camera, canvas));
-            */
+        // Draw the physics information
+        self.render_text(
+            &format!("Rigidbodies: {}", physics.rigidbody_amount()),
+            Vec2::new(SIZE.w as f64 - 100.0, 30.0),
+            canvas,
+        );
 
-            // Draw attachment positions
-            for (a, b) in physics.debug_info_constraints() {
-                self.render_circle(camera.translate(a).as_(), canvas, 0xFFFF0000);
-                self.render_circle(camera.translate(b).as_(), canvas, 0xFFFF00FF);
-            }
-        }
+        self.render_colliders(physics, camera, canvas);
+        self.render_collisions(physics, camera, canvas);
+        self.render_collision_grid(physics, camera, canvas);
 
-        if self.show_rotations {
-            // Draw direction vectors for each rigidbody
-            /*
-            physics.rigidbody_map().iter().for_each(|(_, rigidbody)| {
-                if rigidbody.is_active() {
-                    self.render_direction(
-                        camera.translate(rigidbody.position()),
-                        rigidbody.direction(),
+        match self.screen {
+            // Draw rotating sprites
+            DebugScreen::SpriteRotations => {
+                for (index, asset) in [SPEAR, CRATE].iter().enumerate() {
+                    self.render_rotatable_to_mouse_sprite(
+                        Vec2::new(
+                            SIZE.w as f64 / 2.0,
+                            SIZE.h as f64 / 2.0 + index as f64 * 50.0,
+                        ),
+                        asset,
                         canvas,
-                    )
+                    );
                 }
-            });
-            */
+            }
+            DebugScreen::SpawnCubes => {
+                for rigidbody in self.boxes.iter() {
+                    self.render_rotatable_sprite(rigidbody.iso(&self.physics), CRATE, canvas);
+                }
+
+                self.render_colliders(&self.physics, &Camera::default(), canvas);
+                self.render_collisions(&self.physics, &Camera::default(), canvas);
+            }
+            DebugScreen::Collisions => {
+                // Draw collision between rotated rectangles
+                let object = crate::asset::<ObjectSettings>(SPEAR);
+                let shape = object.shape();
+
+                let mouse_iso = Iso::new(self.mouse.as_(), Rotation::from_degrees(-23f64));
+
+                // Detect collisions with the heightmap
+                let level_object = crate::asset::<ObjectSettings>(LEVEL);
+                let level_pos = Vec2::new(0.0, 100.0);
+                let level_iso = Iso::from_pos(level_pos);
+
+                self.render_rotatable_sprite(level_iso, LEVEL, canvas);
+
+                self.render_rotatable_sprite(mouse_iso, SPEAR, canvas);
+
+                // Draw the collision information
+                for response in level_object.shape().collides(level_iso, &shape, mouse_iso) {
+                    self.render_collision_response(&response, level_iso, mouse_iso, canvas);
+                }
+
+                for (index, rot) in [0, 90, 45, 23, -23, -179, 179].into_iter().enumerate() {
+                    let pos = Vec2::new(
+                        SIZE.w as f64 / 2.0 - 60.0 + index as f64 * 30.0,
+                        SIZE.h as f64 / 2.0,
+                    );
+                    let rot = Rotation::from_degrees(rot as f64);
+                    let iso = Iso::new(pos, rot);
+
+                    self.render_rotatable_sprite(iso, SPEAR, canvas);
+
+                    // Draw the collision information
+                    for response in shape.collides(iso, &shape, mouse_iso) {
+                        self.render_collision_response(&response, iso, mouse_iso, canvas);
+                    }
+                }
+            }
+            DebugScreen::SpawnProjectiles | DebugScreen::Empty => (),
+        }
+    }
+
+    /// Render collision information for a physics system.
+    fn render_collisions<
+        const WIDTH: u16,
+        const HEIGHT: u16,
+        const STEP: u16,
+        const BUCKET: usize,
+        const SIZE: usize,
+    >(
+        &self,
+        physics: &Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
+        camera: &Camera,
+        canvas: &mut [u32],
+    ) {
+        if !self.show_collisions {
+            return;
         }
 
+        // Draw attachment positions
+        for (a, b, response) in physics.debug_info_constraints() {
+            self.render_direction(a, response.normal, canvas);
+            self.render_direction(b, -response.normal, canvas);
+            self.render_circle(camera.translate(a).as_(), canvas, 0xFFFF0000);
+            self.render_circle(camera.translate(b).as_(), canvas, 0xFFFF00FF);
+        }
+    }
+
+    /// Render collider information for a physics system.
+    fn render_colliders<
+        const WIDTH: u16,
+        const HEIGHT: u16,
+        const STEP: u16,
+        const BUCKET: usize,
+        const SIZE: usize,
+    >(
+        &self,
+        physics: &Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
+        camera: &Camera,
+        canvas: &mut [u32],
+    ) {
+        if !self.show_colliders {
+            return;
+        }
+        physics
+            .debug_info_vertices()
+            .into_iter()
+            .for_each(|vertices| self.render_collider(&vertices, camera, canvas));
+    }
+
+    /// Render the collision grid for a physics system.
+    fn render_collision_grid<
+        const WIDTH: u16,
+        const HEIGHT: u16,
+        const STEP: u16,
+        const BUCKET: usize,
+        const SIZE: usize,
+    >(
+        &self,
+        physics: &mut Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
+        camera: &Camera,
+        canvas: &mut [u32],
+    ) {
         if self.show_grid >= 0 {
             let (width, step, grid) = physics.broad_phase_grid(0.0);
 
@@ -194,57 +350,6 @@ impl DebugDraw {
                     canvas,
                 );
             }
-        }
-
-        match self.screen {
-            DebugScreen::SpriteRotations => {
-                // Draw rotating sprites
-                for (index, asset) in [SPEAR, CRATE].iter().enumerate() {
-                    self.render_rotatable_to_mouse_sprite(
-                        Vec2::new(50.0, 50.0 + index as f64 * 50.0),
-                        asset,
-                        canvas,
-                    );
-                }
-            }
-            DebugScreen::Collisions => {
-                // Draw collision between rotated rectangles
-                let object = crate::asset::<ObjectSettings>(CRATE);
-                let shape = object.shape();
-
-                let mouse_iso = Iso::new(self.mouse.as_(), Rotation::from_degrees(23f64));
-
-                // Detect collisions with the heightmap
-                let level_object = crate::asset::<ObjectSettings>(LEVEL);
-                let level_pos = Vec2::new(0.0, 100.0);
-                let level_iso = Iso::from_pos(level_pos);
-
-                self.render_rotatable_sprite(level_iso, LEVEL, canvas);
-
-                self.render_rotatable_sprite(mouse_iso, CRATE, canvas);
-
-                // Draw the collision information
-                for response in level_object.shape().collides(level_iso, &shape, mouse_iso) {
-                    self.render_collision_response(&response, level_iso, mouse_iso, canvas);
-                }
-
-                for (index, rot) in [0, 90, 45, 23].into_iter().enumerate() {
-                    let pos = Vec2::new(
-                        SIZE.w as f64 / 2.0 - 60.0 + index as f64 * 30.0,
-                        SIZE.h as f64 / 2.0,
-                    );
-                    let rot = Rotation::from_degrees(rot as f64);
-                    let iso = Iso::new(pos, rot);
-
-                    self.render_rotatable_sprite(iso, CRATE, canvas);
-
-                    // Draw the collision information
-                    for response in shape.collides(iso, &shape, mouse_iso) {
-                        self.render_collision_response(&response, iso, mouse_iso, canvas);
-                    }
-                }
-            }
-            DebugScreen::SpawnProjectiles | DebugScreen::Empty => (),
         }
     }
 
@@ -281,28 +386,6 @@ impl DebugDraw {
     /// Draw a debug direction vector.
     fn render_direction(&self, pos: Vec2<f64>, dir: Vec2<f64>, canvas: &mut [u32]) {
         self.render_rotatable_sprite(Iso::new(pos, dir.y.atan2(dir.x)), "debug.vector", canvas)
-    }
-
-    /// Draw a bounding rectangle.
-    fn render_aabr(&self, aabr: Aabr<f64>, canvas: &mut [u32], color: u32) {
-        if aabr.max.x >= SIZE.w as f64 || aabr.max.y >= SIZE.h as f64 {
-            return;
-        }
-
-        let aabr: Aabr<usize> = aabr.as_().intersection(Aabr {
-            min: Vec2::zero(),
-            max: Vec2::new(SIZE.w - 1, SIZE.h - 1),
-        });
-
-        for y in aabr.min.y.clamp(0, SIZE.h)..aabr.max.y.clamp(0, SIZE.h) {
-            canvas[aabr.min.x + y * SIZE.h] = color;
-            canvas[aabr.max.x + y * SIZE.h] = color;
-        }
-
-        for x in aabr.min.x.clamp(0, SIZE.w)..aabr.max.x.clamp(0, SIZE.w) {
-            canvas[x + aabr.min.y * SIZE.w] = color;
-            canvas[x + aabr.max.y * SIZE.w] = color;
-        }
     }
 
     /// Draw a tiny circle.
@@ -344,11 +427,10 @@ impl DebugDraw {
     }
 
     /// Draw collider shape.
-    fn render_collider(&self, rigidbody: &RigidBody, camera: &Camera, canvas: &mut [u32]) {
-        let vertices = rigidbody
-            .vertices()
-            .into_iter()
-            .map(|vert| camera.translate(vert))
+    fn render_collider(&self, vertices: &[Vec2<f64>], camera: &Camera, canvas: &mut [u32]) {
+        let vertices = vertices
+            .iter()
+            .map(|vert| camera.translate(*vert))
             .collect::<Vec<_>>();
 
         // Draw all vertices

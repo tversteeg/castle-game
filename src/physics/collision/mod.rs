@@ -4,6 +4,12 @@ pub mod spatial_grid;
 use parry2d_f64::query::{ContactManifold, ContactManifoldsWorkspace};
 use vek::Vec2;
 
+use crate::math::Iso;
+
+use self::shape::Shape;
+
+use super::RigidBodyKey;
+
 /// Collision state that persists over multiple detections.
 ///
 /// Used to improve parry performance.
@@ -29,6 +35,21 @@ impl<K> CollisionState<K> {
     /// Clear all detected collisions.
     pub fn clear(&mut self) {
         self.collisions.clear();
+    }
+
+    /// Detect a new collision based on a broad-phase detected pair.
+    pub fn detect(
+        &mut self,
+        a_data: K,
+        a_shape: &Shape,
+        a_pos: Iso,
+        b_data: K,
+        b_shape: &Shape,
+        b_pos: Iso,
+    ) where
+        K: Clone,
+    {
+        a_shape.push_collisions(a_pos, a_data, b_shape, b_pos, b_data, self);
     }
 }
 

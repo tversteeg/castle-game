@@ -73,7 +73,7 @@ impl Rotation {
     /// With no rotation, points to the right.
     #[inline]
     pub const fn zero() -> Self {
-        let (sin, cos) = (0.0, 0.0);
+        let (sin, cos) = (0.0, 1.0);
 
         Self { sin, cos }
     }

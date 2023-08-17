@@ -63,7 +63,7 @@ impl Projectile {
         }
 
         // Destroy when sleeping or out of range
-        !self.rigidbody.is_sleeping(physics) || !physics.is_rigidbody_on_grid(&self.rigidbody)
+        !self.rigidbody.is_sleeping(physics) && physics.is_rigidbody_on_grid(&self.rigidbody)
     }
 
     /// Render the projectile.

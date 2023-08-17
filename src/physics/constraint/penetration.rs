@@ -1,17 +1,7 @@
-use hecs::{Bundle, World};
-use slotmap::HopSlotMap;
+use hecs::{View, World};
 use vek::Vec2;
 
-use crate::physics::{
-    collision::CollisionResponse,
-    rigidbody::{
-        AngularVelocity, ApplyPositionalImpulse, ApplyVelocityImpulse, ContactVelocity, Friction,
-        Inertia, InvMass, InverseMassAtRelativePoint, Orientation, Position, PrevAngularVelocity,
-        PrevOrientation, PrevPosition, PrevVelocity, RelativeMotionAtPoint, Restitution, RigidBody,
-        Translation, Velocity,
-    },
-    Physics, RigidBodyKey,
-};
+use crate::physics::{collision::CollisionResponse, rigidbody::RigidBodyQuery, RigidBodyKey};
 
 use super::{Constraint, PositionalConstraint};
 
@@ -40,6 +30,7 @@ impl PenetrationConstraint {
         let normal_lambda = 0.0;
         let tangent_lambda = 0.0;
         let [a, b] = rigidbodies;
+        debug_assert_ne!(a, b);
 
         Self {
             normal_lambda,
@@ -51,48 +42,28 @@ impl PenetrationConstraint {
     }
 
     /// Local attachment for object A.
+    #[inline]
     pub fn a_attachment(&self) -> Vec2<f64> {
         self.response.local_contact_1
     }
 
     /// Local attachment for object B.
+    #[inline]
     pub fn b_attachment(&self) -> Vec2<f64> {
         self.response.local_contact_2
     }
 
     /// Calculate and apply friction between bodies.
-    pub fn solve_friction(&mut self, world: &mut World, dt: f64) {
+    fn solve_friction(&mut self, a: &mut RigidBodyQuery, b: &mut RigidBodyQuery, dt: f64) {
         puffin::profile_scope!("Solve friction");
 
-        // Used for querying the ECS
-        #[derive(Bundle)]
-        struct RigidBody {
-            pos: Position,
-            prev_pos: PrevPosition,
-            trans: Translation,
-            rot: Orientation,
-            prev_rot: PrevOrientation,
-            friction: Friction,
-            inv_mass: InvMass,
-            inertia: Inertia,
-        }
-
-        let a = world
-            .query_one_mut::<&mut RigidBody>(self.a)
-            .expect("Could not get rigidbody");
-        let b = world
-            .query_one_mut::<&mut RigidBody>(self.b)
-            .expect("Could not get rigidbody");
-
         // Rotate the attachments
-        let a_attachment = a.rot.rotate(self.a_attachment());
-        let b_attachment = b.rot.rotate(self.b_attachment());
+        let a_attachment = a.rotate(self.a_attachment());
+        let b_attachment = b.rotate(self.b_attachment());
 
         // Relative motion
-        let a_delta_pos =
-            (&a.pos, &a.prev_pos, &a.trans, &a.prev_rot).relative_motion_at_point(a_attachment);
-        let b_delta_pos =
-            (&b.pos, &b.prev_pos, &b.trans, &b.prev_rot).relative_motion_at_point(b_attachment);
+        let a_delta_pos = a.relative_motion_at_point(a_attachment);
+        let b_delta_pos = b.relative_motion_at_point(b_attachment);
         let delta_pos = a_delta_pos - b_delta_pos;
 
         let normal = self.response.normal;
@@ -101,8 +72,7 @@ impl PenetrationConstraint {
         // Relative tangential movement
         let (sliding_tangent, sliding_len) = delta_pos_tangent.normalized_and_get_magnitude();
         if sliding_len <= std::f64::EPSILON
-            || sliding_len
-                >= a.friction.combine_static_frictions(&b.friction) * self.response.penetration
+            || sliding_len >= a.combine_static_frictions(b) * self.response.penetration
         {
             // Sliding is outside of the static zone, dynamic friction applies here
             return;
@@ -114,7 +84,10 @@ impl PenetrationConstraint {
             self.compliance(),
             [sliding_tangent, -sliding_tangent],
             [a_attachment, b_attachment],
-            [(&a.inv_mass, &a.inertia), (&b.inv_mass, &b.inertia)],
+            [
+                (a.inv_mass.clone(), a.inertia.clone()),
+                (b.inv_mass.clone(), b.inertia.clone()),
+            ],
             dt,
         );
         if tangent_delta_lambda.abs() <= std::f64::EPSILON {
@@ -125,20 +98,12 @@ impl PenetrationConstraint {
 
         // Apply impulse
         let positional_impulse = sliding_tangent * tangent_delta_lambda;
-        (&mut a.trans, &mut a.rot, &a.inv_mass, &a.inertia).apply_positional_impulse(
-            positional_impulse,
-            a_attachment,
-            1.0,
-        );
-        (&mut b.trans, &mut b.rot, &b.inv_mass, &b.inertia).apply_positional_impulse(
-            positional_impulse,
-            b_attachment,
-            -1.0,
-        );
+        a.apply_positional_impulse(positional_impulse, a_attachment, 1.0);
+        b.apply_positional_impulse(positional_impulse, b_attachment, -1.0);
     }
 
     /// Calculate and apply contact velocities after solve step.
-    pub fn solve_velocities(&self, world: &mut World, dt: f64) {
+    pub fn solve_velocities(&self, rigidbodies: &mut View<RigidBodyQuery>, dt: f64) {
         puffin::profile_scope!("Solve velocities");
 
         if self.lambda().abs() <= std::f64::EPSILON {
@@ -146,45 +111,28 @@ impl PenetrationConstraint {
             return;
         }
 
-        // Used for querying the ECS
-        #[derive(Bundle)]
-        struct RigidBody {
-            pos: Position,
-            prev_pos: PrevPosition,
-            trans: Translation,
-            vel: Velocity,
-            prev_vel: PrevVelocity,
-            rot: Orientation,
-            prev_rot: PrevOrientation,
-            ang_vel: AngularVelocity,
-            prev_ang_vel: PrevAngularVelocity,
-            friction: Friction,
-            inv_mass: InvMass,
-            inertia: Inertia,
-            restitution: Restitution,
-        }
+        // Query the rigidbodies
+        let [mut a, mut b] = rigidbodies
+            .get_mut_n([self.a, self.b])
+            .map(|v| v.expect("Rigidbody not found"));
 
-        let a = world
-            .query_one_mut::<&mut RigidBody>(self.a)
-            .expect("Could not get rigidbody");
-        let b = world
-            .query_one_mut::<&mut RigidBody>(self.b)
-            .expect("Could not get rigidbody");
+        // Collisions between static objects shouldn't be added
+        debug_assert!(!a.is_static() || !b.is_static());
 
         // Rotate the attachments
-        let a_attachment = a.rot.rotate(self.a_attachment());
-        let b_attachment = b.rot.rotate(self.b_attachment());
+        let a_attachment = a.rotate(self.a_attachment());
+        let b_attachment = b.rotate(self.b_attachment());
 
         let normal = self.response.normal;
-        let a_prev_contact_vel = (&a.prev_vel, &a.prev_ang_vel).contact_velocity(a_attachment);
-        let b_prev_contact_vel = (&b.prev_vel, &b.prev_ang_vel).contact_velocity(b_attachment);
+        let a_prev_contact_vel = a.prev_contact_velocity(a_attachment).unwrap_or_default();
+        let b_prev_contact_vel = b.prev_contact_velocity(b_attachment).unwrap_or_default();
         let prev_rel_contact_vel = a_prev_contact_vel - b_prev_contact_vel;
 
         let prev_normal_vel = normal.dot(prev_rel_contact_vel);
 
         // Different velocities
-        let a_contact_vel = (&a.vel, &a.ang_vel).contact_velocity(a_attachment);
-        let b_contact_vel = (&b.vel, &b.ang_vel).contact_velocity(b_attachment);
+        let a_contact_vel = a.contact_velocity(a_attachment).unwrap_or_default();
+        let b_contact_vel = b.contact_velocity(b_attachment).unwrap_or_default();
         let rel_contact_vel = a_contact_vel - b_contact_vel;
 
         let normal_vel = normal.dot(rel_contact_vel);
@@ -199,8 +147,7 @@ impl PenetrationConstraint {
 
             // Friction can never exceed the velocity itself
             -tangent_vel
-                * (a.friction.combine_dynamic_frictions(&b.friction) * normal_impulse.abs()
-                    / tangent_vel_magnitude)
+                * (a.combine_dynamic_frictions(&b) * normal_impulse.abs() / tangent_vel_magnitude)
                     .min(1.0)
         };
 
@@ -209,7 +156,7 @@ impl PenetrationConstraint {
             // Prevent some jittering
             0.0
         } else {
-            a.restitution.combine_restitutions(&b.restitution)
+            a.combine_restitutions(&b)
         };
 
         let restitution_impulse =
@@ -222,10 +169,10 @@ impl PenetrationConstraint {
             return;
         }
 
-        let a_generalized_inverse_mass = (&a.inv_mass, &a.inertia)
-            .inverse_mass_at_relative_point(a_attachment, delta_vel_normal);
-        let b_generalized_inverse_mass = (&b.inv_mass, &b.inertia)
-            .inverse_mass_at_relative_point(b_attachment, delta_vel_normal);
+        let a_generalized_inverse_mass =
+            a.inverse_mass_at_relative_point(a_attachment, delta_vel_normal);
+        let b_generalized_inverse_mass =
+            b.inverse_mass_at_relative_point(b_attachment, delta_vel_normal);
         let generalized_inverse_mass_sum = a_generalized_inverse_mass + b_generalized_inverse_mass;
         if generalized_inverse_mass_sum <= std::f64::EPSILON {
             // Avoid divisions by zero
@@ -234,21 +181,13 @@ impl PenetrationConstraint {
 
         // Apply velocity impulses and updates
         let velocity_impulse = delta_vel / generalized_inverse_mass_sum;
-        (&mut a.vel, &mut a.ang_vel, &a.inv_mass, &a.inertia).apply_velocity_impulse(
-            velocity_impulse,
-            a_attachment,
-            1.0,
-        );
-        (&mut b.vel, &mut b.ang_vel, &b.inv_mass, &b.inertia).apply_velocity_impulse(
-            velocity_impulse,
-            b_attachment,
-            -1.0,
-        );
+        a.apply_velocity_impulse(velocity_impulse, a_attachment, 1.0);
+        b.apply_velocity_impulse(velocity_impulse, b_attachment, -1.0);
     }
 }
 
 impl Constraint<2> for PenetrationConstraint {
-    fn solve(&mut self, world: &mut World, dt: f64) {
+    fn solve(&mut self, rigidbodies: &mut View<RigidBodyQuery>, dt: f64) {
         puffin::profile_scope!("Solve penetration constraint");
 
         if self.response.penetration <= std::f64::EPSILON {
@@ -256,29 +195,30 @@ impl Constraint<2> for PenetrationConstraint {
             return;
         }
 
+        // Query the rigidbodies
+        let [mut a, mut b] = rigidbodies
+            .get_mut_n([self.a, self.b])
+            .map(|v| v.expect("Rigidbody not found"));
+
         // Apply the regular positional constraint to resolve overlapping
-        self.apply(
-            self.a,
-            self.a_attachment(),
-            self.b,
-            self.b_attachment(),
-            world,
-            dt,
-        );
+        self.apply(&mut a, self.a_attachment(), &mut b, self.b_attachment(), dt);
 
         // Apply an additional friction check
-        self.solve_friction(world, dt);
+        self.solve_friction(&mut a, &mut b, dt);
     }
 
+    #[inline]
     fn lambda(&self) -> f64 {
         self.normal_lambda
     }
 
+    #[inline]
     fn set_lambda(&mut self, lambda: f64) {
         self.normal_lambda = lambda;
     }
 
     /// Override for the other lambdas.
+    #[inline]
     fn reset(&mut self) {
         self.normal_lambda = 0.0;
         self.tangent_lambda = 0.0;
@@ -286,14 +226,17 @@ impl Constraint<2> for PenetrationConstraint {
 }
 
 impl PositionalConstraint for PenetrationConstraint {
+    #[inline]
     fn gradient(&self, _a_global_position: Vec2<f64>, _b_global_position: Vec2<f64>) -> Vec2<f64> {
         self.response.normal
     }
 
+    #[inline]
     fn magnitude(&self, _a_global_position: Vec2<f64>, _b_global_position: Vec2<f64>) -> f64 {
         self.response.penetration
     }
 
+    #[inline]
     fn compliance(&self) -> f64 {
         0.00001
     }

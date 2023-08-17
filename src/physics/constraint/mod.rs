@@ -1,15 +1,10 @@
 //pub mod distance;
 pub mod penetration;
 
-use hecs::{Bundle, Entity, World};
+use hecs::{View, World};
 use vek::Vec2;
 
-use crate::physics::rigidbody::{ApplyPositionalImpulse, InverseMassAtRelativePoint, LocalToWorld};
-
-use super::{
-    rigidbody::{Inertia, InvMass, Orientation, Position, Translation},
-    RigidBody, RigidBodyKey,
-};
+use crate::physics::rigidbody::{Inertia, InvMass, RigidBodyQuery};
 
 /// XPBD constraint between one or more rigid bodies.
 pub trait Constraint<const RIGIDBODIES: usize> {
@@ -22,9 +17,10 @@ pub trait Constraint<const RIGIDBODIES: usize> {
     /// Solve the constraint.
     ///
     /// Applies the force immediately to the rigidbodies.
-    fn solve(&mut self, world: &mut World, dt: f64);
+    fn solve(&mut self, rigidbodies: &mut View<RigidBodyQuery>, dt: f64);
 
     /// Reset the constraint at the beginning of a step (not a sub-step).
+    #[inline]
     fn reset(&mut self) {
         self.set_lambda(0.0);
     }
@@ -36,7 +32,7 @@ pub trait Constraint<const RIGIDBODIES: usize> {
         compliance: f64,
         gradients: [Vec2<f64>; AMOUNT],
         attachments: [Vec2<f64>; AMOUNT],
-        bodies: [(&InvMass, &Inertia); AMOUNT],
+        bodies: [(InvMass, Inertia); AMOUNT],
         dt: f64,
     ) -> f64 {
         puffin::profile_scope!("Delta lambda");
@@ -45,8 +41,8 @@ pub trait Constraint<const RIGIDBODIES: usize> {
             .into_iter()
             .zip(attachments)
             .zip(bodies)
-            .map(|((gradient, attachment), body)| {
-                body.inverse_mass_at_relative_point(attachment, gradient)
+            .map(|((gradient, attachment), (inv_mass, inertia))| {
+                inv_mass.inverse_mass_at_relative_point(&inertia, attachment, gradient)
             })
             .sum();
 
@@ -77,40 +73,22 @@ pub trait PositionalConstraint: Constraint<2> {
     /// Updates the lambda.
     fn apply(
         &mut self,
-        a: Entity,
+        a: &mut RigidBodyQuery,
         a_attachment: Vec2<f64>,
-        b: Entity,
+        b: &mut RigidBodyQuery,
         b_attachment: Vec2<f64>,
-        world: &mut World,
         dt: f64,
     ) {
         puffin::profile_scope!("Apply positional constraint forces");
 
-        // Used for querying the ECS
-        #[derive(Bundle)]
-        struct RigidBody {
-            pos: Position,
-            trans: Translation,
-            rot: Orientation,
-            inv_mass: InvMass,
-            inertia: Inertia,
-        }
-
-        let a = world
-            .query_one_mut::<&mut RigidBody>(a)
-            .expect("Could not get rigidbody");
-        let b = world
-            .query_one_mut::<&mut RigidBody>(b)
-            .expect("Could not get rigidbody");
-
-        let a_world_position = (&a.pos, &a.trans, &a.rot).local_to_world(a_attachment);
-        let b_world_position = (&b.pos, &b.trans, &b.rot).local_to_world(b_attachment);
+        let a_world_position = a.local_to_world(a_attachment);
+        let b_world_position = b.local_to_world(b_attachment);
 
         let gradient = self.gradient(a_world_position, b_world_position);
 
         // Rotate the attachments
-        let a_attachment = a.rot.rotate(a_attachment);
-        let b_attachment = b.rot.rotate(b_attachment);
+        let a_attachment = a.rotate(a_attachment);
+        let b_attachment = b.rotate(b_attachment);
 
         let delta_lambda = Self::delta_lambda(
             self.lambda(),
@@ -118,7 +96,10 @@ pub trait PositionalConstraint: Constraint<2> {
             self.compliance(),
             [gradient, gradient],
             [a_attachment, b_attachment],
-            [(&a.inv_mass, &a.inertia), (&b.inv_mass, &b.inertia)],
+            [
+                (a.inv_mass.clone(), a.inertia.clone()),
+                (b.inv_mass.clone(), b.inertia.clone()),
+            ],
             dt,
         );
         if delta_lambda.abs() <= std::f64::EPSILON {
@@ -131,15 +112,7 @@ pub trait PositionalConstraint: Constraint<2> {
 
         // Apply impulse
         let positional_impulse = gradient * delta_lambda;
-        (&mut a.trans, &mut a.rot, &a.inv_mass, &a.inertia).apply_positional_impulse(
-            positional_impulse,
-            a_attachment,
-            1.0,
-        );
-        (&mut b.trans, &mut b.rot, &b.inv_mass, &b.inertia).apply_positional_impulse(
-            positional_impulse,
-            b_attachment,
-            -1.0,
-        );
+        a.apply_positional_impulse(positional_impulse, a_attachment, 1.0);
+        b.apply_positional_impulse(positional_impulse, b_attachment, -1.0);
     }
 }

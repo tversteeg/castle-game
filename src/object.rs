@@ -1,14 +1,9 @@
-use std::ops::Deref;
-
 use assets_manager::{loader::TomlLoader, AnyCache, Asset, BoxedError, Compound, SharedString};
 use serde::Deserialize;
 use vek::{Extent2, Vec2};
 
 use crate::{
-    physics::{
-        collision::shape::Shape,
-        rigidbody::{RigidBody, RigidBodyBuilder},
-    },
+    physics::{collision::shape::Shape, rigidbody::RigidBodyBuilder},
     sprite::Sprite,
 };
 
@@ -27,13 +22,33 @@ impl ObjectSettings {
         if self.settings.physics.is_fixed {
             RigidBodyBuilder::new_static(pos).with_collider(self.shape())
         } else {
-            RigidBodyBuilder::new(pos)
-                .with_collider(self.shape())
-                .with_density(self.settings.physics.density)
-                .with_friction(self.settings.physics.friction)
-                .with_restitution(self.settings.physics.restitution)
-                .with_linear_damping(self.settings.physics.linear_damping)
-                .with_angular_damping(self.settings.physics.angular_damping)
+            let builder = RigidBodyBuilder::new(pos).with_collider(self.shape());
+
+            let builder = if let Some(density) = self.settings.physics.density {
+                builder.with_density(density)
+            } else {
+                builder
+            };
+            let builder = if let Some(friction) = self.settings.physics.friction {
+                builder.with_friction(friction)
+            } else {
+                builder
+            };
+            let builder = if let Some(restitution) = self.settings.physics.restitution {
+                builder.with_restitution(restitution)
+            } else {
+                builder
+            };
+            let builder = if let Some(linear_damping) = self.settings.physics.linear_damping {
+                builder.with_linear_damping(linear_damping)
+            } else {
+                builder
+            };
+            if let Some(angular_damping) = self.settings.physics.angular_damping {
+                builder.with_angular_damping(angular_damping)
+            } else {
+                builder
+            }
         }
     }
 
@@ -130,7 +145,7 @@ impl Asset for ObjectSettingsImpl {
 }
 
 /// Physics settings for a rigid body.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 #[serde(default)]
 struct PhysicsSettings {
     /// Whether this is a fixed object, means it can't move.
@@ -138,32 +153,19 @@ struct PhysicsSettings {
     /// Mass is density times area.
     ///
     /// Doesn't apply when this is a static object.
-    density: f64,
+    density: Option<f64>,
     /// Friction coefficient for both static and dynamic friction.
-    friction: f64,
+    friction: Option<f64>,
     /// Restitution coefficiont for bounciness.
-    restitution: f64,
+    restitution: Option<f64>,
     /// Linear damping.
     ///
     /// Doesn't apply when this is a static object.
-    linear_damping: f64,
+    linear_damping: Option<f64>,
     /// Angular damping.
     ///
     /// Doesn't apply when this is a static object.
-    angular_damping: f64,
-}
-
-impl Default for PhysicsSettings {
-    fn default() -> Self {
-        Self {
-            is_fixed: false,
-            density: 1.0,
-            friction: 0.3,
-            restitution: 0.3,
-            linear_damping: 1.0,
-            angular_damping: 1.0,
-        }
-    }
+    angular_damping: Option<f64>,
 }
 
 /// Collider settings for a rigid body.

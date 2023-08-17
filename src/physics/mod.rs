@@ -6,31 +6,26 @@ pub mod collision;
 pub mod constraint;
 pub mod rigidbody;
 
-use std::{
-    ops::Deref,
-    rc::{Rc, Weak},
-};
-
-use hecs::{Component, ComponentRef, Entity, Query, World};
+use hecs::{Component, ComponentRef, Entity, Query, View, World};
 use serde::Deserialize;
-use slotmap::{DefaultKey, HopSlotMap, Key, KeyData};
 use vek::{Aabr, Vec2};
 
-use crate::math::{Iso, Rotation};
+use crate::{
+    math::{Iso, Rotation},
+    physics::rigidbody::{Collider, Translation},
+};
 
 use self::{
     collision::{shape::Shape, spatial_grid::SpatialGrid, CollisionResponse, CollisionState},
-    constraint::penetration::PenetrationConstraint,
+    constraint::{penetration::PenetrationConstraint, Constraint},
     rigidbody::{
-        AngularExternalForce, AngularVelocity, Orientation, Position, RigidBody, RigidBodyHandle,
-        RigidBodySystems, Velocity,
+        AngularExternalForce, AngularVelocity, Orientation, Position, RigidBodyHandle,
+        RigidBodyQuery, RigidBodySystems, Velocity,
     },
 };
 
 /// Rigid body index type.
 pub type RigidBodyKey = Entity;
-/// Distance constraint index type.
-pub type DistanceConstraintKey = DefaultKey;
 
 /// Physics simulation state.
 pub struct Physics<
@@ -119,17 +114,22 @@ impl<
         for _ in 0..substeps {
             puffin::profile_scope!("Substep");
 
+            // Integrate the rigidbodies, applying velocities and forces
             self.rigidbodies.integrate(&mut self.world, sub_dt);
 
             // Do a narrow-phase collision check and generate penetration constraints
             self.collision_narrow_phase();
 
+            // Apply all constraints
             self.apply_constraints(sub_dt);
 
+            // Solve the velocities
             self.rigidbodies.update_velocities(&mut self.world, sub_dt);
 
+            // Solve collision velocities
             self.velocity_solve(sub_dt);
 
+            // Apply translations to bodies
             self.rigidbodies.apply_translation(&mut self.world);
         }
 
@@ -147,19 +147,6 @@ impl<
     /// Remove every rigidbody.
     pub fn reset(&mut self) {
         self.world.clear();
-    }
-
-    /// Add a distance constraint between two rigidbodies.
-    pub fn add_distance_constraint(
-        &mut self,
-        a: RigidBodyKey,
-        a_attachment: Vec2<f64>,
-        b: RigidBodyKey,
-        b_attachment: Vec2<f64>,
-        rest_dist: f64,
-        compliance: f64,
-    ) -> DistanceConstraintKey {
-        todo!()
     }
 
     /// Get the calculated collision pairs with collision information.
@@ -193,11 +180,13 @@ impl<
 
     /// Whether a rigidbody is still in the grid range.
     pub fn is_rigidbody_on_grid(&self, rigidbody: &RigidBodyHandle) -> bool {
-        /*
         self.collision_grid
-            .is_aabr_in_range(self.rigidbody(rigidbody).aabr().as_())
-        */
-        todo!()
+            .is_aabr_in_range(rigidbody.aabr(self).as_())
+    }
+
+    /// Amount of rigidbodies currently registered.
+    pub fn rigidbody_amount(&self) -> u32 {
+        self.world.len()
     }
 
     /// Do a broad-phase collision pass to get possible pairs.
@@ -238,66 +227,117 @@ impl<
         self.narrow_phase_state.clear();
 
         // Narrow-phase with SAT
-        /*
         for (a, b) in self.broad_phase_collisions.iter() {
-            // Ignore inactive collisions
-            if !self.rigidbody(*a).is_active() && !self.rigidbody(*b).is_active() {
-                continue;
-            }
-
             puffin::profile_scope!("Narrow collision");
 
-            self.rigidbodies[*a].push_collisions(
+            debug_assert_ne!(a, b);
+
+            // Rigidbody A positions and shape
+            let mut a_ref = self
+                .world
+                .query_one::<(&Collider, &Position, Option<&Translation>, &Orientation)>(*a)
+                .expect("Rigidbody not found");
+            let (a_shape, a_pos, a_trans, a_rot) = a_ref.get().unwrap();
+
+            // Rigidbody B positions and shape
+            let mut b_ref = self
+                .world
+                .query_one::<(&Collider, &Position, Option<&Translation>, &Orientation)>(*b)
+                .expect("Rigidbody not found");
+            let (b_shape, b_pos, b_trans, b_rot) = b_ref.get().unwrap();
+
+            self.narrow_phase_state.detect(
                 *a,
-                &self.rigidbodies[*b],
+                &a_shape.0,
+                Iso::new(
+                    a_pos.0 + a_trans.map(|trans| trans.0).unwrap_or_default(),
+                    a_rot.0,
+                ),
                 *b,
-                &mut self.narrow_phase_state,
+                &b_shape.0,
+                Iso::new(
+                    b_pos.0 + b_trans.map(|trans| trans.0).unwrap_or_default(),
+                    b_rot.0,
+                ),
             );
         }
+
+        self.penetration_constraints.clear();
 
         {
             puffin::profile_scope!("Collision responses to penetration constraints");
 
             // Generate penetration constraint
             for (a, b, response) in self.narrow_phase_state.collisions.iter() {
-                /*
                 self.penetration_constraints
                     .push(PenetrationConstraint::new([*a, *b], response.clone()));
-                */
             }
         }
-        */
     }
 
     /// Debug information for all constraints.
-    pub fn debug_info_constraints(&self) -> Vec<(Vec2<f64>, Vec2<f64>)> {
-        puffin::profile_function!();
+    pub fn debug_info_constraints(&self) -> Vec<(Vec2<f64>, Vec2<f64>, CollisionResponse)> {
+        puffin::profile_scope!("Debug constraint info");
 
-        /*
-        self.dist_constraints
+        // Create an ECS view for the rigidbodies, this is good for random access and performance
+        let mut rigidbody_query = self.world.query::<RigidBodyQuery>();
+        let mut rigidbodies = rigidbody_query.view();
+
+        self.penetration_constraints
             .iter()
-            .map(|(_, dist_constraint)| dist_constraint.attachments_world(&self.rigidbodies))
+            .map(|constraint| {
+                let [a, b] = rigidbodies
+                    .get_mut_n([constraint.a, constraint.b])
+                    .map(|v| v.unwrap());
+
+                (
+                    a.local_to_world(constraint.a_attachment()),
+                    b.local_to_world(constraint.b_attachment()),
+                    constraint.response.clone(),
+                )
+            })
             .collect()
-        */
-        todo!()
+    }
+
+    /// Debug information, all vertices from all rigid bodies.
+    pub fn debug_info_vertices(&self) -> Vec<Vec<Vec2<f64>>> {
+        puffin::profile_scope!("Debug vertices info");
+
+        // Create an ECS view for the rigidbodies, this is good for random access and performance
+        self.world
+            .query::<(&Position, &Orientation, &Collider)>()
+            .into_iter()
+            .map(|(_id, (pos, rot, collider))| {
+                let iso = Iso::new(pos.0, rot.0);
+
+                collider.0.vertices(iso)
+            })
+            .collect()
     }
 
     /// Apply velocity corrections caused by friction and restitution.
     fn velocity_solve(&mut self, sub_dt: f64) {
-        /*
+        // Create an ECS view for the rigidbodies, this is good for random access and performance
+        let mut rigidbody_query = self.world.query_mut::<RigidBodyQuery>();
+        let mut rigidbodies = rigidbody_query.view();
+
         self.penetration_constraints
             .iter()
-            .for_each(|constraint| constraint.solve_velocities(&mut self.rigidbodies, sub_dt));
-        */
-        // TODO
+            .for_each(|constraint| constraint.solve_velocities(&mut rigidbodies, sub_dt));
     }
 
     fn reset_constraints(&self) {
         // TODO
     }
 
-    fn apply_constraints(&self, sub_dt: f64) {
-        // TODO
+    fn apply_constraints(&mut self, sub_dt: f64) {
+        // Create an ECS view for the rigidbodies, this is good for random access and performance
+        let mut rigidbody_query = self.world.query_mut::<RigidBodyQuery>();
+        let mut rigidbodies = rigidbody_query.view();
+
+        self.penetration_constraints
+            .iter_mut()
+            .for_each(|constraint| constraint.solve(&mut rigidbodies, sub_dt));
     }
 
     /// Iterator over all predicted Axis-aligned bounding rectangles with a predicted future position added.
@@ -309,17 +349,19 @@ impl<
         const PREDICTED_POSITION_MULTIPLIER: f64 = 2.0;
 
         self.world
-            .query::<(&Position, &Velocity, &Orientation, &Shape)>()
+            .query::<(&Position, Option<&Velocity>, &Orientation, &Collider)>()
             .iter()
             .map(move |(id, (pos, vel, rot, shape))| {
                 // First AABR at stationary position
-                let mut aabr = shape.aabr(Iso::new(pos.0, rot.0));
+                let mut aabr = shape.0.aabr(Iso::new(pos.0, rot.0));
 
-                // Expand to future AABR
-                aabr.expand_to_contain(shape.aabr(Iso::new(
-                    pos.0 + vel.0 * PREDICTED_POSITION_MULTIPLIER * dt,
-                    rot.0,
-                )));
+                if let Some(vel) = vel {
+                    // Expand to future AABR if not static
+                    aabr.expand_to_contain(shape.0.aabr(Iso::new(
+                        pos.0 + vel.0 * PREDICTED_POSITION_MULTIPLIER * dt,
+                        rot.0,
+                    )));
+                }
 
                 (id, aabr)
             })

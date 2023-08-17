@@ -1,3 +1,5 @@
+use std::fmt::{Debug, Formatter, Result};
+
 use parry2d_f64::{
     mass_properties::MassProperties,
     na::{DVector, Isometry2, Vector2},
@@ -146,5 +148,12 @@ impl Shape {
 impl Default for Shape {
     fn default() -> Self {
         Self::rectangle(Extent2::new(1.0, 1.0))
+    }
+}
+
+impl Debug for Shape {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        // TODO
+        write!(f, "Shape")
     }
 }

@@ -1,6 +1,6 @@
 use std::rc::{Rc, Weak};
 
-use hecs::{Bundle, ComponentRef, Entity, World};
+use hecs::{Bundle, ComponentRef, Entity, Query, View, World};
 use vek::{Aabr, Vec2};
 
 use crate::math::{Iso, Rotation};
@@ -9,599 +9,6 @@ use super::{
     collision::{shape::Shape, CollisionResponse, CollisionState},
     Physics,
 };
-
-/// How far away we predict the impulses to move us for checking the collision during the next full deltatime.
-const PREDICTED_POSITION_MULTIPLIER: f64 = 2.0;
-
-/// Represents any physics object that can have constraints applied.
-#[derive(Clone, Default)]
-pub struct RigidBody {
-    /// Global position.
-    pos: Vec2<f64>,
-    /// Previous position.
-    prev_pos: Vec2<f64>,
-    /// Global offset that will be added to the body.
-    translation: Vec2<f64>,
-    /// Velocity.
-    vel: Vec2<f64>,
-    /// Previous velocity.
-    prev_vel: Vec2<f64>,
-    /// Orientation in radians.
-    rot: Rotation,
-    /// Previous orientation.
-    prev_rot: Rotation,
-    /// Angular velocity.
-    ang_vel: f64,
-    /// Previous angular velocity.
-    prev_ang_vel: f64,
-    /// Inertia tensor, corresponds to mass in rotational terms.
-    ///
-    /// Torque needed for an angular acceleration.
-    inertia: f64,
-    /// Linear damping.
-    lin_damping: f64,
-    /// Angular damping.
-    ang_damping: f64,
-    /// External forces.
-    ext_force: Vec2<f64>,
-    // External torque.
-    ext_torque: f64,
-    /// Inverse of the mass.
-    inv_mass: f64,
-    /// Friction coefficient, for now there's no difference between dynamic and static friction.
-    friction: f64,
-    /// Restitution coefficient, how bouncy collisions are.
-    restitution: f64,
-    /// Collision shape.
-    shape: Shape,
-    /// If > 0 we are sleeping, which means we don't have to calculate a lot of steps.
-    ///
-    /// After a certain time the velocity and position will be set to zero.
-    time_sleeping: f64,
-}
-
-impl RigidBody {
-    /// Construct a new rigidbody without movements.
-    ///
-    /// Gravity is applied as an external force.
-    pub fn new<S>(pos: Vec2<f64>, shape: S) -> Self
-    where
-        S: Into<Shape>,
-    {
-        let settings = crate::settings();
-
-        Self::new_external_force(
-            pos,
-            Vec2::new(0.0, settings.physics.gravity),
-            settings.physics.air_friction,
-            settings.physics.rotation_friction,
-            1.0,
-            shape,
-        )
-    }
-
-    /// Construct a new rigidbody with acceleration.
-    pub fn new_external_force<S>(
-        pos: Vec2<f64>,
-        ext_force: Vec2<f64>,
-        lin_damping: f64,
-        ang_damping: f64,
-        density: f64,
-        shape: S,
-    ) -> Self
-    where
-        S: Into<Shape>,
-    {
-        let prev_pos = pos;
-        let vel = Vec2::default();
-        let prev_vel = vel;
-        let ang_vel = 0.0;
-        let prev_ang_vel = ang_vel;
-        let rot = Rotation::default();
-        let prev_rot = rot;
-        let ext_torque = 0.0;
-        let friction = 0.3;
-        let restitution = 0.3;
-        let translation = Vec2::zero();
-        let time_sleeping = 0.0;
-        let shape = shape.into();
-        let mass_properties = shape.mass_properties(density);
-        let inv_mass = mass_properties.mass().recip();
-        let inertia = mass_properties.principal_inertia();
-
-        Self {
-            pos,
-            prev_pos,
-            translation,
-            vel,
-            prev_vel,
-            ext_force,
-            ext_torque,
-            lin_damping,
-            inv_mass,
-            inertia,
-            rot,
-            prev_rot,
-            ang_vel,
-            prev_ang_vel,
-            ang_damping,
-            shape,
-            friction,
-            restitution,
-            time_sleeping,
-        }
-    }
-
-    /// Construct a fixed rigidbody with infinite mass and no gravity.
-    pub fn new_fixed<S>(pos: Vec2<f64>, shape: S) -> Self
-    where
-        S: Into<Shape>,
-    {
-        let inv_mass = 0.0;
-
-        let prev_pos = pos;
-        let translation = Vec2::zero();
-        let vel = Vec2::zero();
-        let prev_vel = vel;
-        let rot = Rotation::default();
-        let prev_rot = Rotation::default();
-        let ang_vel = 0.0;
-        let prev_ang_vel = ang_vel;
-        let lin_damping = 0.0;
-        let ang_damping = 0.0;
-        let ext_force = Vec2::zero();
-        let ext_torque = 0.0;
-        let friction = 0.5;
-        let restitution = 0.2;
-        let time_sleeping = 0.0;
-        let shape = shape.into();
-        let inertia = 1.0;
-
-        Self {
-            pos,
-            shape,
-            prev_pos,
-            translation,
-            prev_vel,
-            vel,
-            rot,
-            prev_rot,
-            ang_vel,
-            prev_ang_vel,
-            inertia,
-            lin_damping,
-            ang_damping,
-            ext_force,
-            ext_torque,
-            inv_mass,
-            friction,
-            restitution,
-            time_sleeping,
-        }
-    }
-
-    /// Apply velocity after creating a rigidbody.
-    pub fn with_velocity(mut self, velocity: Vec2<f64>) -> Self {
-        self.vel = velocity;
-        self.prev_vel = velocity;
-
-        self
-    }
-
-    /// Set the density.
-    ///
-    /// This will change the mass and inertia.
-    pub fn with_density(mut self, density: f64) -> Self {
-        let mass_properties = self.shape.mass_properties(density);
-        self.inv_mass = mass_properties.mass().recip();
-        self.inertia = mass_properties.principal_inertia();
-
-        self
-    }
-
-    /// Set the initial rotation.
-    ///
-    /// It's smart to set this to the velocity direction for flying objects with stabilizing torque.
-    pub fn with_rotation(mut self, rotation: Rotation) -> Self {
-        self.rot = rotation;
-        self.prev_rot = rotation;
-
-        self
-    }
-
-    /// Set the dynamic and static frictions.
-    pub fn with_friction(mut self, friction: f64) -> Self {
-        self.friction = friction;
-
-        self
-    }
-
-    /// Set the restitution.
-    pub fn with_restitution(mut self, restitution: f64) -> Self {
-        self.restitution = restitution;
-
-        self
-    }
-
-    /// Set the linear damping.
-    pub fn with_linear_damping(mut self, linear_damping: f64) -> Self {
-        self.lin_damping = linear_damping;
-
-        self
-    }
-
-    /// Set the angular damping.
-    pub fn with_angular_damping(mut self, angular_damping: f64) -> Self {
-        self.ang_damping = angular_damping;
-
-        self
-    }
-
-    /// Perform a single (sub-)step with a deltatime.
-    #[inline]
-    pub fn integrate(&mut self, dt: f64) {
-        if !self.is_active() {
-            return;
-        }
-
-        // Position update
-        self.prev_pos = self.pos;
-
-        // Apply damping if applicable
-        if self.lin_damping != 1.0 {
-            self.vel *= 1.0 / (1.0 + dt * self.lin_damping);
-        }
-
-        // Apply external forces
-        self.vel += (dt * self.ext_force) / self.inv_mass.recip();
-        self.translation += dt * self.vel;
-
-        // Rotation update
-        self.prev_rot = self.rot;
-
-        // Apply damping if applicable
-        if self.ang_damping != 1.0 {
-            self.ang_vel *= 1.0 / (1.0 + dt * self.ang_damping);
-        }
-
-        self.ang_vel += dt * self.inverse_inertia() * self.ext_torque;
-        self.rot += dt * self.ang_vel;
-    }
-
-    /// Add velocities.
-    #[inline]
-    pub fn update_velocities(&mut self, dt: f64) {
-        self.prev_vel = self.vel;
-        self.vel = (self.pos - self.prev_pos + self.translation) / dt;
-
-        self.prev_ang_vel = self.ang_vel;
-        self.ang_vel = (self.rot - self.prev_rot).to_radians() / dt;
-    }
-
-    /// Apply translations to the position.
-    #[inline]
-    pub fn apply_translation(&mut self) {
-        if !self.is_active() {
-            return;
-        }
-
-        self.pos += self.translation;
-        self.translation = Vec2::zero();
-    }
-
-    /// Apply a force by moving the position, which will trigger velocity increments.
-    #[inline]
-    pub fn apply_force(&mut self, force: Vec2<f64>) {
-        self.translation += force;
-    }
-
-    /// Apply a rotational force in radians.
-    #[inline]
-    pub fn apply_rotational_force(&mut self, force: f64) {
-        self.rot += force;
-    }
-
-    /// Apply torque from an external source.
-    #[inline]
-    pub fn apply_torque(&mut self, torque: f64) {
-        self.ext_torque += torque;
-    }
-
-    /// Set global position.
-    pub fn set_position(&mut self, pos: Vec2<f64>, force: bool) {
-        self.pos = pos;
-        if !force {
-            self.prev_pos = pos;
-            self.translation = Vec2::zero();
-            self.vel = Vec2::zero();
-        }
-    }
-
-    /// Set the rigidbody to sleeping if the velocities are below the treshold.
-    pub fn mark_sleeping(&mut self, dt: f64) {
-        puffin::profile_scope!("Mark sleeping");
-
-        if self.is_static() {
-            return;
-        }
-
-        // TODO: make these values configurable
-        if self.vel.magnitude_squared() > 1.0 || self.ang_vel.abs() > 1.0 {
-            self.time_sleeping = 0.0;
-        } else if self.time_sleeping < 0.5 {
-            self.time_sleeping += dt;
-        } else {
-            // Set the velocities to zero to prevent jittering
-            self.vel = Vec2::zero();
-            self.ang_vel = 0.0;
-        }
-    }
-
-    /// Global position.
-    #[inline]
-    pub fn position(&self) -> Vec2<f64> {
-        self.pos + self.translation
-    }
-
-    /// Global linear velocity.
-    #[inline]
-    pub fn velocity(&self) -> Vec2<f64> {
-        self.vel
-    }
-
-    /// Global angular velocity.
-    #[inline]
-    pub fn angular_velocity(&self) -> f64 {
-        self.ang_vel
-    }
-
-    /// Global position with rotation.
-    #[inline]
-    pub fn iso(&self) -> Iso {
-        puffin::profile_scope!("Iso");
-
-        Iso::new(self.position(), self.rot)
-    }
-
-    /// Orientation of the body.
-    pub fn rotation(&self) -> Rotation {
-        self.rot
-    }
-
-    /// Calculate generalized inverse mass at a relative point along the normal vector.
-    #[inline]
-    pub fn inverse_mass_at_relative_point(&self, point: Vec2<f64>, normal: Vec2<f64>) -> f64 {
-        puffin::profile_scope!("Inverse mass at relative point");
-
-        if self.is_static() {
-            return 0.0;
-        }
-
-        // Perpendicular dot product of `point` with `normal`
-        let perp_dot = (point.x * normal.y) - (point.y * normal.x);
-
-        self.inv_mass + self.inverse_inertia() * perp_dot.powi(2)
-    }
-
-    /// Calculate the update in rotation when a position change is applied at a specific point.
-    pub fn delta_rotation_at_point(&self, point: Vec2<f64>, impulse: Vec2<f64>) -> f64 {
-        puffin::profile_scope!("Delta rotation at point");
-
-        // Perpendicular dot product of `point` with `impulse`
-        let perp_dot = (point.x * impulse.y) - (point.y * impulse.x);
-
-        self.inverse_inertia() * perp_dot
-    }
-
-    /// Apply a positional impulse at a point.
-    ///
-    // TODO: can we remove the sign by directly negating the impulse?
-    #[inline]
-    pub fn apply_positional_impulse(
-        &mut self,
-        positional_impulse: Vec2<f64>,
-        point: Vec2<f64>,
-        sign: f64,
-    ) {
-        puffin::profile_scope!("Apply positional impulse");
-
-        if self.is_static() {
-            // Ignore when we're a static body
-            return;
-        }
-
-        self.apply_force(sign * positional_impulse * self.inv_mass);
-
-        // Change rotation of body
-        self.apply_rotational_force(sign * self.delta_rotation_at_point(point, positional_impulse));
-    }
-
-    /// Apply a velocity change at a point.
-    #[inline]
-    pub fn apply_velocity_impulse(
-        &mut self,
-        velocity_impulse: Vec2<f64>,
-        point: Vec2<f64>,
-        sign: f64,
-    ) {
-        puffin::profile_scope!("Apply velocity impulse");
-
-        if self.is_static() {
-            // Ignore when we're a static body
-            return;
-        }
-
-        self.vel += sign * velocity_impulse * self.inv_mass;
-        self.ang_vel += sign * self.delta_rotation_at_point(point, velocity_impulse);
-    }
-
-    /// Calculate the contact velocity based on a local relative rotated point.
-    #[inline]
-    pub fn contact_velocity(&self, point: Vec2<f64>) -> Vec2<f64> {
-        // Perpendicular
-        let perp = Vec2::new(-point.y, point.x);
-
-        self.vel + self.ang_vel * perp
-    }
-
-    /// Calculate the contact velocity based on a local relative rotated point with the previous velocities.
-    #[inline]
-    pub fn prev_contact_velocity(&self, point: Vec2<f64>) -> Vec2<f64> {
-        // Perpendicular
-        let perp = Vec2::new(-point.y, point.x);
-
-        self.prev_vel + self.prev_ang_vel * perp
-    }
-
-    /// Delta position of a point.
-    #[inline]
-    pub fn relative_motion_at_point(&self, point: Vec2<f64>) -> Vec2<f64> {
-        self.pos - self.prev_pos + self.translation + point - self.prev_rot.rotate(point)
-    }
-
-    /// Inverse of the inertia tensor.
-    #[inline]
-    pub fn inverse_inertia(&self) -> f64 {
-        self.inertia.recip()
-    }
-
-    /// Axis-aligned bounding rectangle.
-    #[inline]
-    pub fn aabr(&self) -> Aabr<f64> {
-        self.shape.aabr(self.iso())
-    }
-
-    /// Vertices for the body.
-    pub fn vertices(&self) -> Vec<Vec2<f64>> {
-        self.shape.vertices(self.iso())
-    }
-
-    /// Axis-aligned bounding rectangle with a predicted future position added.
-    ///
-    /// WARNING: `dt` is not from the substep but from the full physics step.
-    #[inline]
-    pub fn predicted_aabr(&self, dt: f64) -> Aabr<f64> {
-        puffin::profile_scope!("Predicted AABR");
-
-        // If we are static or sleeping there's nothing to predict
-        if !self.is_active() {
-            return self.aabr();
-        }
-
-        // Start with the future aabr
-        let mut aabr = self.shape.aabr(Iso::new(
-            self.position() + self.vel * PREDICTED_POSITION_MULTIPLIER * dt,
-            self.rot,
-        ));
-
-        // Add the current aabr
-        aabr.expand_to_contain(self.aabr());
-
-        aabr
-    }
-
-    /// Check if it collides with another rigidbody.
-    ///
-    /// This function is very inefficient, use [`Self::push_collisions`].
-    pub fn collides(&self, other: &RigidBody) -> Vec<CollisionResponse> {
-        self.shape.collides(self.iso(), &other.shape, other.iso())
-    }
-
-    /// Check if it collides with another rigidbody.
-    ///
-    /// Pushes to a buffer with collision information when it does.
-    #[inline]
-    pub fn push_collisions<K>(
-        &self,
-        a_data: K,
-        b: &RigidBody,
-        b_data: K,
-        state: &mut CollisionState<K>,
-    ) where
-        K: Clone,
-    {
-        self.shape
-            .push_collisions(self.iso(), a_data, &b.shape, b.iso(), b_data, state);
-    }
-
-    /// Rotate a point in local space.
-    #[inline]
-    pub fn rotate(&self, point: Vec2<f64>) -> Vec2<f64> {
-        puffin::profile_scope!("Rotate in local space");
-
-        self.rot.rotate(point)
-    }
-
-    /// Calculate the world position of a relative point on this body without rotation in mind.
-    #[inline]
-    pub fn local_to_world(&self, point: Vec2<f64>) -> Vec2<f64> {
-        puffin::profile_scope!("Local coordinates to world");
-
-        // Then translate it to the position
-        self.position() + self.rotate(point)
-    }
-
-    /// Whether this rigidbody doesn't move and has infinite mass.
-    #[inline]
-    pub fn is_static(&self) -> bool {
-        self.inv_mass == 0.0
-    }
-
-    /// Whether the rigidbody is in a sleeping state.
-    #[inline]
-    pub fn is_sleeping(&self) -> bool {
-        self.time_sleeping >= 0.5
-    }
-
-    /// Whether this is an active rigid body, means it's not sleeping and not static.
-    #[inline]
-    pub fn is_active(&self) -> bool {
-        !self.is_static() && !self.is_sleeping()
-    }
-
-    /// Friction that needs to be overcome before resting objects start sliding.
-    #[inline]
-    pub fn static_friction(&self) -> f64 {
-        self.friction
-    }
-
-    /// Friction that's applied to dynamic moving object after static friction has been overcome.
-    #[inline]
-    pub fn dynamic_friction(&self) -> f64 {
-        self.friction
-    }
-
-    /// Combine the static frictions between this and another body.
-    #[inline]
-    pub fn combine_static_frictions(&self, other: &Self) -> f64 {
-        (self.static_friction() + other.static_friction()) / 2.0
-    }
-
-    /// Combine the dynamic frictions between this and another body.
-    #[inline]
-    pub fn combine_dynamic_frictions(&self, other: &Self) -> f64 {
-        (self.dynamic_friction() + other.dynamic_friction()) / 2.0
-    }
-
-    /// Combine the restitutions between this and another body.
-    #[inline]
-    pub fn combine_restitutions(&self, other: &Self) -> f64 {
-        (self.restitution + other.restitution) / 2.0
-    }
-
-    /// Current direction the body is moving in.
-    #[inline]
-    pub fn direction(&self) -> Vec2<f64> {
-        (self.pos - self.prev_pos).normalized()
-    }
-}
-
-/// Rigidbody builder types.
-enum RigidBodyBuilderType {
-    Dynamic,
-    Kinetic,
-    Static,
-}
 
 /// Create a new rigidbody.
 pub struct RigidBodyBuilder {
@@ -871,6 +278,13 @@ impl Default for RigidBodyBuilder {
     }
 }
 
+/// Rigidbody builder types.
+enum RigidBodyBuilderType {
+    Dynamic,
+    Kinetic,
+    Static,
+}
+
 /// Main interface to a rigidbody in the physics engine.
 ///
 /// The rigidbody will be destroyed when this handle and all its clones are dropped.
@@ -901,7 +315,10 @@ impl RigidBodyHandle {
             .map(|force| force.0)
             .unwrap_or(0.0);
 
-        physics.rigidbody_set_value(self, previous_angular_force + angular_force);
+        physics.rigidbody_set_value(
+            self,
+            AngularExternalForce(previous_angular_force + angular_force),
+        );
     }
 
     /// Get the absolute position.
@@ -1000,6 +417,24 @@ impl RigidBodyHandle {
         false
     }
 
+    /// Get the bounding box.
+    #[must_use]
+    pub fn aabr<
+        const WIDTH: u16,
+        const HEIGHT: u16,
+        const STEP: u16,
+        const BUCKET: usize,
+        const SIZE: usize,
+    >(
+        &self,
+        physics: &Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
+    ) -> Aabr<f64> {
+        physics
+            .rigidbody_value::<&Collider>(self)
+            .0
+            .aabr(self.iso(physics))
+    }
+
     /// Get the entity reference.
     #[must_use]
     pub(super) fn entity(&self) -> Entity {
@@ -1081,7 +516,7 @@ impl RigidBodySystems {
             for (_id, (vel, ext_force, inv_mass)) in
                 world.query_mut::<(&mut Velocity, &LinearExternalForce, &InvMass)>()
             {
-                vel.0 += (dt * (ext_force.0 + Vec2::new(0.0, gravity))) / inv_mass.0.recip();
+                vel.0 += (dt * ext_force.0) / inv_mass.0.recip();
             }
         }
 
@@ -1106,6 +541,15 @@ impl RigidBodySystems {
                 world.query_mut::<(&mut AngularVelocity, &AngularDamping)>()
             {
                 ang_vel.0 *= 1.0 / (1.0 + dt * ang_damping.0);
+            }
+        }
+
+        {
+            puffin::profile_scope!("Angular external forces");
+            for (_id, (ang_vel, ang_ext_force, inertia)) in
+                world.query_mut::<(&mut AngularVelocity, &AngularExternalForce, &Inertia)>()
+            {
+                ang_vel.0 += dt * inertia.0.recip() * ang_ext_force.0;
             }
         }
 
@@ -1195,72 +639,123 @@ struct BaseRigidBodyBundle {
     collider: Collider,
 }
 
-/// Absolute position in the world.
-pub(super) struct Position(pub Vec2<f64>);
-
-/// Absolute position in the world for the previous step.
-pub(super) struct PrevPosition(pub Vec2<f64>);
-
-/// Linear position offset that will be added in a single step.
-pub(super) struct Translation(pub Vec2<f64>);
-
-/// Linear velocity.
-pub(super) struct Velocity(pub Vec2<f64>);
-
-/// Linear velocity for the previous step.
-pub(super) struct PrevVelocity(pub Vec2<f64>);
-
-/// Linear damping.
-pub(super) struct LinearDamping(pub f64);
-
-/// External linear force applied to the whole body evenly.
-pub(super) struct LinearExternalForce(pub Vec2<f64>);
-
-/// Absolute orientation, also known as rotation.
-pub(super) struct Orientation(pub Rotation);
-
-impl Orientation {
-    /// Rotate a relative point to the position in that local space.
-    pub fn rotate(&self, point: Vec2<f64>) -> Vec2<f64> {
-        self.0.rotate(point)
-    }
+/// Simplified query for a rigidbody.
+///
+/// Everything that's not optional here must also be part of the [`BaseRigidBodyBundle`].
+#[derive(Debug, Query)]
+pub struct RigidBodyQuery<'a> {
+    pub pos: &'a mut Position,
+    pub inertia: &'a Inertia,
+    pub inv_mass: &'a InvMass,
+    pub friction: &'a Friction,
+    pub rot: &'a mut Orientation,
+    pub restitution: &'a Restitution,
+    prev_pos: Option<&'a mut PrevPosition>,
+    trans: Option<&'a mut Translation>,
+    vel: Option<&'a mut Velocity>,
+    prev_vel: Option<&'a mut PrevVelocity>,
+    prev_rot: Option<&'a mut PrevOrientation>,
+    ang_vel: Option<&'a mut AngularVelocity>,
+    prev_ang_vel: Option<&'a mut PrevAngularVelocity>,
 }
 
-/// Absolute orientation for the previous step.
-pub(super) struct PrevOrientation(pub Rotation);
+impl<'a> RigidBodyQuery<'a> {
+    /// Apply a positional impulse at a point.
+    ///
+    // TODO: can we remove the sign by directly negating the impulse?
+    pub fn apply_positional_impulse(
+        &mut self,
+        positional_impulse: Vec2<f64>,
+        point: Vec2<f64>,
+        sign: f64,
+    ) {
+        if let Some(trans) = self.trans.as_mut() {
+            trans.0 += sign * positional_impulse * self.inv_mass.0;
+            self.rot.0 += sign * self.delta_rotation_at_point(point, positional_impulse);
+        }
+    }
 
-/// Velocity applied to the orientation.
-pub(super) struct AngularVelocity(pub f64);
+    /// Apply a velocity change at a point.
+    #[inline]
+    pub fn apply_velocity_impulse(
+        &mut self,
+        velocity_impulse: Vec2<f64>,
+        point: Vec2<f64>,
+        sign: f64,
+    ) {
+        if let Some(vel) = self.vel.as_mut() {
+            vel.0 += sign * velocity_impulse * self.inv_mass.0;
+        }
 
-/// Velocity applied to the orientation for the previous step.
-pub(super) struct PrevAngularVelocity(pub f64);
+        let delta_rotation = self.delta_rotation_at_point(point, velocity_impulse);
 
-/// Angular damping.
-pub(super) struct AngularDamping(pub f64);
+        if let Some(ang_vel) = self.ang_vel.as_mut() {
+            ang_vel.0 += sign * delta_rotation;
+        }
+    }
 
-/// External angular force applied to the whole body evenly.
-pub(super) struct AngularExternalForce(pub f64);
+    /// Rotate a relative point to the position in that local space.
+    pub fn rotate(&self, point: Vec2<f64>) -> Vec2<f64> {
+        self.rot.0.rotate(point)
+    }
 
-/// Inertia tensor, corresponds to mass in rotational terms.
-pub(super) struct Inertia(pub f64);
-
-impl Inertia {
     /// Calculate the update in rotation when a position change is applied at a specific point.
     pub fn delta_rotation_at_point(&self, point: Vec2<f64>, impulse: Vec2<f64>) -> f64 {
         // Perpendicular dot product of `point` with `impulse`
         let perp_dot = (point.x * impulse.y) - (point.y * impulse.x);
 
-        self.0.recip() * perp_dot
+        self.inertia.0.recip() * perp_dot
     }
-}
 
-/// Inverse of the mass of a rigidbody.
-pub(super) struct InvMass(pub f64);
+    /// Delta position of a point.
+    #[inline]
+    pub fn relative_motion_at_point(&self, point: Vec2<f64>) -> Vec2<f64> {
+        self.pos.0 - self.previous_position() + self.translation() + point
+            - self.previous_orientation().rotate(point)
+    }
 
-/// Dynamic and static friction coefficient.
-pub(super) struct Friction(pub f64);
+    /// Calculate generalized inverse mass at a relative point along the normal vector.
+    #[inline]
+    pub fn inverse_mass_at_relative_point(&self, point: Vec2<f64>, normal: Vec2<f64>) -> f64 {
+        self.inv_mass
+            .inverse_mass_at_relative_point(self.inertia, point, normal)
+    }
 
-impl Friction {
+    /// Calculate the contact velocity based on a local relative rotated point.
+    #[inline]
+    pub fn contact_velocity(&self, point: Vec2<f64>) -> Option<Vec2<f64>> {
+        if let Some((vel, ang_vel)) = self.vel.as_ref().zip(self.ang_vel.as_ref()) {
+            // Perpendicular
+            let perp = Vec2::new(-point.y, point.x);
+
+            Some(vel.0 + ang_vel.0 * perp)
+        } else {
+            None
+        }
+    }
+
+    /// Calculate the contact velocity based on a local relative rotated point.
+    #[inline]
+    pub fn prev_contact_velocity(&self, point: Vec2<f64>) -> Option<Vec2<f64>> {
+        if let Some((prev_vel, prev_ang_vel)) =
+            self.prev_vel.as_ref().zip(self.prev_ang_vel.as_ref())
+        {
+            // Perpendicular
+            let perp = Vec2::new(-point.y, point.x);
+
+            Some(prev_vel.0 + prev_ang_vel.0 * perp)
+        } else {
+            None
+        }
+    }
+
+    /// Calculate the world position of a relative point on this body without rotation in mind.
+    #[inline]
+    pub fn local_to_world(&self, point: Vec2<f64>) -> Vec2<f64> {
+        // Then translate it to the position
+        self.pos.0 + self.translation() + self.rotate(point)
+    }
+
     /// Combine the static frictions between this and another body.
     #[inline]
     pub fn combine_static_frictions(&self, other: &Self) -> f64 {
@@ -1276,138 +771,159 @@ impl Friction {
     /// Friction that needs to be overcome before resting objects start sliding.
     #[inline]
     pub fn static_friction(&self) -> f64 {
-        self.0
+        self.friction.0
     }
 
     /// Friction that's applied to dynamic moving object after static friction has been overcome.
     #[inline]
     pub fn dynamic_friction(&self) -> f64 {
-        self.0
+        self.friction.0
     }
-}
 
-/// Restitution coefficient, how bouncy collisions are.
-pub(super) struct Restitution(pub f64);
-
-impl Restitution {
     /// Combine the restitutions between this and another body.
     #[inline]
     pub fn combine_restitutions(&self, other: &Self) -> f64 {
-        (self.0 + other.0) / 2.0
+        (self.restitution.0 + other.restitution.0) / 2.0
     }
-}
 
-/// Shape for detecting and resolving collisions.
-pub(super) struct Collider(pub Shape);
-
-/// Delta position of a point.
-pub trait RelativeMotionAtPoint {
-    /// Delta position of a point.
-    fn relative_motion_at_point(self, point: Vec2<f64>) -> Vec2<f64>;
-}
-
-impl RelativeMotionAtPoint for (&Position, &PrevPosition, &Translation, &PrevOrientation) {
+    /// Whether the body cannot move and has infinite mass.
     #[inline]
-    fn relative_motion_at_point(self, point: Vec2<f64>) -> Vec2<f64> {
-        let (pos, prev_pos, trans, prev_rot) = self;
-
-        pos.0 - prev_pos.0 + trans.0 + point - prev_rot.0.rotate(point)
+    pub fn is_static(&self) -> bool {
+        self.vel.is_none() && self.inv_mass.0 == 0.0
     }
-}
 
-/// Calculate the world position of a relative point on this body without rotation in mind.
-pub trait LocalToWorld {
-    /// Calculate the world position of a relative point on this body without rotation in mind.
-    fn local_to_world(self, point: Vec2<f64>) -> Vec2<f64>;
-}
-
-impl LocalToWorld for (&Position, &Translation, &Orientation) {
+    /// The translation or zero if it's static.
     #[inline]
-    fn local_to_world(self, point: Vec2<f64>) -> Vec2<f64> {
-        let (pos, trans, rot) = self;
-
-        // Then translate it to the position
-        pos.0 + trans.0 + rot.rotate(point)
+    pub fn translation(&self) -> Vec2<f64> {
+        if let Some(trans) = self.trans.as_ref() {
+            trans.0
+        } else {
+            Vec2::zero()
+        }
     }
-}
 
-/// Apply a positional impulse at a point.
-pub trait ApplyPositionalImpulse {
-    /// Apply a positional impulse at a point.
-    ///
-    // TODO: can we remove the sign by directly negating the impulse?
-    fn apply_positional_impulse(self, positional_impulse: Vec2<f64>, point: Vec2<f64>, sign: f64);
-}
-
-impl ApplyPositionalImpulse for (&mut Translation, &mut Orientation, &InvMass, &Inertia) {
-    fn apply_positional_impulse(self, positional_impulse: Vec2<f64>, point: Vec2<f64>, sign: f64) {
-        let (trans, rot, inv_mass, inertia) = self;
-
-        trans.0 += sign * positional_impulse * inv_mass.0;
-        rot.0 += sign * inertia.delta_rotation_at_point(point, positional_impulse);
-    }
-}
-
-/// Calculate the contact velocity based on a local relative rotated point.
-pub trait ContactVelocity {
-    /// Calculate the contact velocity based on a local relative rotated point.
-    fn contact_velocity(self, point: Vec2<f64>) -> Vec2<f64>;
-}
-
-impl ContactVelocity for (&Velocity, &AngularVelocity) {
+    /// The previous position or the current position if it's static.
     #[inline]
-    fn contact_velocity(self, point: Vec2<f64>) -> Vec2<f64> {
-        let (vel, ang_vel) = self;
-
-        // Perpendicular
-        let perp = Vec2::new(-point.y, point.x);
-
-        vel.0 + ang_vel.0 * perp
+    pub fn previous_position(&self) -> Vec2<f64> {
+        if let Some(prev_pos) = self.prev_pos.as_ref() {
+            prev_pos.0
+        } else {
+            self.pos.0
+        }
     }
-}
 
-impl ContactVelocity for (&PrevVelocity, &PrevAngularVelocity) {
+    /// The previous orientation or the current orientation if it's static.
     #[inline]
-    fn contact_velocity(self, point: Vec2<f64>) -> Vec2<f64> {
-        let (prev_vel, prev_ang_vel) = self;
-
-        // Perpendicular
-        let perp = Vec2::new(-point.y, point.x);
-
-        prev_vel.0 + prev_ang_vel.0 * perp
+    pub fn previous_orientation(&self) -> Rotation {
+        if let Some(prev_rot) = self.prev_rot.as_ref() {
+            prev_rot.0
+        } else {
+            self.rot.0
+        }
     }
 }
 
-/// Calculate generalized inverse mass at a relative point along the normal vector.
-pub trait InverseMassAtRelativePoint {
+/// Absolute position in the world.
+#[derive(Debug, Default)]
+pub struct Position(pub Vec2<f64>);
+
+/// Absolute position in the world for the previous step.
+#[derive(Debug)]
+pub struct PrevPosition(pub Vec2<f64>);
+
+/// Linear position offset that will be added in a single step.
+#[derive(Debug, Default)]
+pub struct Translation(pub Vec2<f64>);
+
+/// Linear velocity.
+#[derive(Debug, Default)]
+pub struct Velocity(pub Vec2<f64>);
+
+/// Linear velocity for the previous step.
+#[derive(Debug)]
+pub struct PrevVelocity(pub Vec2<f64>);
+
+/// Linear damping.
+#[derive(Debug)]
+pub struct LinearDamping(pub f64);
+
+impl Default for LinearDamping {
+    fn default() -> Self {
+        Self(1.0)
+    }
+}
+
+/// External linear force applied to the whole body evenly.
+#[derive(Debug, Default)]
+pub struct LinearExternalForce(pub Vec2<f64>);
+
+/// Absolute orientation, also known as rotation.
+#[derive(Debug, Default)]
+pub struct Orientation(pub Rotation);
+
+/// Absolute orientation for the previous step.
+#[derive(Debug)]
+pub struct PrevOrientation(pub Rotation);
+
+/// Velocity applied to the orientation.
+#[derive(Debug, Default)]
+pub struct AngularVelocity(pub f64);
+
+/// Velocity applied to the orientation for the previous step.
+#[derive(Debug)]
+pub struct PrevAngularVelocity(pub f64);
+
+/// Angular damping.
+#[derive(Debug)]
+pub struct AngularDamping(pub f64);
+
+impl Default for AngularDamping {
+    fn default() -> Self {
+        Self(1.0)
+    }
+}
+
+/// External angular force applied to the whole body evenly.
+#[derive(Debug, Default)]
+pub struct AngularExternalForce(pub f64);
+
+/// Inertia tensor, corresponds to mass in rotational terms.
+#[derive(Debug, Default, Clone)]
+pub struct Inertia(pub f64);
+
+/// Inverse of the mass of a rigidbody.
+#[derive(Debug, Default, Clone)]
+pub struct InvMass(pub f64);
+
+impl InvMass {
     /// Calculate generalized inverse mass at a relative point along the normal vector.
-    fn inverse_mass_at_relative_point(self, point: Vec2<f64>, normal: Vec2<f64>) -> f64;
-}
-
-impl InverseMassAtRelativePoint for (&InvMass, &Inertia) {
     #[inline]
-    fn inverse_mass_at_relative_point(self, point: Vec2<f64>, normal: Vec2<f64>) -> f64 {
-        let (inv_mass, inertia) = self;
+    pub fn inverse_mass_at_relative_point(
+        &self,
+        inertia: &Inertia,
+        point: Vec2<f64>,
+        normal: Vec2<f64>,
+    ) -> f64 {
+        // When the body is static the inverse mass is always zero, independent of the point
+        if self.0 == 0.0 {
+            return 0.0;
+        }
 
         // Perpendicular dot product of `point` with `normal`
         let perp_dot = (point.x * normal.y) - (point.y * normal.x);
 
-        inv_mass.0 + inertia.0.recip() * perp_dot.powi(2)
+        self.0 + inertia.0.recip() * perp_dot.powi(2)
     }
 }
 
-/// Apply a velocity change at a point.
-pub trait ApplyVelocityImpulse {
-    /// Apply a velocity change at a point.
-    fn apply_velocity_impulse(self, velocity_impulse: Vec2<f64>, point: Vec2<f64>, sign: f64);
-}
+/// Dynamic and static friction coefficient.
+#[derive(Debug, Default)]
+pub struct Friction(pub f64);
 
-impl ApplyVelocityImpulse for (&mut Velocity, &mut AngularVelocity, &InvMass, &Inertia) {
-    #[inline]
-    fn apply_velocity_impulse(self, velocity_impulse: Vec2<f64>, point: Vec2<f64>, sign: f64) {
-        let (vel, ang_vel, inv_mass, inertia) = self;
+/// Restitution coefficient, how bouncy collisions are.
+#[derive(Debug, Default)]
+pub struct Restitution(pub f64);
 
-        vel.0 += sign * velocity_impulse * inv_mass.0;
-        ang_vel.0 += sign * inertia.delta_rotation_at_point(point, velocity_impulse);
-    }
-}
+/// Shape for detecting and resolving collisions.
+#[derive(Debug, Default)]
+pub(super) struct Collider(pub Shape);
