@@ -6,21 +6,21 @@ pub mod collision;
 pub mod constraint;
 pub mod rigidbody;
 
-use hecs::{Component, ComponentRef, Entity, Query, View, World};
+use bvh_arena::{volumes::Aabb, Bvh};
+use hecs::{Component, ComponentRef, Entity, Query, World};
 use serde::Deserialize;
 use vek::{Aabr, Vec2};
 
 use crate::{
-    math::{Iso, Rotation},
+    math::Iso,
     physics::rigidbody::{Collider, Translation},
 };
 
 use self::{
-    collision::{shape::Shape, spatial_grid::SpatialGrid, CollisionResponse, CollisionState},
+    collision::{CollisionResponse, CollisionState},
     constraint::{penetration::PenetrationConstraint, Constraint},
     rigidbody::{
-        AngularExternalForce, AngularVelocity, Orientation, Position, RigidBodyHandle,
-        RigidBodyQuery, RigidBodySystems, Velocity,
+        Orientation, Position, RigidBodyHandle, RigidBodyQuery, RigidBodySystems, Velocity,
     },
 };
 
@@ -28,19 +28,11 @@ use self::{
 pub type RigidBodyKey = Entity;
 
 /// Physics simulation state.
-pub struct Physics<
-    const WIDTH: u16,
-    const HEIGHT: u16,
-    const STEP: u16,
-    const BUCKET: usize,
-    const SIZE: usize,
-> {
+pub struct Physics {
     /// All entities.
     world: World,
     /// Rigidbody references and handles.
     rigidbodies: RigidBodySystems,
-    /// Collision grid structure.
-    collision_grid: SpatialGrid<RigidBodyKey, WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
     /// Penetration constraints.
     penetration_constraints: Vec<PenetrationConstraint>,
     /// Cache of broad phase collisions.
@@ -53,27 +45,18 @@ pub struct Physics<
     narrow_phase_state: CollisionState<RigidBodyKey>,
 }
 
-impl<
-        const WIDTH: u16,
-        const HEIGHT: u16,
-        const STEP: u16,
-        const BUCKET: usize,
-        const SIZE: usize,
-    > Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>
-{
+impl Physics {
     /// Create the new state.
     pub fn new() -> Self {
         let world = World::default();
         let rigidbodies = RigidBodySystems::new();
-        let collision_grid = SpatialGrid::new();
-        let broad_phase_collisions = Vec::with_capacity(16);
+        let broad_phase_collisions = Vec::new();
         let narrow_phase_state = CollisionState::new();
         let penetration_constraints = Vec::new();
 
         Self {
             world,
             rigidbodies,
-            collision_grid,
             broad_phase_collisions,
             penetration_constraints,
             narrow_phase_state,
@@ -154,34 +137,10 @@ impl<
         &self.narrow_phase_state.collisions
     }
 
-    /// Calculate and return a 2D grid of the broad phase check.
-    ///
-    /// The deltatime argument is for calculating future possible positions of the bodies.
-    ///
-    /// This adds all rigidbodies to the grid, counts the amount of items in a bucket and drops everything.
-    /// Because of that this very slow function.
-    ///
-    /// The amount of horizontal items of the grid is returned as the first item in the tuple.
-    /// The distance between each grid element is the second element.
-    pub fn broad_phase_grid(&mut self, dt: f64) -> (usize, f64, Vec<u8>) {
-        self.fill_spatial_grid(dt);
-
-        let grid = self.collision_grid.amount_map();
-
-        // Reset the grid again so it doesn't interfere with collision detection
-        self.collision_grid.clear();
-
-        (
-            SpatialGrid::<RigidBodyKey, WIDTH, HEIGHT, STEP, BUCKET, SIZE>::STEPPED_WIDTH as usize,
-            STEP as f64,
-            grid,
-        )
-    }
-
     /// Whether a rigidbody is still in the grid range.
-    pub fn is_rigidbody_on_grid(&self, rigidbody: &RigidBodyHandle) -> bool {
-        self.collision_grid
-            .is_aabr_in_range(rigidbody.aabr(self).as_())
+    pub fn is_rigidbody_on_grid(&self, _rigidbody: &RigidBodyHandle) -> bool {
+        // TODO
+        true
     }
 
     /// Amount of rigidbodies currently registered.
@@ -193,31 +152,28 @@ impl<
     ///
     /// Fills the list of broad-phase collisions.
     fn collision_broad_phase(&mut self, dt: f64) {
+        puffin::profile_scope!("Broad phase");
+
         self.broad_phase_collisions.clear();
 
-        {
-            puffin::profile_scope!("Insert into spatial grid");
+        // Construct a bounding volume hierarchy to find matching pairs
+        let mut bvh: Bvh<RigidBodyKey, Aabb<2>> = Bvh::default();
 
-            self.fill_spatial_grid(dt);
+        // Fill the hierachy
+        for (entity, aabr) in self.predicted_aabrs(dt) {
+            bvh.insert(
+                entity,
+                Aabb::from_min_max(
+                    [aabr.min.x as f32, aabr.min.y as f32],
+                    [aabr.max.x as f32, aabr.max.y as f32],
+                ),
+            );
         }
 
-        {
-            puffin::profile_scope!("Flush spatial grid");
+        puffin::profile_scope!("Transfer BVH pairs");
 
-            // Then flush it to get the rough list of collision pairs
-            self.collision_grid
-                .flush_into(&mut self.broad_phase_collisions);
-        }
-    }
-
-    /// Fill the spatial grid with AABR information from the rigidbodies.
-    fn fill_spatial_grid(&mut self, dt: f64) {
-        puffin::profile_function!();
-
-        // First put all rigid bodies in the spatial grid
-        self.predicted_aabrs(dt)
-            .into_iter()
-            .for_each(|(index, aabr)| self.collision_grid.store_aabr(aabr.as_(), index));
+        // Put all pairs into a separate array
+        bvh.for_each_overlaping_pair(|a, b| self.broad_phase_collisions.push((*a, *b)));
     }
 
     /// Do a narrow-phase collision pass to get all colliding objects.

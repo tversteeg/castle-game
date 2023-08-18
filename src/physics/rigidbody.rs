@@ -1,14 +1,11 @@
 use std::rc::{Rc, Weak};
 
-use hecs::{Bundle, ComponentRef, Entity, Query, View, World};
+use hecs::{Bundle, Entity, Query, World};
 use vek::{Aabr, Vec2};
 
 use crate::math::{Iso, Rotation};
 
-use super::{
-    collision::{shape::Shape, CollisionResponse, CollisionState},
-    Physics,
-};
+use super::{collision::shape::Shape, Physics};
 
 /// Create a new rigidbody.
 pub struct RigidBodyBuilder {
@@ -168,16 +165,7 @@ impl RigidBodyBuilder {
 
     /// Spawn into the world.
     #[must_use]
-    pub fn spawn<
-        const WIDTH: u16,
-        const HEIGHT: u16,
-        const STEP: u16,
-        const BUCKET: usize,
-        const SIZE: usize,
-    >(
-        self,
-        physics: &mut Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
-    ) -> RigidBodyHandle {
+    pub fn spawn(self, physics: &mut Physics) -> RigidBodyHandle {
         let (inv_mass, inertia) = match self.body_type {
             RigidBodyBuilderType::Dynamic | RigidBodyBuilderType::Kinetic => {
                 let mass_properties = self.collider.mass_properties(self.density);
@@ -298,17 +286,7 @@ pub struct RigidBodyHandle(Rc<Entity>);
 
 impl RigidBodyHandle {
     /// Apply torque as an external angular force.
-    pub fn apply_torque<
-        const WIDTH: u16,
-        const HEIGHT: u16,
-        const STEP: u16,
-        const BUCKET: usize,
-        const SIZE: usize,
-    >(
-        &self,
-        angular_force: f64,
-        physics: &mut Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
-    ) {
+    pub fn apply_torque(&self, angular_force: f64, physics: &mut Physics) {
         // If no external force is applied before create a new one
         let previous_angular_force = physics
             .rigidbody_opt_value::<&AngularExternalForce>(self)
@@ -323,46 +301,19 @@ impl RigidBodyHandle {
 
     /// Get the absolute position.
     #[must_use]
-    pub fn position<
-        const WIDTH: u16,
-        const HEIGHT: u16,
-        const STEP: u16,
-        const BUCKET: usize,
-        const SIZE: usize,
-    >(
-        &self,
-        physics: &Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
-    ) -> Vec2<f64> {
+    pub fn position(&self, physics: &Physics) -> Vec2<f64> {
         physics.rigidbody_value::<&Position>(self).0
     }
 
     /// Get the absolute rotation.
     #[must_use]
-    pub fn orientation<
-        const WIDTH: u16,
-        const HEIGHT: u16,
-        const STEP: u16,
-        const BUCKET: usize,
-        const SIZE: usize,
-    >(
-        &self,
-        physics: &Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
-    ) -> Rotation {
+    pub fn orientation(&self, physics: &Physics) -> Rotation {
         physics.rigidbody_value::<&Orientation>(self).0
     }
 
     /// Get the absolute position combined with orientation.
     #[must_use]
-    pub fn iso<
-        const WIDTH: u16,
-        const HEIGHT: u16,
-        const STEP: u16,
-        const BUCKET: usize,
-        const SIZE: usize,
-    >(
-        &self,
-        physics: &Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
-    ) -> Iso {
+    pub fn iso(&self, physics: &Physics) -> Iso {
         let pos = physics.rigidbody_value::<&Position>(self).0;
         let rot = physics.rigidbody_value::<&Orientation>(self).0;
 
@@ -371,16 +322,7 @@ impl RigidBodyHandle {
 
     /// Get the velocity.
     #[must_use]
-    pub fn velocity<
-        const WIDTH: u16,
-        const HEIGHT: u16,
-        const STEP: u16,
-        const BUCKET: usize,
-        const SIZE: usize,
-    >(
-        &self,
-        physics: &Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
-    ) -> Vec2<f64> {
+    pub fn velocity(&self, physics: &Physics) -> Vec2<f64> {
         physics.rigidbody_value::<&Velocity>(self).0
     }
 
@@ -388,47 +330,20 @@ impl RigidBodyHandle {
     ///
     /// Assumes the rigidbody is dynamic, otherwise an error is thrown.
     #[must_use]
-    pub fn angular_velocity<
-        const WIDTH: u16,
-        const HEIGHT: u16,
-        const STEP: u16,
-        const BUCKET: usize,
-        const SIZE: usize,
-    >(
-        &self,
-        physics: &Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
-    ) -> f64 {
+    pub fn angular_velocity(&self, physics: &Physics) -> f64 {
         physics.rigidbody_value::<&AngularVelocity>(self).0
     }
 
     /// Whether the rigidbody is in a sleeping position.
     #[must_use]
-    pub fn is_sleeping<
-        const WIDTH: u16,
-        const HEIGHT: u16,
-        const STEP: u16,
-        const BUCKET: usize,
-        const SIZE: usize,
-    >(
-        &self,
-        _physics: &Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
-    ) -> bool {
+    pub fn is_sleeping(&self, _physics: &Physics) -> bool {
         // TODO
         false
     }
 
     /// Get the bounding box.
     #[must_use]
-    pub fn aabr<
-        const WIDTH: u16,
-        const HEIGHT: u16,
-        const STEP: u16,
-        const BUCKET: usize,
-        const SIZE: usize,
-    >(
-        &self,
-        physics: &Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
-    ) -> Aabr<f64> {
+    pub fn aabr(&self, physics: &Physics) -> Aabr<f64> {
         physics
             .rigidbody_value::<&Collider>(self)
             .0

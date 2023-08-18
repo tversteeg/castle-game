@@ -3,7 +3,7 @@ use std::fmt::{Debug, Formatter, Result};
 use parry2d_f64::{
     mass_properties::MassProperties,
     na::{DVector, Isometry2, Vector2},
-    query::{ContactManifold, DefaultQueryDispatcher, PersistentQueryDispatcher},
+    query::{DefaultQueryDispatcher, PersistentQueryDispatcher},
     shape::{SharedShape, TypedShape},
 };
 

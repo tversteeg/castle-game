@@ -15,15 +15,6 @@ use crate::{
     SIZE,
 };
 
-/// Don't need to add const stuff everywhere.
-pub type PhysicsEngine = Physics<
-    MAX_MAP_WIDTH,
-    { SIZE.h as u16 },
-    PHYSICS_GRID_STEP,
-    BUCKET_SIZE,
-    { (MAX_MAP_WIDTH / PHYSICS_GRID_STEP) as usize * (SIZE.h / PHYSICS_GRID_STEP as usize) },
->;
-
 /// Physics grid step size.
 const PHYSICS_GRID_STEP: u16 = 8;
 /// Biggest map size.
@@ -50,7 +41,7 @@ pub struct GameState {
     /// Physics engine.
     ///
     /// Size of the grid is the maximum size of any map.
-    physics: PhysicsEngine,
+    physics: Physics,
     /// Debug information on the screen.
     #[cfg(feature = "debug")]
     debug_state: DebugDraw,

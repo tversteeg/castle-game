@@ -1,9 +1,8 @@
 use serde::Deserialize;
-use vek::{Aabr, Extent2, Vec2};
+use vek::{Extent2, Vec2};
 
 use crate::{
     camera::Camera,
-    game::PhysicsEngine,
     input::Input,
     math::{Iso, Rotation},
     object::ObjectSettings,
@@ -68,10 +67,6 @@ impl DebugScreen {
 pub struct DebugDraw {
     /// What debug info to show.
     screen: DebugScreen,
-    /// Whether to draw the collision grid.
-    ///
-    /// Number signifies which grid level to draw at least.
-    show_grid: i8,
     /// Whether to draw the rotation vectors.
     show_rotations: bool,
     /// Whether to draw collision outlines.
@@ -81,8 +76,7 @@ pub struct DebugDraw {
     /// Mouse position.
     mouse: Vec2<f64>,
     /// Local physics engine for box test.
-    physics:
-        Physics<{ SIZE.w as u16 }, { SIZE.h as u16 }, 10, 4, { (SIZE.w / 10) * (SIZE.h / 10) }>,
+    physics: Physics,
     /// Local boxes.
     boxes: Vec<RigidBodyHandle>,
     /// Platform.
@@ -94,7 +88,6 @@ impl DebugDraw {
     pub fn new() -> Self {
         let mouse = Vec2::zero();
         let screen = crate::settings().debug.start_screen;
-        let show_grid = -1;
         let show_rotations = false;
         let show_colliders = false;
         let show_collisions = false;
@@ -111,7 +104,6 @@ impl DebugDraw {
         Self {
             screen,
             mouse,
-            show_grid,
             show_rotations,
             show_colliders,
             show_collisions,
@@ -125,7 +117,7 @@ impl DebugDraw {
     pub fn update(
         &mut self,
         input: &Input,
-        physics: &mut PhysicsEngine,
+        physics: &mut Physics,
         projectiles: &mut Vec<Projectile>,
         camera: &Camera,
         dt: f64,
@@ -144,12 +136,6 @@ impl DebugDraw {
         }
         if input.o.is_released() {
             self.show_colliders = !self.show_colliders;
-        }
-        if input.g.is_released() {
-            self.show_grid -= 1;
-            if self.show_grid == -2 {
-                self.show_grid = 3;
-            }
         }
 
         if self.screen == DebugScreen::SpawnCubes {
@@ -181,17 +167,16 @@ impl DebugDraw {
     }
 
     /// Draw things for debugging purposes.
-    pub fn render(&mut self, physics: &mut PhysicsEngine, camera: &Camera, canvas: &mut [u32]) {
+    pub fn render(&mut self, physics: &mut Physics, camera: &Camera, canvas: &mut [u32]) {
         puffin::profile_function!();
 
         // Draw which screen we are on
         self.render_text(
             &format!(
-                "{}\n\n[N] Next debug screen\n[C] Show collisions: {}\n[O] Show colliders: {}\n[G] Show broad-phase grid: {}\n[R] Show rotations: {}\n[Space] Step through boxes example",
+                "{}\n\n[N] Next debug screen\n[C] Show collisions: {}\n[O] Show colliders: {}\n[R] Show rotations: {}\n[Space] Step through boxes example",
                 self.screen.title(),
                 self.show_collisions,
                 self.show_colliders,
-                self.show_grid,
                 self.show_rotations,
             ),
             Vec2::new(20.0, 30.0),
@@ -207,7 +192,6 @@ impl DebugDraw {
 
         self.render_colliders(physics, camera, canvas);
         self.render_collisions(physics, camera, canvas);
-        self.render_collision_grid(physics, camera, canvas);
 
         match self.screen {
             // Draw rotating sprites
@@ -273,18 +257,7 @@ impl DebugDraw {
     }
 
     /// Render collision information for a physics system.
-    fn render_collisions<
-        const WIDTH: u16,
-        const HEIGHT: u16,
-        const STEP: u16,
-        const BUCKET: usize,
-        const SIZE: usize,
-    >(
-        &self,
-        physics: &Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
-        camera: &Camera,
-        canvas: &mut [u32],
-    ) {
+    fn render_collisions(&self, physics: &Physics, camera: &Camera, canvas: &mut [u32]) {
         if !self.show_collisions {
             return;
         }
@@ -299,18 +272,7 @@ impl DebugDraw {
     }
 
     /// Render collider information for a physics system.
-    fn render_colliders<
-        const WIDTH: u16,
-        const HEIGHT: u16,
-        const STEP: u16,
-        const BUCKET: usize,
-        const SIZE: usize,
-    >(
-        &self,
-        physics: &Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
-        camera: &Camera,
-        canvas: &mut [u32],
-    ) {
+    fn render_colliders(&self, physics: &Physics, camera: &Camera, canvas: &mut [u32]) {
         if !self.show_colliders {
             return;
         }
@@ -318,39 +280,6 @@ impl DebugDraw {
             .debug_info_vertices()
             .into_iter()
             .for_each(|vertices| self.render_collider(&vertices, camera, canvas));
-    }
-
-    /// Render the collision grid for a physics system.
-    fn render_collision_grid<
-        const WIDTH: u16,
-        const HEIGHT: u16,
-        const STEP: u16,
-        const BUCKET: usize,
-        const SIZE: usize,
-    >(
-        &self,
-        physics: &mut Physics<WIDTH, HEIGHT, STEP, BUCKET, SIZE>,
-        camera: &Camera,
-        canvas: &mut [u32],
-    ) {
-        if self.show_grid >= 0 {
-            let (width, step, grid) = physics.broad_phase_grid(0.0);
-
-            for (index, bucket_size) in grid.iter().enumerate() {
-                if *bucket_size < self.show_grid as u8 {
-                    continue;
-                }
-
-                let x = (index % width) as f64 * step;
-                let y = (index / width) as f64 * step;
-
-                self.render_text(
-                    &format!("{bucket_size}"),
-                    camera.translate(Vec2::new(x, y)),
-                    canvas,
-                );
-            }
-        }
     }
 
     /// Draw a rotatable sprite pointing towards the mouse.

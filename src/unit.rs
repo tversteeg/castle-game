@@ -3,7 +3,7 @@ use serde::Deserialize;
 use vek::Vec2;
 
 use crate::{
-    camera::Camera, game::PhysicsEngine, projectile::Projectile, random::RandomRangeF64,
+    camera::Camera, physics::Physics, projectile::Projectile, random::RandomRangeF64,
     terrain::Terrain, timer::Timer,
 };
 
@@ -62,7 +62,7 @@ impl Unit {
         &mut self,
         terrain: &Terrain,
         dt: f64,
-        physics: &mut PhysicsEngine,
+        physics: &mut Physics,
     ) -> Option<Projectile> {
         puffin::profile_function!();
 

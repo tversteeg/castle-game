@@ -2,9 +2,11 @@ use vek::Vec2;
 
 use crate::{
     camera::Camera,
-    game::PhysicsEngine,
     object::ObjectSettings,
-    physics::rigidbody::{RigidBodyBuilder, RigidBodyHandle},
+    physics::{
+        rigidbody::{RigidBodyBuilder, RigidBodyHandle},
+        Physics,
+    },
     SIZE,
 };
 
@@ -25,7 +27,7 @@ pub struct Terrain {
 
 impl Terrain {
     /// Load a terrain from image bytes.
-    pub fn new(physics: &mut PhysicsEngine) -> Self {
+    pub fn new(physics: &mut Physics) -> Self {
         let object = crate::asset::<ObjectSettings>(ASSET_PATH);
         let sprite = crate::sprite(ASSET_PATH);
         let shape = object.shape();
@@ -58,7 +60,7 @@ impl Terrain {
     /// Whether a point collides with the terrain.
     ///
     /// This doesn't use the collision shape but the actual pixels of the image.
-    pub fn point_collides(&self, point: Vec2<f64>, physics: &PhysicsEngine) -> bool {
+    pub fn point_collides(&self, point: Vec2<f64>, physics: &Physics) -> bool {
         // Convert the position to a coordinate that can be used as an index
         let offset = point - self.rigidbody.position(physics) + (self.width / 2.0, 0.0);
 

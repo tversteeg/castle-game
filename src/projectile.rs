@@ -1,8 +1,10 @@
 use vek::Vec2;
 
 use crate::{
-    camera::Camera, game::PhysicsEngine, math::Rotation, object::ObjectSettings,
-    physics::rigidbody::RigidBodyHandle,
+    camera::Camera,
+    math::Rotation,
+    object::ObjectSettings,
+    physics::{rigidbody::RigidBodyHandle, Physics},
 };
 
 /// Spear asset path.
@@ -24,7 +26,7 @@ pub struct Projectile {
 
 impl Projectile {
     /// Create a new projectile.
-    pub fn new(pos: Vec2<f64>, vel: Vec2<f64>, physics: &mut PhysicsEngine) -> Self {
+    pub fn new(pos: Vec2<f64>, vel: Vec2<f64>, physics: &mut Physics) -> Self {
         puffin::profile_function!();
 
         // Load the object definition for properties of the object
@@ -43,7 +45,7 @@ impl Projectile {
     /// Update the physics of the projectile.
     ///
     /// Returns whether it should stay alive.
-    pub fn update(&self, physics: &mut PhysicsEngine, dt: f64) -> bool {
+    pub fn update(&self, physics: &mut Physics, dt: f64) -> bool {
         puffin::profile_function!();
 
         let velocity = self.rigidbody.velocity(physics).magnitude();
@@ -67,7 +69,7 @@ impl Projectile {
     }
 
     /// Render the projectile.
-    pub fn render(&self, canvas: &mut [u32], camera: &Camera, physics: &PhysicsEngine) {
+    pub fn render(&self, canvas: &mut [u32], camera: &Camera, physics: &Physics) {
         puffin::profile_function!();
 
         crate::rotatable_sprite(ASSET_PATH).render(self.rigidbody.iso(physics), canvas, camera);

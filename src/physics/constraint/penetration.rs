@@ -1,4 +1,4 @@
-use hecs::{View, World};
+use hecs::View;
 use vek::Vec2;
 
 use crate::physics::{collision::CollisionResponse, rigidbody::RigidBodyQuery, RigidBodyKey};

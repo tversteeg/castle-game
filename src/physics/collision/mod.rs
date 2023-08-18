@@ -1,14 +1,11 @@
 pub mod shape;
-pub mod spatial_grid;
 
-use parry2d_f64::query::{ContactManifold, ContactManifoldsWorkspace};
+use parry2d_f64::query::ContactManifold;
 use vek::Vec2;
 
 use crate::math::Iso;
 
 use self::shape::Shape;
-
-use super::RigidBodyKey;
 
 /// Collision state that persists over multiple detections.
 ///

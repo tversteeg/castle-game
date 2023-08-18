@@ -1,7 +1,7 @@
 //pub mod distance;
 pub mod penetration;
 
-use hecs::{View, World};
+use hecs::View;
 use vek::Vec2;
 
 use crate::physics::rigidbody::{Inertia, InvMass, RigidBodyQuery};

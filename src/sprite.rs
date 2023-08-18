@@ -122,7 +122,7 @@ impl RotatableSprite {
                         buffer.pixels(),
                         &0,
                         buffer.width() as usize,
-                        i as f64 * 360.0 / rotations as f64 + sprite_rotation_offset as f64,
+                        i as f64 * 360.0 / rotations as f64 + sprite_rotation_offset,
                     )
                     .unwrap();
 
