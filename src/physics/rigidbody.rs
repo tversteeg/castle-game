@@ -29,20 +29,23 @@ impl RigidBodyBuilder {
     /// Good examples for it are projectiles and shrapnel.
     #[must_use]
     pub fn new(position: Vec2<f64>) -> Self {
+        let body_type = RigidBodyBuilderType::Dynamic;
+
         Self {
             position,
+            body_type,
             ..Default::default()
         }
     }
 
-    /// Create a new kinetic rigidbody.
+    /// Create a new kinematic rigidbody.
     ///
-    /// Kinetic means it's influenced by all forces but its position is not updated.
-    /// A kinetic body can still have mass and should handle collision events.
+    /// Kinematic means the bodies are not affected by external forces or collisions.
+    /// They will affect collisions with dynamic bodies but not be affected by them.
     /// Good examples for it are player controllers.
     #[must_use]
-    pub fn new_kinetic(position: Vec2<f64>) -> Self {
-        let body_type = RigidBodyBuilderType::Kinetic;
+    pub fn new_kinematic(position: Vec2<f64>) -> Self {
+        let body_type = RigidBodyBuilderType::Kinematic;
 
         Self {
             position,
@@ -167,7 +170,7 @@ impl RigidBodyBuilder {
     #[must_use]
     pub fn spawn(self, physics: &mut Physics) -> RigidBodyHandle {
         let (inv_mass, inertia) = match self.body_type {
-            RigidBodyBuilderType::Dynamic | RigidBodyBuilderType::Kinetic => {
+            RigidBodyBuilderType::Dynamic | RigidBodyBuilderType::Kinematic => {
                 let mass_properties = self.collider.mass_properties(self.density);
                 (
                     mass_properties.mass().recip(),
@@ -196,39 +199,44 @@ impl RigidBodyBuilder {
             collider,
         });
 
-        match self.body_type {
-            RigidBodyBuilderType::Dynamic => {
-                // Insert components needed for linear movement
-                let prev_pos = PrevPosition(self.position);
-                let trans = Translation(Vec2::zero());
-                let vel = Velocity(self.velocity);
-                let prev_vel = PrevVelocity(self.velocity);
-                physics
-                    .world
-                    .insert(entity, (prev_pos, trans, vel, prev_vel))
-                    .unwrap();
+        if self.body_type == RigidBodyBuilderType::Dynamic
+            || self.body_type == RigidBodyBuilderType::Kinematic
+        {
+            // Insert components needed for linear movement
+            let prev_pos = PrevPosition(self.position);
+            let trans = Translation(Vec2::zero());
+            let vel = Velocity(self.velocity);
+            let prev_vel = PrevVelocity(self.velocity);
+            physics
+                .world
+                .insert(entity, (prev_pos, trans, vel, prev_vel))
+                .unwrap();
 
-                if self.linear_damping != 1.0 {
-                    let lin_damping = LinearDamping(self.linear_damping);
-                    physics.world.insert_one(entity, lin_damping).unwrap();
-                }
-
-                // Insert components needed for angular movement
-                let prev_rot = PrevOrientation(self.orientation);
-                let ang_vel = AngularVelocity(self.angular_velocity);
-                let prev_ang_vel = PrevAngularVelocity(self.angular_velocity);
-                physics
-                    .world
-                    .insert(entity, (prev_rot, ang_vel, prev_ang_vel))
-                    .unwrap();
-
-                if self.angular_damping != 1.0 {
-                    let ang_damping = AngularDamping(self.angular_damping);
-                    physics.world.insert_one(entity, ang_damping).unwrap();
-                }
+            if self.linear_damping != 1.0 {
+                let lin_damping = LinearDamping(self.linear_damping);
+                physics.world.insert_one(entity, lin_damping).unwrap();
             }
-            RigidBodyBuilderType::Kinetic => todo!(),
-            RigidBodyBuilderType::Static => (),
+
+            // Insert components needed for angular movement
+            let prev_rot = PrevOrientation(self.orientation);
+            let ang_vel = AngularVelocity(self.angular_velocity);
+            let prev_ang_vel = PrevAngularVelocity(self.angular_velocity);
+            physics
+                .world
+                .insert(entity, (prev_rot, ang_vel, prev_ang_vel))
+                .unwrap();
+
+            if self.angular_damping != 1.0 {
+                let ang_damping = AngularDamping(self.angular_damping);
+                physics.world.insert_one(entity, ang_damping).unwrap();
+            }
+        }
+
+        if self.body_type == RigidBodyBuilderType::Kinematic
+            || self.body_type == RigidBodyBuilderType::Static
+        {
+            // Add a marker component so collisions wont be applied
+            physics.world.insert_one(entity, Kinematic).unwrap();
         }
 
         // Create a handle for the entity
@@ -267,9 +275,10 @@ impl Default for RigidBodyBuilder {
 }
 
 /// Rigidbody builder types.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum RigidBodyBuilderType {
     Dynamic,
-    Kinetic,
+    Kinematic,
     Static,
 }
 
@@ -572,6 +581,7 @@ pub struct RigidBodyQuery<'a> {
     prev_rot: Option<&'a mut PrevOrientation>,
     ang_vel: Option<&'a mut AngularVelocity>,
     prev_ang_vel: Option<&'a mut PrevAngularVelocity>,
+    kinematic: Option<&'a Kinematic>,
 }
 
 impl<'a> RigidBodyQuery<'a> {
@@ -736,6 +746,12 @@ impl<'a> RigidBodyQuery<'a> {
             self.rot.0
         }
     }
+
+    /// Whether collisions should not affect the body.
+    #[inline]
+    pub fn is_kinematic(&self) -> bool {
+        self.kinematic.is_some()
+    }
 }
 
 /// Absolute position in the world.
@@ -842,3 +858,7 @@ pub struct Restitution(pub f64);
 /// Shape for detecting and resolving collisions.
 #[derive(Debug, Default)]
 pub(super) struct Collider(pub Shape);
+
+/// Signifies the body shouldn't be affected by forces and collisions.
+#[derive(Debug)]
+pub(super) struct Kinematic;

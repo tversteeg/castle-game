@@ -7,13 +7,13 @@ pub mod constraint;
 pub mod rigidbody;
 
 use bvh_arena::{volumes::Aabb, Bvh};
-use hecs::{Component, ComponentRef, Entity, Query, World};
+use hecs::{Component, ComponentRef, Entity, Query, Satisfies, World};
 use serde::Deserialize;
 use vek::{Aabr, Vec2};
 
 use crate::{
     math::Iso,
-    physics::rigidbody::{Collider, Translation},
+    physics::rigidbody::{Collider, Kinematic, Translation},
 };
 
 use self::{
@@ -191,31 +191,46 @@ impl Physics {
             // Rigidbody A positions and shape
             let mut a_ref = self
                 .world
-                .query_one::<(&Collider, &Position, Option<&Translation>, &Orientation)>(*a)
+                .query_one::<(
+                    &Collider,
+                    &Position,
+                    Option<&Translation>,
+                    &Orientation,
+                    Satisfies<&Kinematic>,
+                )>(*a)
                 .expect("Rigidbody not found");
-            let (a_shape, a_pos, a_trans, a_rot) = a_ref.get().unwrap();
+            let (a_shape, a_pos, a_trans, a_rot, a_is_kinematic) = a_ref.get().unwrap();
 
             // Rigidbody B positions and shape
             let mut b_ref = self
                 .world
-                .query_one::<(&Collider, &Position, Option<&Translation>, &Orientation)>(*b)
+                .query_one::<(
+                    &Collider,
+                    &Position,
+                    Option<&Translation>,
+                    &Orientation,
+                    Satisfies<&Kinematic>,
+                )>(*b)
                 .expect("Rigidbody not found");
-            let (b_shape, b_pos, b_trans, b_rot) = b_ref.get().unwrap();
+            let (b_shape, b_pos, b_trans, b_rot, b_is_kinematic) = b_ref.get().unwrap();
 
-            self.narrow_phase_state.detect(
-                *a,
-                &a_shape.0,
-                Iso::new(
-                    a_pos.0 + a_trans.map(|trans| trans.0).unwrap_or_default(),
-                    a_rot.0,
-                ),
-                *b,
-                &b_shape.0,
-                Iso::new(
-                    b_pos.0 + b_trans.map(|trans| trans.0).unwrap_or_default(),
-                    b_rot.0,
-                ),
-            );
+            // Don't register when both bodies are kinematic
+            if !a_is_kinematic || !b_is_kinematic {
+                self.narrow_phase_state.detect(
+                    *a,
+                    &a_shape.0,
+                    Iso::new(
+                        a_pos.0 + a_trans.map(|trans| trans.0).unwrap_or_default(),
+                        a_rot.0,
+                    ),
+                    *b,
+                    &b_shape.0,
+                    Iso::new(
+                        b_pos.0 + b_trans.map(|trans| trans.0).unwrap_or_default(),
+                        b_rot.0,
+                    ),
+                );
+            }
         }
 
         self.penetration_constraints.clear();

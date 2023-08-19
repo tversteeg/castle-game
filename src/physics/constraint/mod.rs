@@ -77,6 +77,7 @@ pub trait PositionalConstraint: Constraint<2> {
         a_attachment: Vec2<f64>,
         b: &mut RigidBodyQuery,
         b_attachment: Vec2<f64>,
+        apply_on_kinematic: bool,
         dt: f64,
     ) {
         puffin::profile_scope!("Apply positional constraint forces");
@@ -112,7 +113,11 @@ pub trait PositionalConstraint: Constraint<2> {
 
         // Apply impulse
         let positional_impulse = gradient * delta_lambda;
-        a.apply_positional_impulse(positional_impulse, a_attachment, 1.0);
-        b.apply_positional_impulse(positional_impulse, b_attachment, -1.0);
+        if apply_on_kinematic || !a.is_kinematic() {
+            a.apply_positional_impulse(positional_impulse, a_attachment, 1.0);
+        }
+        if apply_on_kinematic || !b.is_kinematic() {
+            b.apply_positional_impulse(positional_impulse, b_attachment, -1.0);
+        }
     }
 }

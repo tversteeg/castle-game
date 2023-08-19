@@ -22,7 +22,12 @@ impl ObjectSettings {
         if self.settings.physics.is_fixed {
             RigidBodyBuilder::new_static(pos).with_collider(self.shape())
         } else {
-            let builder = RigidBodyBuilder::new(pos).with_collider(self.shape());
+            let builder = if !self.settings.physics.is_kinematic {
+                RigidBodyBuilder::new(pos)
+            } else {
+                RigidBodyBuilder::new_kinematic(pos)
+            }
+            .with_collider(self.shape());
 
             let builder = if let Some(density) = self.settings.physics.density {
                 builder.with_density(density)
@@ -148,8 +153,10 @@ impl Asset for ObjectSettingsImpl {
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]
 struct PhysicsSettings {
-    /// Whether this is a fixed object, means it can't move.
+    /// Whether this is a fixed object, means it can't move and has infinite mass.
     is_fixed: bool,
+    /// Whether this is a kinematic object, means collisions don't influence it.
+    is_kinematic: bool,
     /// Mass is density times area.
     ///
     /// Doesn't apply when this is a static object.

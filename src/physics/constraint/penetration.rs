@@ -96,10 +96,14 @@ impl PenetrationConstraint {
         }
         self.tangent_lambda += tangent_delta_lambda;
 
-        // Apply impulse
+        // Apply impulse on non-kinematic bodies
         let positional_impulse = sliding_tangent * tangent_delta_lambda;
-        a.apply_positional_impulse(positional_impulse, a_attachment, 1.0);
-        b.apply_positional_impulse(positional_impulse, b_attachment, -1.0);
+        if !a.is_kinematic() {
+            a.apply_positional_impulse(positional_impulse, a_attachment, 1.0);
+        }
+        if !b.is_kinematic() {
+            b.apply_positional_impulse(positional_impulse, b_attachment, -1.0);
+        }
     }
 
     /// Calculate and apply contact velocities after solve step.
@@ -179,10 +183,14 @@ impl PenetrationConstraint {
             return;
         }
 
-        // Apply velocity impulses and updates
+        // Apply velocity impulses and updates to the non-kinematic bodies
         let velocity_impulse = delta_vel / generalized_inverse_mass_sum;
-        a.apply_velocity_impulse(velocity_impulse, a_attachment, 1.0);
-        b.apply_velocity_impulse(velocity_impulse, b_attachment, -1.0);
+        if !a.is_kinematic() {
+            a.apply_velocity_impulse(velocity_impulse, a_attachment, 1.0);
+        }
+        if !b.is_kinematic() {
+            b.apply_velocity_impulse(velocity_impulse, b_attachment, -1.0);
+        }
     }
 }
 
@@ -200,8 +208,20 @@ impl Constraint<2> for PenetrationConstraint {
             .get_mut_n([self.a, self.b])
             .map(|v| v.expect("Rigidbody not found"));
 
+        if a.is_kinematic() && b.is_kinematic() {
+            // When both bodies are kinematic there's nothing to apply
+            return;
+        }
+
         // Apply the regular positional constraint to resolve overlapping
-        self.apply(&mut a, self.a_attachment(), &mut b, self.b_attachment(), dt);
+        self.apply(
+            &mut a,
+            self.a_attachment(),
+            &mut b,
+            self.b_attachment(),
+            false,
+            dt,
+        );
 
         // Apply an additional friction check
         self.solve_friction(&mut a, &mut b, dt);
