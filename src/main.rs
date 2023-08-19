@@ -4,6 +4,7 @@ mod camera;
 mod debug;
 mod font;
 mod game;
+mod graphics;
 mod input;
 mod math;
 mod object;

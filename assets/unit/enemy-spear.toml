@@ -1,3 +1,4 @@
+health = 120
 allegiance = "enemy"
 
 # Sprites to render
@@ -16,3 +17,8 @@ projectile_spawn_offset = { x = 0, y = -20 }
 projectile_velocity = 70
 # How long the hands are hidden after launching a projectile in seconds
 hide_hands_delay = 2
+
+# Size of the healthbar
+healthbar_size = { w = 20, h = 3 }
+# Where above the unit it floats
+healthbar_offset = { x = -10, y = -25 }

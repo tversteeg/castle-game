@@ -1,6 +1,6 @@
 use assets_manager::{loader::TomlLoader, Asset, AssetGuard};
 use serde::Deserialize;
-use vek::Vec2;
+use vek::{Extent2, Vec2};
 
 use crate::{
     camera::Camera, physics::Physics, projectile::Projectile, random::RandomRangeF64,
@@ -38,6 +38,8 @@ pub struct Unit {
     projectile_timer: Timer,
     /// How long to hide the hands after a spear is thrown.
     hide_hands_delay: f64,
+    /// How much health the unit has currently.
+    health: f64,
 }
 
 impl Unit {
@@ -46,12 +48,14 @@ impl Unit {
         let projectile_timer = Timer::new(r#type.settings().projectile_spawn_interval);
 
         let hide_hands_delay = 0.0;
+        let health = r#type.settings().health;
 
         Self {
             r#type,
             pos,
             projectile_timer,
             hide_hands_delay,
+            health,
         }
     }
 
@@ -64,7 +68,9 @@ impl Unit {
         dt: f64,
         physics: &mut Physics,
     ) -> Option<Projectile> {
-        puffin::profile_function!();
+        self.health -= 0.1;
+
+        puffin::profile_scope!("Unit update");
 
         if !terrain.point_collides(self.pos, physics) {
             // No collision with the terrain, the unit falls down
@@ -125,6 +131,16 @@ impl Unit {
                 );
             }
         }
+
+        // Draw the healthbar
+        crate::graphics::healthbar::healthbar(
+            self.health,
+            settings.health,
+            self.pos + settings.healthbar_offset,
+            settings.healthbar_size,
+            canvas,
+            camera,
+        );
     }
 
     /// Where the unit collides with the ground.
@@ -156,6 +172,8 @@ pub struct Settings {
     pub allegiance: Allegiance,
     /// How many pixels a unit moves in a second.
     pub walk_speed: f64,
+    /// How much health the unit has on spawn.
+    pub health: f64,
     /// Interval in seconds for when a new projectile is thrown.
     pub projectile_spawn_interval: f64,
     /// Offset in pixels from the center of the unit body from where the projectile is thrown.
@@ -164,6 +182,10 @@ pub struct Settings {
     pub projectile_velocity: RandomRangeF64,
     /// How long the hands are hidden after launching a projectile.
     pub hide_hands_delay: f64,
+    /// Size of the healthbar.
+    pub healthbar_size: Extent2<f32>,
+    /// Position offset of the healthbar.
+    pub healthbar_offset: Vec2<f64>,
 }
 
 impl Asset for Settings {
