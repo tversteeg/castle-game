@@ -73,6 +73,9 @@ impl Physics {
         // Deltatime for each sub-step
         let sub_dt = dt / substeps as f64;
 
+        // Clear collisions for whole step
+        self.narrow_phase_state.clear_step();
+
         {
             puffin::profile_scope!("Remove dropped rigidbodies");
 
@@ -134,7 +137,7 @@ impl Physics {
 
     /// Get the calculated collision pairs with collision information.
     pub fn colliding_rigid_bodies(&mut self) -> &[(RigidBodyKey, RigidBodyKey, CollisionResponse)] {
-        &self.narrow_phase_state.collisions
+        &self.narrow_phase_state.substep_collisions
     }
 
     /// Whether a rigidbody is still in the grid range.
@@ -180,7 +183,7 @@ impl Physics {
     ///
     /// Fills the penetration constraint list and the list of collisions.
     fn collision_narrow_phase(&mut self) {
-        self.narrow_phase_state.clear();
+        self.narrow_phase_state.clear_substep();
 
         // Narrow-phase with SAT
         for (a, b) in self.broad_phase_collisions.iter() {
@@ -239,7 +242,7 @@ impl Physics {
             puffin::profile_scope!("Collision responses to penetration constraints");
 
             // Generate penetration constraint
-            for (a, b, response) in self.narrow_phase_state.collisions.iter() {
+            for (a, b, response) in self.narrow_phase_state.substep_collisions.iter() {
                 self.penetration_constraints
                     .push(PenetrationConstraint::new([*a, *b], response.clone()));
             }

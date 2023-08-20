@@ -119,7 +119,7 @@ impl GameState {
 
         // Update all projectiles
         self.projectiles
-            .retain_mut(|projectile| projectile.update(&mut self.physics, dt));
+            .retain_mut(|projectile| projectile.update(&mut self.physics, &mut self.units, dt));
 
         // Update all units
         self.units.iter_mut().for_each(|unit| {
@@ -134,6 +134,7 @@ impl GameState {
             self.units.push(Unit::new(
                 Vec2::new(10.0, self.terrain.y),
                 UnitType::PlayerSpear,
+                &mut self.physics,
             ));
         }
         if self.enemy_unit_spawner.update(dt) {
@@ -141,6 +142,7 @@ impl GameState {
             self.units.push(Unit::new(
                 (self.level_width as f64 - 10.0, self.terrain.y).into(),
                 UnitType::EnemySpear,
+                &mut self.physics,
             ));
         }
 

@@ -5,6 +5,7 @@ use crate::{
     math::Rotation,
     object::ObjectSettings,
     physics::{rigidbody::RigidBodyHandle, Physics},
+    unit::Unit,
 };
 
 /// Spear asset path.
@@ -45,8 +46,8 @@ impl Projectile {
     /// Update the physics of the projectile.
     ///
     /// Returns whether it should stay alive.
-    pub fn update(&self, physics: &mut Physics, dt: f64) -> bool {
-        puffin::profile_function!();
+    pub fn update(&self, physics: &mut Physics, units: &mut [Unit], dt: f64) -> bool {
+        puffin::profile_scope!("Projectile update");
 
         let velocity = self.rigidbody.velocity(physics).magnitude();
         if velocity >= AIRFLOW_VEL_TRESHOLD {
@@ -64,8 +65,26 @@ impl Projectile {
             }
         }
 
-        // Destroy when sleeping or out of range
-        !self.rigidbody.is_sleeping(physics) && physics.is_rigidbody_on_grid(&self.rigidbody)
+        let mut collided = false;
+        {
+            puffin::profile_scope!("Projectile collision detection");
+
+            // Detect and handle collisions with units
+            for collision_key in self.rigidbody.collision_keys_iter(physics) {
+                if let Some(unit) = units
+                    .iter_mut()
+                    .find(move |unit| unit.rigidbody == collision_key)
+                {
+                    collided = true;
+                    unit.health -= 50.0;
+                }
+            }
+        }
+
+        // Destroy when collided, sleeping or out of range
+        !collided
+            && !self.rigidbody.is_sleeping(physics)
+            && physics.is_rigidbody_on_grid(&self.rigidbody)
     }
 
     /// Render the projectile.

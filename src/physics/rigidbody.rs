@@ -5,7 +5,7 @@ use vek::{Aabr, Vec2};
 
 use crate::math::{Iso, Rotation};
 
-use super::{collision::shape::Shape, Physics};
+use super::{collision::shape::Shape, Physics, RigidBodyKey};
 
 /// Create a new rigidbody.
 pub struct RigidBodyBuilder {
@@ -290,8 +290,8 @@ enum RigidBodyBuilderType {
 ///
 /// Internally it's a reference-counted ECS entity where a weak reference is kept in a separate datastructure which checks if the handle hasn't been dropped yet at the beginning of every physics step.
 /// Because the reference is not atomic it can't be dropped while the physics step is running.
-#[derive(Debug, Clone)]
-pub struct RigidBodyHandle(Rc<Entity>);
+#[derive(Debug, Clone, PartialEq)]
+pub struct RigidBodyHandle(Rc<RigidBodyKey>);
 
 impl RigidBodyHandle {
     /// Apply torque as an external angular force.
@@ -306,6 +306,11 @@ impl RigidBodyHandle {
             self,
             AngularExternalForce(previous_angular_force + angular_force),
         );
+    }
+
+    /// Set the absolute position.
+    pub fn set_position(&self, position: Vec2<f64>, physics: &mut Physics) {
+        physics.rigidbody_set_value(self, Position(position));
     }
 
     /// Get the absolute position.
@@ -359,23 +364,79 @@ impl RigidBodyHandle {
             .aabr(self.iso(physics))
     }
 
+    /// Get a list of other rigidbody handles this collides with this step.
+    #[must_use]
+    pub fn collision_handles(&self, physics: &Physics) -> Vec<RigidBodyHandle> {
+        self.collision_keys_iter(physics)
+            // Convert to handle if it exists
+            .filter_map(|entity| Self::from_entity(entity, physics))
+            .collect()
+    }
+
+    /// Get a list of other rigidbody keys this collides with this step.
+    ///
+    /// The entities can't be directly referenced to get properties from but they can be compared to already existing handles.
+    ///
+    /// When using it to lookup information from an already existing list this is way more performant than [`Self::collision_handles`].
+    pub fn collision_keys_iter<'a>(
+        &self,
+        physics: &'a Physics,
+    ) -> impl Iterator<Item = RigidBodyKey> + 'a {
+        let this = *self.0.clone();
+
+        physics
+            .narrow_phase_state
+            .step_collisions
+            .iter()
+            // Find any entity belonging to the collision pair
+            .filter_map(move |(a, b)| {
+                if *a == this {
+                    Some(*b)
+                } else if *b == this {
+                    Some(*a)
+                } else {
+                    None
+                }
+            })
+    }
+
     /// Get the entity reference.
     #[must_use]
     pub(super) fn entity(&self) -> Entity {
         *self.0
     }
 
+    /// Upgrade the rigidbody handle from an existing entity.
+    #[must_use]
+    fn from_entity(entity: Entity, physics: &Physics) -> Option<Self> {
+        puffin::profile_scope!("Converting rigidbody entity to reference");
+
+        // PERF: find a way to do this in O(1)
+        physics
+            .rigidbodies
+            .rigidbody_references
+            .iter()
+            .find(|(_weak_ref, registered_entity)| entity == *registered_entity)
+            .and_then(|(weak_ref, _entity)| weak_ref.upgrade().map(Self))
+    }
+
     /// Create a weak reference to the rigidbody.
     #[must_use]
-    fn downgrade(&self) -> Weak<Entity> {
+    fn downgrade(&self) -> Weak<RigidBodyKey> {
         Rc::downgrade(&self.0)
+    }
+}
+
+impl PartialEq<RigidBodyKey> for RigidBodyHandle {
+    fn eq(&self, other: &RigidBodyKey) -> bool {
+        *self.0 == *other
     }
 }
 
 /// Rigidbody related methods to call on the world of the physics system.
 pub struct RigidBodySystems {
     /// List of references to the rigidbody handles so that when a handle is dropped from anywhere we can also destroy the rigidbody.
-    rigidbody_references: Vec<(Weak<Entity>, Entity)>,
+    rigidbody_references: Vec<(Weak<RigidBodyKey>, RigidBodyKey)>,
 }
 
 impl RigidBodySystems {

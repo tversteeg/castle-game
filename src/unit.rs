@@ -3,8 +3,15 @@ use serde::Deserialize;
 use vek::{Extent2, Vec2};
 
 use crate::{
-    camera::Camera, physics::Physics, projectile::Projectile, random::RandomRangeF64,
-    terrain::Terrain, timer::Timer,
+    camera::Camera,
+    physics::{
+        rigidbody::{RigidBodyBuilder, RigidBodyHandle},
+        Physics,
+    },
+    projectile::Projectile,
+    random::RandomRangeF64,
+    terrain::Terrain,
+    timer::Timer,
 };
 
 /// All unit types.
@@ -39,16 +46,19 @@ pub struct Unit {
     /// How long to hide the hands after a spear is thrown.
     hide_hands_delay: f64,
     /// How much health the unit has currently.
-    health: f64,
+    pub health: f64,
+    /// Collision shape.
+    pub rigidbody: RigidBodyHandle,
 }
 
 impl Unit {
     /// Create a new unit.
-    pub fn new(pos: Vec2<f64>, r#type: UnitType) -> Self {
+    pub fn new(pos: Vec2<f64>, r#type: UnitType, physics: &mut Physics) -> Self {
         let projectile_timer = Timer::new(r#type.settings().projectile_spawn_interval);
 
         let hide_hands_delay = 0.0;
         let health = r#type.settings().health;
+        let rigidbody = RigidBodyBuilder::new_kinematic(pos).spawn(physics);
 
         Self {
             r#type,
@@ -56,6 +66,7 @@ impl Unit {
             projectile_timer,
             hide_hands_delay,
             health,
+            rigidbody,
         }
     }
 
@@ -71,6 +82,9 @@ impl Unit {
         self.health -= 0.1;
 
         puffin::profile_scope!("Unit update");
+
+        // Update rigidbody position
+        self.rigidbody.set_position(self.pos, physics);
 
         if !terrain.point_collides(self.pos, physics) {
             // No collision with the terrain, the unit falls down

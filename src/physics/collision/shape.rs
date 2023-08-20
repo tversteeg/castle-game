@@ -1,4 +1,7 @@
-use std::fmt::{Debug, Formatter, Result};
+use std::{
+    fmt::{Debug, Formatter, Result},
+    hash::Hash,
+};
 
 use parry2d_f64::{
     mass_properties::MassProperties,
@@ -58,7 +61,7 @@ impl Shape {
         b_data: K,
         state: &mut CollisionState<K>,
     ) where
-        K: Clone,
+        K: Clone + Hash + Eq,
     {
         let a = self;
 
@@ -99,7 +102,7 @@ impl Shape {
                     Vec2::new(tracked_contact.local_p2.x, tracked_contact.local_p2.y);
                 let penetration = -tracked_contact.dist;
 
-                state.collisions.push((
+                state.substep_collisions.push((
                     a_data.clone(),
                     b_data.clone(),
                     CollisionResponse {
@@ -109,6 +112,9 @@ impl Shape {
                         penetration,
                     },
                 ));
+                state
+                    .step_collisions
+                    .insert((a_data.clone(), b_data.clone()));
             }
         }
     }
@@ -121,7 +127,7 @@ impl Shape {
         self.push_collisions(a_pos, 0, b, b_pos, 0, &mut collision_state);
 
         collision_state
-            .collisions
+            .substep_collisions
             .into_iter()
             .map(|(_, _, response)| response)
             .collect()
