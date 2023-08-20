@@ -15,6 +15,11 @@ impl Timer {
         Self { interval, progress }
     }
 
+    /// Trigger the timer and reset to the interval.
+    pub fn trigger(&mut self) {
+        self.progress = self.interval;
+    }
+
     /// Update the timer by incrementing it with a delta time.
     ///
     /// Returns whether it triggered.

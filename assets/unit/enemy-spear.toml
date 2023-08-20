@@ -22,3 +22,13 @@ hide_hands_delay = 2
 healthbar_size = { w = 20, h = 3 }
 # Where above the unit it floats
 healthbar_offset = { x = -10, y = -25 }
+
+[physics]
+# Handle all collisions manually
+is_kinematic = true
+
+# Collider shape for collisions with projectile
+[collider]
+shape = "rectangle"
+width = 10
+height = 30

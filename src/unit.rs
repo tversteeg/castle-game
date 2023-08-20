@@ -4,6 +4,7 @@ use vek::{Extent2, Vec2};
 
 use crate::{
     camera::Camera,
+    object::ObjectSettings,
     physics::{
         rigidbody::{RigidBodyBuilder, RigidBodyHandle},
         Physics,
@@ -32,6 +33,14 @@ impl UnitType {
 
         crate::asset(path)
     }
+
+    /// Asset path based on what type to load.
+    pub fn asset_path(&self) -> &'static str {
+        match self {
+            Self::PlayerSpear => "unit.spear",
+            Self::EnemySpear => "unit.enemy-spear",
+        }
+    }
 }
 
 /// Unit that can walk on the terrain.
@@ -58,7 +67,10 @@ impl Unit {
 
         let hide_hands_delay = 0.0;
         let health = r#type.settings().health;
-        let rigidbody = RigidBodyBuilder::new_kinematic(pos).spawn(physics);
+
+        // Load the object definition for properties of the object
+        let object = crate::asset::<ObjectSettings>(r#type.asset_path());
+        let rigidbody = object.rigidbody_builder(pos).spawn(physics);
 
         Self {
             r#type,

@@ -124,6 +124,7 @@ impl Compound for ObjectSettings {
 #[derive(Debug, Deserialize)]
 pub struct ObjectSettingsImpl {
     /// Physics information.
+    #[serde(default)]
     physics: PhysicsSettings,
     /// Collider information.
     collider: ColliderSettings,

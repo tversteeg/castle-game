@@ -51,7 +51,8 @@ impl GameState {
     /// Construct the game state with default values.
     pub fn new() -> Self {
         let units = Vec::new();
-        let unit_spawner = Timer::new(crate::settings().unit_spawn_interval);
+        let mut unit_spawner = Timer::new(crate::settings().unit_spawn_interval);
+        unit_spawner.trigger();
         let enemy_unit_spawner = Timer::new(crate::settings().enemy_unit_spawn_interval);
         let projectiles = Vec::new();
         let camera = Camera::default();
