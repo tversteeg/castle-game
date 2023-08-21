@@ -11,6 +11,7 @@ mod object;
 mod physics;
 mod projectile;
 mod random;
+mod solid_shape;
 mod sprite;
 mod terrain;
 mod timer;

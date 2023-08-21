@@ -9,18 +9,12 @@ use crate::{
     input::Input,
     physics::{Physics, Settings as PhysicsSettings},
     projectile::Projectile,
+    terrain::Settings as TerrainSettings,
     terrain::Terrain,
     timer::Timer,
     unit::{Unit, UnitType},
     SIZE,
 };
-
-/// Physics grid step size.
-const PHYSICS_GRID_STEP: u16 = 8;
-/// Biggest map size.
-const MAX_MAP_WIDTH: u16 = 640;
-/// Maximum amount of physics objects in a single tile.
-const BUCKET_SIZE: usize = 4;
 
 /// Handles everything related to the game.
 pub struct GameState {
@@ -36,8 +30,6 @@ pub struct GameState {
     projectiles: Vec<Projectile>,
     /// Camera position based on the cursor.
     camera: Camera,
-    /// Maximum X position of the level.
-    level_width: u32,
     /// Physics engine.
     ///
     /// Size of the grid is the maximum size of any map.
@@ -58,7 +50,6 @@ impl GameState {
         let camera = Camera::default();
         let mut physics = Physics::new();
         let terrain = Terrain::new(&mut physics);
-        let level_width = terrain.width as u32;
 
         Self {
             projectiles,
@@ -67,7 +58,6 @@ impl GameState {
             unit_spawner,
             enemy_unit_spawner,
             camera,
-            level_width,
             physics,
             #[cfg(feature = "debug")]
             debug_state: DebugDraw::new(),
@@ -104,14 +94,14 @@ impl GameState {
                 -settings.pan_speed * dt,
                 0.0,
                 0.0,
-                (self.level_width - SIZE.w as u32) as f64,
+                (settings.terrain.width - SIZE.w as u32) as f64,
             );
         } else if input.mouse_pos.x >= SIZE.w as i32 - settings.pan_edge_offset {
             self.camera.pan(
                 settings.pan_speed * dt,
                 0.0,
                 0.0,
-                (self.level_width - SIZE.w as u32) as f64,
+                (settings.terrain.width - SIZE.w as u32) as f64,
             );
         }
 
@@ -141,7 +131,7 @@ impl GameState {
         if self.enemy_unit_spawner.update(dt) {
             // Spawn a unit at the upper edge of the terrain image
             self.units.push(Unit::new(
-                (self.level_width as f64 - 10.0, self.terrain.y).into(),
+                (settings.terrain.width as f64 - 10.0, self.terrain.y).into(),
                 UnitType::EnemySpear,
                 &mut self.physics,
             ));
@@ -172,6 +162,8 @@ pub struct Settings {
     pub enemy_unit_spawn_interval: f64,
     /// Physics settings.
     pub physics: PhysicsSettings,
+    /// Terrain settings.
+    pub terrain: TerrainSettings,
     /// Debug settings.
     #[cfg(feature = "debug")]
     pub debug: DebugSettings,

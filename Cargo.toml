@@ -20,25 +20,22 @@ debug = ["line_2d"]
 [dependencies]
 winit = "0.28"
 log = "0.4"
-web-time = "0.2"
 pixels = "0.13"
-bytemuck = "1"
 blit = "0.8"
 game-loop = { version = "0.10", features = ["winit"] }
 miette = { version = "5", features = ["fancy"] }
 image = { version = "0.24", default-features = false, features = ["png"] }
-winit_input_helper = "0.14"
 rotsprite = "0.1"
 vek = "0.16"
 assets_manager = { version = "0.10", features = ["embedded", "hot-reloading", "toml", "png"], default-features = false }
 serde = "1"
-arrayvec = "0.7"
 itertools = "0.11"
 parry2d-f64 = { version = "0.13", features = ["simd-stable"] }
 line_2d = { version = "0.5", optional = true }
 hecs = { version = "0.10", features = ["macros"] }
-bvh-arena = "1.1.3"
-raqote = { version = "0.8.2", default-features = false }
+bvh-arena = "1"
+raqote = { version = "0.8", default-features = false }
+bitvec = "1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1", features = ["macros", "sync", "rt-multi-thread"] }

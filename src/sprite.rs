@@ -21,6 +21,14 @@ pub struct Sprite {
 }
 
 impl Sprite {
+    /// Create a sprite from a buffer of colors.
+    pub fn from_buffer(buffer: &[u32], size: Extent2<usize>, offset: SpriteOffset) -> Self {
+        let sprite = BlitBuffer::from_buffer(buffer, size.w, 127);
+        let offset = offset.offset(size.as_());
+
+        Self { sprite, offset }
+    }
+
     /// Draw the sprite based on a camera offset.
     pub fn render(&self, canvas: &mut [u32], camera: &Camera, offset: Vec2<f64>) {
         puffin::profile_function!();
@@ -54,6 +62,11 @@ impl Sprite {
     /// Height of the image.
     pub fn height(&self) -> u32 {
         self.sprite.height()
+    }
+
+    /// Size of the image.
+    pub fn size(&self) -> Extent2<u32> {
+        Extent2::new(self.width(), self.height())
     }
 
     /// Raw buffer.

@@ -35,6 +35,8 @@ pub enum DebugScreen {
     SpriteRotations,
     /// Draw static bodies with collision information.
     Collisions,
+    /// Separatable terrain sandbox.
+    Terrain,
 }
 
 impl DebugScreen {
@@ -46,6 +48,7 @@ impl DebugScreen {
             DebugScreen::SpawnCubes => "Spawn Cubes on Click in Local Engine",
             DebugScreen::SpriteRotations => "Sprite Rotation Test",
             DebugScreen::Collisions => "Collision Detection Test",
+            DebugScreen::Terrain => "Click to Remove Terrain Pixels",
         }
     }
 }
@@ -58,7 +61,8 @@ impl DebugScreen {
             Self::SpawnProjectiles => Self::SpawnCubes,
             Self::SpawnCubes => Self::SpriteRotations,
             Self::SpriteRotations => Self::Collisions,
-            Self::Collisions => Self::Empty,
+            Self::Collisions => Self::Terrain,
+            Self::Terrain => Self::Empty,
         }
     }
 }
@@ -252,7 +256,7 @@ impl DebugDraw {
                     }
                 }
             }
-            DebugScreen::SpawnProjectiles | DebugScreen::Empty => (),
+            DebugScreen::Terrain | DebugScreen::SpawnProjectiles | DebugScreen::Empty => (),
         }
     }
 
