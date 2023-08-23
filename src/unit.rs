@@ -91,8 +91,6 @@ impl Unit {
         dt: f64,
         physics: &mut Physics,
     ) -> Option<Projectile> {
-        self.health -= 0.1;
-
         puffin::profile_scope!("Unit update");
 
         // Update rigidbody position

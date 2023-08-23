@@ -74,6 +74,11 @@ impl Sprite {
         self.sprite
     }
 
+    /// Get the raw pixels.
+    pub fn pixels_mut(&mut self) -> &mut [u32] {
+        self.sprite.pixels_mut()
+    }
+
     /// Calculate the highest non-transparent pixels of an image.
     pub fn top_heights(&self) -> Vec<u16> {
         puffin::profile_scope!("Sprite top heights");
@@ -95,6 +100,15 @@ impl Asset for Sprite {
     const EXTENSION: &'static str = "png";
 
     type Loader = SpriteLoader;
+}
+
+impl Default for Sprite {
+    fn default() -> Self {
+        let sprite = BlitBuffer::from_buffer(&[0], 1, 0);
+        let offset = Vec2::zero();
+
+        Self { sprite, offset }
+    }
 }
 
 /// Sprite asset loader.

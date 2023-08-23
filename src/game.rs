@@ -143,6 +143,7 @@ impl GameState {
             input,
             &mut self.physics,
             &mut self.projectiles,
+            &mut self.terrain,
             &self.camera,
             dt,
         );

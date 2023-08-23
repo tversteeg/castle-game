@@ -1,5 +1,6 @@
 use bitvec::vec::BitVec;
-use vek::{Extent2, Vec2};
+use line_drawing::BresenhamCircle;
+use vek::{Aabr, Extent2, Vec2};
 
 use crate::{
     graphics::Color,
@@ -18,8 +19,6 @@ pub struct SolidShape {
     shape: BitVec,
     /// Size of the shape.
     size: Extent2<usize>,
-    /// Sprite offset for placing the middle point.
-    offset: SpriteOffset,
     /// Color for the fill.
     fill_color: Color,
     /// Color for the outline.
@@ -29,7 +28,7 @@ pub struct SolidShape {
     /// Generated shape, cached in this struct so it can be referenced easily without regenerating.
     ///
     /// Will only be generated when accessed and dirty.
-    sprite: Option<Sprite>,
+    sprite: Sprite,
 }
 
 impl SolidShape {
@@ -40,6 +39,8 @@ impl SolidShape {
         fill_color: Color,
         outline_color: Color,
     ) -> Self {
+        puffin::profile_scope!("Solid shape from rectangle");
+
         let size_without_outline = size_without_outline.as_();
         let size = size_without_outline + Extent2::new(OUTLINE_SIZE * 2, OUTLINE_SIZE * 2);
 
@@ -51,15 +52,20 @@ impl SolidShape {
             let index_end = index_start + size_without_outline.w;
             shape[index_start..index_end].fill(true);
         }
+        // Use an empty sprite, will be generated later
+        let sprite = Sprite::from_buffer(&vec![0; size.w * size.h], size, offset);
 
-        Self {
+        let mut this = Self {
             size,
-            offset,
             shape,
             fill_color,
             outline_color,
-            sprite: None,
-        }
+            sprite,
+        };
+
+        this.generate_sprite();
+
+        this
     }
 
     /// Create the shape as a heightmap where only the top edge has multiple subdivisions.
@@ -74,6 +80,8 @@ impl SolidShape {
         fill_color: Color,
         outline_color: Color,
     ) -> Self {
+        puffin::profile_scope!("Solid shape from heights");
+
         debug_assert!(!heights.is_empty());
 
         // Find the highest point so we know the max height
@@ -86,97 +94,206 @@ impl SolidShape {
 
         // Create the vector
         let mut shape = BitVec::repeat(false, total_width * total_height);
-        for (x, height) in heights.iter().enumerate() {
-            // Fill every pixel from the height
-            let start = highest - height + OUTLINE_SIZE as f64;
-            for y in (start as usize)..total_height {
-                shape.set(x + y * total_width, true);
-            }
-        }
+        {
+            puffin::profile_scope!("Fill shape");
 
-        Self {
-            size,
-            offset,
-            shape,
-            fill_color,
-            outline_color,
-            sprite: None,
-        }
-    }
-
-    /// Generate the sprite from the shape.
-    pub fn generate_sprite(&mut self) {
-        let mut sprite_buf = vec![0; self.size.w * self.size.h];
-        for y in 0..self.size.h {
-            let index_start = y * self.size.w;
-            for x in 0..self.size.w {
-                let index = index_start + x;
-                if self.shape[index] {
-                    // Solid color
-                    sprite_buf[index] = self.fill_color.as_u32();
-                } else if self.is_outline(x, y) {
-                    // Solid color
-                    sprite_buf[index] = self.outline_color.as_u32();
+            for (x, height) in heights.iter().enumerate() {
+                // Fill every pixel from the height
+                let start = highest - height + OUTLINE_SIZE as f64;
+                for y in (start as usize)..total_height {
+                    shape.set(x + y * total_width, true);
                 }
             }
         }
 
-        self.sprite = Some(Sprite::from_buffer(&sprite_buf, self.size, self.offset));
+        // Use an empty sprite, will be generated later
+        let sprite = Sprite::from_buffer(&vec![0; size.w * size.h], size, offset);
+
+        let mut this = Self {
+            size,
+            shape,
+            fill_color,
+            outline_color,
+            sprite,
+        };
+
+        this.generate_sprite();
+
+        this
+    }
+
+    /// Generate the sprite from the shape.
+    pub fn generate_sprite(&mut self) {
+        puffin::profile_scope!("Generate sprite");
+
+        // Redraw the full rectangle
+        self.redraw_sprite_rectangle(self.aabr().as_());
     }
 
     /// Get the sprite.
     ///
     /// Throws an error when [`Self::generate_sprite`] hasn't been called yet.
     pub fn sprite(&self) -> &Sprite {
-        self.sprite
-            .as_ref()
-            .expect("Solid shape sprite not generated yet")
+        &self.sprite
     }
 
     /// Whether a point collides.
     ///
     /// Assumes the point is in the local coordinate space of the shape.
     pub fn collides(&self, point: Vec2<f64>) -> bool {
-        if point.x < 0.0 || point.y < 0.0 {
-            // Out of bounds
-            return false;
+        self.coord_to_index(point)
+            .map(|index| self.shape[index])
+            .unwrap_or_default()
+    }
+
+    /// Set a single pixel to transparent.
+    pub fn remove_pixel(&mut self, pixel: Vec2<f64>) {
+        puffin::profile_scope!("Remove pixel");
+
+        let index = match self.coord_to_index(pixel) {
+            Some(index) => index,
+            None => return,
+        };
+
+        // Remove from the shape
+        self.shape.set(index, false);
+
+        // Update the sprite pixel affected
+        self.set_sprite_pixel(pixel);
+
+        // Update the sprite outline pixels as well
+        outline_offsets::OUTLINE_OFFSETS_2
+            .iter()
+            .for_each(|(x, y)| self.set_sprite_pixel(pixel + Vec2::new(*x, *y).as_()));
+    }
+
+    /// Remove a circle of pixels.
+    pub fn remove_circle(&mut self, center: Vec2<f64>, radius: f64) {
+        puffin::profile_scope!("Remove circle");
+
+        {
+            puffin::profile_scope!("Clear circle in shape");
+            // TODO: make this a lot more efficient
+            for (x, y) in BresenhamCircle::new(0, 0, radius as i32)
+                // Only take one quadrant so we can fill it until the opposite
+                .filter(|(x, _y)| x.is_positive())
+            {
+                let x_start = (center.x as i32 - x).max(0) as usize;
+                // Go to the opposite side to fill it
+                let x_end = (center.x as i32 + x).clamp(0, self.size.w as i32) as usize;
+
+                let y = (center.y as i32 + y).clamp(0, self.size.h as i32) as usize;
+
+                let index_start = y * self.size.w + x_start;
+                let index_end = index_start + x_end - x_start;
+                for index in index_start..index_end {
+                    // Remove from the shape, we already performed a bounds check with the max and clamp values
+                    self.shape.set(index, false);
+                }
+            }
         }
 
-        let x = point.x as usize;
-        let y = point.y as usize;
+        // Redraw a rectangle of the sprite
+        let radius_with_outline_size = radius + OUTLINE_SIZE as f64 + 1.0;
+        let min = center - (radius_with_outline_size, radius_with_outline_size);
+        let max = center + (radius_with_outline_size, radius_with_outline_size);
+        self.redraw_sprite_rectangle(Aabr { min, max });
+    }
+
+    /// Redraw the sprite pixels of a rectangle, which will be clamped if outside of range.
+    fn redraw_sprite_rectangle(&mut self, rect: Aabr<f64>) {
+        puffin::profile_scope!("Redraw sprite rectangle");
+
+        // Clip the rectangle with the boundaries
+        let rect = rect.intersection(self.aabr().as_()).as_();
+
+        // Set the sprite pixels
+        for y in rect.min.y..rect.max.y {
+            let index_start = y * self.size.w;
+            for x in rect.min.x..rect.max.x {
+                let index = index_start + x;
+                self.set_sprite_pixel_unchecked(index, Vec2::new(x, y));
+            }
+        }
+    }
+
+    /// Convert a coordinate to a pixel index, returning nothing when out of bound.
+    fn coord_to_index(&self, coord: Vec2<f64>) -> Option<usize> {
+        if coord.x < 0.0 || coord.y < 0.0 {
+            // Out of bounds
+            return None;
+        }
+
+        let x = coord.x as usize;
+        let y = coord.y as usize;
         if x >= self.size.w || y >= self.size.h {
             // Out of bounds
-            return false;
+            None
+        } else {
+            Some(x + y * self.size.w)
         }
+    }
 
-        self.shape[x + y * self.size.w]
+    /// Set a sprite pixel if within bounds.
+    #[inline(always)]
+    fn set_sprite_pixel(&mut self, pixel: Vec2<f64>) {
+        puffin::profile_scope!("Set sprite pixel");
+
+        let index = match self.coord_to_index(pixel) {
+            Some(index) => index,
+            None => return,
+        };
+
+        // Set the pixel removed
+        self.set_sprite_pixel_unchecked(index, pixel.as_());
+    }
+
+    /// Set a sprite pixel without checking the bounds.
+    #[inline(always)]
+    fn set_sprite_pixel_unchecked(&mut self, index: usize, pixel: Vec2<usize>) {
+        puffin::profile_scope!("Set sprite pixel unchecked");
+
+        self.sprite.pixels_mut()[index] = if self.shape[index] {
+            // Solid fill
+            self.fill_color.as_u32()
+        } else if self.is_outline(pixel) {
+            // Outline
+            self.outline_color.as_u32()
+        } else {
+            0
+        };
     }
 
     /// Whether a pixel in the shape should be an outline when rendering as a sprite.
     #[inline(always)]
-    fn is_outline(&self, x: usize, y: usize) -> bool {
+    fn is_outline(&self, pos: Vec2<usize>) -> bool {
         // Shape of the outline, we don't check the middle coordinate since if that's solid it's not an outline
-        let x = x as i32;
-        let y = y as i32;
-        let w = self.size.w as i32;
-        let h = self.size.h as i32;
+        let pos: Vec2<i32> = pos.as_();
+        let size = self.size.as_();
         for (offset_x, offset_y) in outline_offsets::OUTLINE_OFFSETS_2 {
-            let x = x + offset_x;
-            let y = y + offset_y;
+            let pos = pos + (offset_x, offset_y);
 
             // Ensure we don't go out of bounds
-            if x < 0 || x >= w || y < 0 || y >= h {
+            if pos.x < 0 || pos.x >= size.w || pos.y < 0 || pos.y >= size.h {
                 continue;
             }
 
             // If we find any pixels that are solid we are an outline
-            let index = (y * w + x) as usize;
+            let index = (pos.y * size.w + pos.x) as usize;
             if self.shape[index] {
                 return true;
             }
         }
 
         false
+    }
+
+    /// Get the rectangle for the full size.
+    pub fn aabr(&self) -> Aabr<usize> {
+        let min = Vec2::zero();
+        let max = Vec2::new(self.size.w, self.size.h);
+
+        Aabr { min, max }
     }
 }
 

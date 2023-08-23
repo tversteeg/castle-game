@@ -51,14 +51,13 @@ impl Terrain {
             })
             .collect::<Vec<_>>();
 
-        let mut shape = SolidShape::from_heights(
+        let shape = SolidShape::from_heights(
             &top_heights,
             100.0,
             SpriteOffset::LeftTop,
             Color::LightGreen,
             Color::Green,
         );
-        shape.generate_sprite();
 
         let y = SIZE.h as f64 - shape.sprite().height() as f64;
 
@@ -95,6 +94,16 @@ impl Terrain {
         // Convert the position to a coordinate that can be used as an index
         let offset = point - (0.0, self.y);
         self.shape.collides(offset)
+    }
+
+    /// Remove a single pixel from the terrain.
+    pub fn remove_pixel(&mut self, pixel: Vec2<f64>) {
+        self.shape.remove_pixel(pixel - (0.0, self.y));
+    }
+
+    /// Remove a circle of pixels from the terrain.
+    pub fn remove_circle(&mut self, center: Vec2<f64>, radius: f64) {
+        self.shape.remove_circle(center - (0.0, self.y), radius);
     }
 }
 

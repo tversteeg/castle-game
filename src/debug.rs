@@ -1,3 +1,4 @@
+use line_drawing::Bresenham;
 use serde::Deserialize;
 use vek::{Extent2, Vec2};
 
@@ -12,6 +13,7 @@ use crate::{
         Physics,
     },
     projectile::Projectile,
+    terrain::Terrain,
     SIZE,
 };
 
@@ -123,6 +125,7 @@ impl DebugDraw {
         input: &Input,
         physics: &mut Physics,
         projectiles: &mut Vec<Projectile>,
+        terrain: &mut Terrain,
         camera: &Camera,
         dt: f64,
     ) {
@@ -165,6 +168,11 @@ impl DebugDraw {
                 Vec2::zero(),
                 physics,
             ));
+        }
+
+        if self.screen == DebugScreen::Terrain && input.left_mouse.is_pressed() {
+            // Click to slice the terrain
+            terrain.remove_circle(camera.translate_from_screen(input.mouse_pos.as_()), 10.0);
         }
 
         self.mouse = input.mouse_pos.as_();
@@ -332,9 +340,9 @@ impl DebugDraw {
 
     /// Draw a line.
     fn render_line(&self, start: Vec2<f64>, end: Vec2<f64>, canvas: &mut [u32], color: u32) {
-        for line_2d::Coord { x, y } in line_2d::coords_between(
-            line_2d::Coord::new(start.x as i32, start.y as i32),
-            line_2d::Coord::new(end.x as i32, end.y as i32),
+        for (x, y) in Bresenham::new(
+            (start.x as i32, start.y as i32),
+            (end.x as i32, end.y as i32),
         ) {
             self.render_point(Vec2::new(x, y).as_(), canvas, color);
         }

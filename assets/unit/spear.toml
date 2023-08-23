@@ -10,7 +10,7 @@ projectile_asset_path = "projectile.spear-1"
 walk_speed = 15
 
 # Interval in seconds for when a new projectile is thrown
-projectile_spawn_interval = 5
+projectile_spawn_interval = 500
 # Don't let the projectile spawn in the ground
 projectile_spawn_offset = { x = 0, y = -20 }
 # How fast a projectile is thrown
