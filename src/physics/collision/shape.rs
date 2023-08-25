@@ -30,11 +30,27 @@ impl Shape {
 
     /// Create a horizontal heightmap.
     pub fn heightmap(heights: &[f64], spacing: f64) -> Self {
-        puffin::profile_function!();
+        puffin::profile_scope!("Heightmap shape");
 
         let shape = SharedShape::heightfield(
             DVector::from_row_slice(heights),
             Vector2::new(spacing * (heights.len() - 1) as f64, 1.0),
+        );
+
+        Self(shape)
+    }
+
+    /// Create a polygon from a linestrip.
+    pub fn linestrip(vertices: &[Vec2<f64>]) -> Self {
+        puffin::profile_scope!("Linestrip shape");
+
+        let shape = SharedShape::polyline(
+            vertices
+                .iter()
+                .map(|vert| Vector2::new(vert.x, vert.y))
+                .map(Into::into)
+                .collect(),
+            None,
         );
 
         Self(shape)
@@ -143,6 +159,7 @@ impl Shape {
         match self.0.as_typed_shape() {
             TypedShape::Cuboid(rect) => rect.to_polyline(),
             TypedShape::HeightField(height) => height.to_polyline().0,
+            TypedShape::Polyline(polyline) => polyline.vertices().to_vec(),
             _ => todo!(),
         }
         .into_iter()

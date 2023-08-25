@@ -172,7 +172,11 @@ impl DebugDraw {
 
         if self.screen == DebugScreen::Terrain && input.left_mouse.is_pressed() {
             // Click to slice the terrain
-            terrain.remove_circle(camera.translate_from_screen(input.mouse_pos.as_()), 10.0);
+            terrain.remove_circle(
+                camera.translate_from_screen(input.mouse_pos.as_()),
+                10.0,
+                physics,
+            );
         }
 
         self.mouse = input.mouse_pos.as_();

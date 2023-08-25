@@ -63,10 +63,8 @@ impl Terrain {
 
         // Create a heightmap for the terrain
         let rigidbody = {
-            let object = crate::asset::<ObjectSettings>(ASSET_PATH);
-            let shape = object.shape();
             RigidBodyBuilder::new_static(Vec2::new(settings.width as f64 / 2.0, y))
-                .with_collider(shape)
+                .with_collider(shape.to_collider().clone())
                 .spawn(physics)
         };
 
@@ -97,13 +95,17 @@ impl Terrain {
     }
 
     /// Remove a single pixel from the terrain.
-    pub fn remove_pixel(&mut self, pixel: Vec2<f64>) {
+    pub fn remove_pixel(&mut self, pixel: Vec2<f64>, physics: &mut Physics) {
         self.shape.remove_pixel(pixel - (0.0, self.y));
+        self.rigidbody
+            .set_shape(self.shape.to_collider().clone(), physics);
     }
 
     /// Remove a circle of pixels from the terrain.
-    pub fn remove_circle(&mut self, center: Vec2<f64>, radius: f64) {
+    pub fn remove_circle(&mut self, center: Vec2<f64>, radius: f64, physics: &mut Physics) {
         self.shape.remove_circle(center - (0.0, self.y), radius);
+        self.rigidbody
+            .set_shape(self.shape.to_collider().clone(), physics);
     }
 }
 

@@ -3,7 +3,9 @@ use line_drawing::BresenhamCircle;
 use vek::{Aabr, Extent2, Vec2};
 
 use crate::{
+    gen::isoline::Isoline,
     graphics::Color,
+    physics::collision::shape::Shape,
     sprite::{Sprite, SpriteOffset},
 };
 
@@ -25,10 +27,14 @@ pub struct SolidShape {
     ///
     /// Outline is assumed to be 2 pixels big.
     outline_color: Color,
-    /// Generated shape, cached in this struct so it can be referenced easily without regenerating.
+    /// Generated sprite from the shape with an outline.
     ///
-    /// Will only be generated when accessed and dirty.
+    /// Must be updated whenever the shape is updated.
     sprite: Sprite,
+    /// Generated collider from the shape.
+    ///
+    /// Must be updated whenever the shape is updated.
+    collider: Isoline,
 }
 
 impl SolidShape {
@@ -55,15 +61,19 @@ impl SolidShape {
         // Use an empty sprite, will be generated later
         let sprite = Sprite::from_buffer(&vec![0; size.w * size.h], size, offset);
 
+        let collider = Isoline::default();
+
         let mut this = Self {
             size,
             shape,
             fill_color,
             outline_color,
             sprite,
+            collider,
         };
 
         this.generate_sprite();
+        this.generate_collider();
 
         this
     }
@@ -88,8 +98,8 @@ impl SolidShape {
         let highest = heights
             .iter()
             .fold(std::f64::NEG_INFINITY, |a, &b| a.max(b));
-        let total_width = heights.len();
-        let total_height = (highest + height) as usize;
+        let total_width = heights.len() + OUTLINE_SIZE * 2;
+        let total_height = (highest + height) as usize + OUTLINE_SIZE * 2;
         let size = Extent2::new(total_width, total_height);
 
         // Create the vector
@@ -100,8 +110,8 @@ impl SolidShape {
             for (x, height) in heights.iter().enumerate() {
                 // Fill every pixel from the height
                 let start = highest - height + OUTLINE_SIZE as f64;
-                for y in (start as usize)..total_height {
-                    shape.set(x + y * total_width, true);
+                for y in (start as usize)..(total_height - OUTLINE_SIZE) {
+                    shape.set(x + OUTLINE_SIZE + y * total_width, true);
                 }
             }
         }
@@ -109,15 +119,19 @@ impl SolidShape {
         // Use an empty sprite, will be generated later
         let sprite = Sprite::from_buffer(&vec![0; size.w * size.h], size, offset);
 
+        let collider = Isoline::default();
+
         let mut this = Self {
             size,
             shape,
             fill_color,
             outline_color,
             sprite,
+            collider,
         };
 
         this.generate_sprite();
+        this.generate_collider();
 
         this
     }
@@ -130,11 +144,22 @@ impl SolidShape {
         self.redraw_sprite_rectangle(self.aabr().as_());
     }
 
+    /// Generate the collider from the shape.
+    pub fn generate_collider(&mut self) {
+        puffin::profile_scope!("Generate collider");
+
+        // Regenaret the full collider
+        self.regenerate_collider_rectangle(self.aabr().as_());
+    }
+
     /// Get the sprite.
-    ///
-    /// Throws an error when [`Self::generate_sprite`] hasn't been called yet.
     pub fn sprite(&self) -> &Sprite {
         &self.sprite
+    }
+
+    /// Get the collider shape.
+    pub fn to_collider(&self) -> Shape {
+        self.collider.to_collider(self.size.as_())
     }
 
     /// Whether a point collides.
@@ -197,7 +222,9 @@ impl SolidShape {
         let radius_with_outline_size = radius + OUTLINE_SIZE as f64 + 1.0;
         let min = center - (radius_with_outline_size, radius_with_outline_size);
         let max = center + (radius_with_outline_size, radius_with_outline_size);
-        self.redraw_sprite_rectangle(Aabr { min, max });
+        let rect = Aabr { min, max };
+        self.redraw_sprite_rectangle(rect);
+        self.regenerate_collider_rectangle(rect);
     }
 
     /// Redraw the sprite pixels of a rectangle, which will be clamped if outside of range.
@@ -215,6 +242,14 @@ impl SolidShape {
                 self.set_sprite_pixel_unchecked(index, Vec2::new(x, y));
             }
         }
+    }
+
+    /// Regenerate the rectangle part of the collider, which will be clamped if outside of range.
+    fn regenerate_collider_rectangle(&mut self, rect: Aabr<f64>) {
+        puffin::profile_scope!("Regenerate collider");
+
+        // PERF: cache isoline result
+        self.collider.update(&self.shape, self.size, rect.as_());
     }
 
     /// Convert a coordinate to a pixel index, returning nothing when out of bound.

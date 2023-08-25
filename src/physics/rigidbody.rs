@@ -348,6 +348,11 @@ impl RigidBodyHandle {
         physics.rigidbody_value::<&AngularVelocity>(self).0
     }
 
+    /// Set the collider shape.
+    pub fn set_shape(&self, shape: Shape, physics: &mut Physics) {
+        physics.rigidbody_set_value(self, Collider(shape));
+    }
+
     /// Whether the rigidbody is in a sleeping position.
     #[must_use]
     pub fn is_sleeping(&self, _physics: &Physics) -> bool {
