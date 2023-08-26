@@ -1,6 +1,6 @@
-use bitvec::vec::BitVec;
+use bitvec::{slice::BitSlice, vec::BitVec};
 use line_drawing::BresenhamCircle;
-use vek::{Aabr, Extent2, Vec2};
+use vek::{Aabr, Extent2, Rect, Vec2};
 
 use crate::{
     gen::isoline::Isoline,
@@ -61,7 +61,7 @@ impl SolidShape {
         // Use an empty sprite, will be generated later
         let sprite = Sprite::from_buffer(&vec![0; size.w * size.h], size, offset);
 
-        let collider = Isoline::default();
+        let collider = Isoline::from_bitmap(&shape, size);
 
         let mut this = Self {
             size,
@@ -73,7 +73,6 @@ impl SolidShape {
         };
 
         this.generate_sprite();
-        this.generate_collider();
 
         this
     }
@@ -119,7 +118,8 @@ impl SolidShape {
         // Use an empty sprite, will be generated later
         let sprite = Sprite::from_buffer(&vec![0; size.w * size.h], size, offset);
 
-        let collider = Isoline::default();
+        // Generate the first collider
+        let collider = Isoline::from_bitmap(&shape, size);
 
         let mut this = Self {
             size,
@@ -131,7 +131,6 @@ impl SolidShape {
         };
 
         this.generate_sprite();
-        this.generate_collider();
 
         this
     }
@@ -141,15 +140,7 @@ impl SolidShape {
         puffin::profile_scope!("Generate sprite");
 
         // Redraw the full rectangle
-        self.redraw_sprite_rectangle(self.aabr().as_());
-    }
-
-    /// Generate the collider from the shape.
-    pub fn generate_collider(&mut self) {
-        puffin::profile_scope!("Generate collider");
-
-        // Regenaret the full collider
-        self.regenerate_collider_rectangle(self.aabr().as_());
+        self.redraw_sprite_rectangle(self.rect());
     }
 
     /// Get the sprite.
@@ -196,48 +187,82 @@ impl SolidShape {
     pub fn remove_circle(&mut self, center: Vec2<f64>, radius: f64) {
         puffin::profile_scope!("Remove circle");
 
+        // The rectangle that will be used to redraw the collider and the sprite
+        let rect = Rect::new(
+            center.x - radius - 1.0,
+            center.y - radius - 1.0,
+            radius * 2.0 + 2.0,
+            radius * 2.0 + 2.0,
+        )
+        .as_();
+
+        // Delta bitmap with each pixel is removed inside the redraw area
+        let mut removal_delta = BitVec::repeat(false, rect.w * rect.h);
+
         {
-            puffin::profile_scope!("Clear circle in shape");
+            puffin::profile_scope!("Create circle mask");
             // TODO: make this a lot more efficient
-            for (x, y) in BresenhamCircle::new(0, 0, radius as i32)
-                // Only take one quadrant so we can fill it until the opposite
-                .filter(|(x, _y)| x.is_positive())
-            {
-                let x_start = (center.x as i32 - x).max(0) as usize;
-                // Go to the opposite side to fill it
-                let x_end = (center.x as i32 + x).clamp(0, self.size.w as i32) as usize;
-
-                let y = (center.y as i32 + y).clamp(0, self.size.h as i32) as usize;
-
-                let index_start = y * self.size.w + x_start;
-                let index_end = index_start + x_end - x_start;
-                for index in index_start..index_end {
-                    // Remove from the shape, we already performed a bounds check with the max and clamp values
-                    self.shape.set(index, false);
+            let center = Vec2::new(radius, radius);
+            for y in 0..rect.h {
+                for x in 0..rect.w {
+                    removal_delta.set(
+                        y * rect.w + x,
+                        Vec2::new(x as f64, y as f64).distance(center) < radius,
+                    );
                 }
             }
         }
 
         // Redraw a rectangle of the sprite
-        let radius_with_outline_size = radius + OUTLINE_SIZE as f64 + 1.0;
-        let min = center - (radius_with_outline_size, radius_with_outline_size);
-        let max = center + (radius_with_outline_size, radius_with_outline_size);
-        let rect = Aabr { min, max };
+        self.apply_removal_deltas(&removal_delta, rect);
+    }
+
+    /// Apply a bit vector of delta values which will remove pixels.
+    fn apply_removal_deltas(&mut self, removal_delta: &BitSlice, rect: Rect<usize, usize>) {
+        puffin::profile_scope!("Apply removal deltas");
+
+        debug_assert_eq!(removal_delta.len(), rect.w * rect.h);
+
+        // Ensure it doesn't go out of bounds
+        let rect = self.clamp_rect(rect);
+
+        // Apply to the shape
+        for y in 0..rect.h {
+            // Y start index on the removal delta map
+            let delta_index = y * rect.w;
+            // Y start index on the target shape map
+            let shape_index = (y + rect.y) * self.size.w;
+
+            for x in 0..rect.w {
+                // PERF: use a bitwise operator and no loop here
+                if removal_delta[delta_index + x] {
+                    self.shape.set(shape_index + rect.x + x, false);
+                }
+            }
+        }
+
+        // Redraw the sprite
         self.redraw_sprite_rectangle(rect);
-        self.regenerate_collider_rectangle(rect);
+        // Remove the part of the collider
+        self.regenerate_collider_rectangle(removal_delta, rect);
     }
 
     /// Redraw the sprite pixels of a rectangle, which will be clamped if outside of range.
-    fn redraw_sprite_rectangle(&mut self, rect: Aabr<f64>) {
+    fn redraw_sprite_rectangle(&mut self, mut rect: Rect<usize, usize>) {
         puffin::profile_scope!("Redraw sprite rectangle");
 
-        // Clip the rectangle with the boundaries
-        let rect = rect.intersection(self.aabr().as_()).as_();
+        // Add the outline to the rectangle
+        rect.x = rect.x.saturating_sub(OUTLINE_SIZE);
+        rect.y = rect.y.saturating_sub(OUTLINE_SIZE);
+        rect.w = (rect.w + OUTLINE_SIZE).min(self.size.w);
+        rect.h = (rect.h + OUTLINE_SIZE).min(self.size.h);
 
         // Set the sprite pixels
-        for y in rect.min.y..rect.max.y {
+        let min = rect.position();
+        let max = rect.position() + (rect.w, rect.h);
+        for y in min.y..max.y {
             let index_start = y * self.size.w;
-            for x in rect.min.x..rect.max.x {
+            for x in min.x..max.x {
                 let index = index_start + x;
                 self.set_sprite_pixel_unchecked(index, Vec2::new(x, y));
             }
@@ -245,11 +270,16 @@ impl SolidShape {
     }
 
     /// Regenerate the rectangle part of the collider, which will be clamped if outside of range.
-    fn regenerate_collider_rectangle(&mut self, rect: Aabr<f64>) {
+    fn regenerate_collider_rectangle(
+        &mut self,
+        removal_delta: &BitSlice,
+        rect: Rect<usize, usize>,
+    ) {
         puffin::profile_scope!("Regenerate collider");
 
         // PERF: cache isoline result
-        self.collider.update(&self.shape, self.size, rect.as_());
+        self.collider
+            .update(&self.shape, self.size, removal_delta, rect);
     }
 
     /// Convert a coordinate to a pixel index, returning nothing when out of bound.
@@ -323,12 +353,18 @@ impl SolidShape {
         false
     }
 
-    /// Get the rectangle for the full size.
-    pub fn aabr(&self) -> Aabr<usize> {
-        let min = Vec2::zero();
-        let max = Vec2::new(self.size.w, self.size.h);
+    /// Clamp a rectangle to the size of the buffer.
+    pub fn clamp_rect(&self, mut rect: Rect<usize, usize>) -> Rect<usize, usize> {
+        // Also clamp when the rectangle is at the edge
+        rect.w = rect.w.min(self.size.w.saturating_sub(rect.x));
+        rect.h = rect.h.min(self.size.h.saturating_sub(rect.y));
 
-        Aabr { min, max }
+        rect
+    }
+
+    /// Get the rectangle for the full size.
+    pub fn rect(&self) -> Rect<usize, usize> {
+        Rect::new(0, 0, self.size.w, self.size.h)
     }
 }
 

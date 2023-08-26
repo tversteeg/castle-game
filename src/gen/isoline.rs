@@ -1,6 +1,6 @@
 use bitvec::slice::BitSlice;
 use itertools::Itertools;
-use vek::{Aabr, Extent2, Vec2};
+use vek::{Aabr, Extent2, Rect, Vec2};
 
 use crate::physics::collision::shape::Shape;
 
@@ -14,23 +14,19 @@ pub struct Isoline {
 impl Isoline {
     /// Generate from a bitmap.
     ///
-    /// Can return multiple items for each island.
+    /// Bitmap is not allowed to contain multiple non-connected pixels.
     #[must_use]
-    pub fn from_bitmap(bitmap: &BitSlice, size: Extent2<usize>) -> Vec<Self> {
-        let vertices = Vec::new();
+    pub fn from_bitmap(bitmap: &BitSlice, size: Extent2<usize>) -> Self {
+        // Create the vertices with a marching squares iterator over the bitmap
+        let vertices = MarchingSquaresIterator::new_find_starting_point(bitmap, size, [])
+            .map(Option::unwrap)
+            .map(Vec2::as_)
+            .collect::<Vec<_>>();
 
-        // Construct one main element that can be updated
-        let mut this = Self { vertices };
+        // Simplify the segments
+        let vertices = crate::gen::rdp::ramer_douglas_peucker(&vertices, 1.0);
 
-        // "Update" for the whole image
-        let min = Vec2::zero();
-        let max = Vec2::new(size.w, size.h);
-        let mut islands = this.update(bitmap, size, Aabr { min, max }.as_());
-
-        // Push the main item so everything is bundled
-        islands.push(this);
-
-        islands
+        Self { vertices }
     }
 
     /// Update a region on the bitmap.
@@ -43,75 +39,17 @@ impl Isoline {
         &mut self,
         bitmap: &BitSlice,
         size: Extent2<usize>,
-        region: Aabr<usize>,
+        removal_delta: &BitSlice,
+        region: Rect<usize, usize>,
     ) -> Vec<Self> {
         puffin::profile_scope!("Update isoline");
         // TODO: detect islands
         // TODO: use region
 
-        debug_assert!(bitmap.len() >= size.w * size.h);
-        debug_assert!(region.max.x <= size.w);
-        debug_assert!(region.max.y <= size.h);
+        debug_assert_eq!(bitmap.len(), size.w * size.h);
+        debug_assert_eq!(removal_delta.len(), region.w * region.h);
 
-        // Create the vertices with a marching squares iterator over the bitmap
-        let vertices = MarchingSquaresIterator::new_find_starting_point(bitmap, size, [])
-            .map(Option::unwrap)
-            .collect::<Vec<_>>();
-
-        // Get all edges at the corner of the image
-        let min = region.min;
-        let max = region.max - (1, 1);
-        let top_edge = (min.x..max.x).map(|x| Vec2::new(x, min.y));
-        let bot_edge = (min.x..max.x).map(|x| Vec2::new(x, max.y));
-        let left_edge = (min.y..max.y).map(|y| Vec2::new(min.x, y));
-        let right_edge = (min.y..max.y).map(|y| Vec2::new(max.x, y));
-
-        // Find all edges for the rectangle and check if they are new islands
-        let new_shapes = top_edge
-            .chain(bot_edge)
-            .filter(|edge_vert| {
-                // Check if the aligned pixel is different so it's a line
-                let index = edge_vert.x + edge_vert.y * size.w;
-                bitmap[index] != bitmap[index + 1]
-            })
-            .chain(left_edge.chain(right_edge).filter(|edge_vert| {
-                // Check if the aligned pixel is different so it's a line
-                let index = edge_vert.x + edge_vert.y * size.w;
-                bitmap[index] != bitmap[index + size.w]
-            }))
-            .filter_map(|vert| {
-                // Detect a new shape
-                let vertices =
-                    MarchingSquaresIterator::new_find_starting_point(bitmap, size, [vert])
-                        .collect::<Vec<_>>();
-
-                if !vertices.contains(&None) {
-                    dbg!(vertices.len());
-
-                    // New island shape detected
-                    let vertices = vertices
-                        .into_iter()
-                        .map(Option::unwrap)
-                        .map(Vec2::as_)
-                        .collect::<Vec<_>>();
-
-                    // Simplify the segments
-                    let vertices = crate::gen::rdp::ramer_douglas_peucker(&vertices, 1.0);
-
-                    Some(Self { vertices })
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        // Simplify the segments
-        self.vertices = crate::gen::rdp::ramer_douglas_peucker(
-            &vertices.into_iter().map(Vec2::as_).collect::<Vec<_>>(),
-            1.0,
-        );
-
-        new_shapes
+        Vec::new()
     }
 
     /// Create a collider from the vertices.
