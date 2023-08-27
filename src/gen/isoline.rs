@@ -1,10 +1,11 @@
 use std::collections::VecDeque;
 
-use bitvec::slice::BitSlice;
 use itertools::Itertools;
 use vek::{Aabr, Extent2, Rect, Vec2};
 
 use crate::physics::collision::shape::Shape;
+
+use super::bitmap::Bitmap;
 
 /// Isoline mesh from a bitmap that can be updated.
 #[derive(Debug, Default)]
@@ -18,9 +19,9 @@ impl Isoline {
     ///
     /// Bitmap is not allowed to contain multiple non-connected pixels.
     #[must_use]
-    pub fn from_bitmap(bitmap: &BitSlice, size: Extent2<usize>) -> Self {
+    pub fn from_bitmap(bitmap: &Bitmap) -> Self {
         // Create the vertices with a marching squares iterator over the bitmap
-        let vertices = MarchingSquaresIterator::new_find_starting_point(bitmap, size, [])
+        let vertices = MarchingSquaresIterator::new_find_starting_point(bitmap, [])
             .map(Option::unwrap)
             .map(Vec2::as_)
             .collect::<Vec<_>>();
@@ -37,17 +38,10 @@ impl Isoline {
     ///
     /// Assumes no islands exist on the bitmap.
     /// If the whole shape is cleared an extra border of 1 pixel should be added to each side.
-    pub fn update(
-        &mut self,
-        bitmap: &BitSlice,
-        size: Extent2<usize>,
-        removal_mask: &BitSlice,
-        mask_region: Rect<usize, usize>,
-    ) {
+    pub fn update(&mut self, bitmap: &Bitmap, delta_mask: &Bitmap, mask_position: Vec2<usize>) {
         puffin::profile_scope!("Update isoline");
 
-        debug_assert_eq!(bitmap.len(), size.w * size.h);
-        debug_assert_eq!(removal_mask.len(), mask_region.w * mask_region.h);
+        let mask_region = delta_mask.rect(mask_position);
 
         // Find any vertices laying on the removal mask
         let vertices_on_mask = self
@@ -63,7 +57,7 @@ impl Isoline {
                 let vert_index_on_mask =
                     (vert.x - mask_region.x) + (vert.y - mask_region.y) * mask_region.w;
 
-                removal_mask.get(vert_index_on_mask).is_some()
+                delta_mask[vert_index_on_mask]
             })
             .collect::<Vec<_>>();
 
@@ -85,16 +79,13 @@ impl Isoline {
         }
 
         // Create vertices with a marching squares iterator over the mask bitmap
-        let mut removal_mask_vertices = MarchingSquaresIterator::new_find_starting_point(
-            removal_mask,
-            mask_region.extent(),
-            [],
-        )
-        .map(Option::unwrap)
-        // Put them in the coordinates of the main bitmap again
-        .map(|relative_vert| relative_vert + mask_region.position())
-        .collect::<VecDeque<_>>();
-        assert!(!removal_mask_vertices.is_empty());
+        let mut delta_mask_vertices =
+            MarchingSquaresIterator::new_find_starting_point(delta_mask, [])
+                .map(Option::unwrap)
+                // Put them in the coordinates of the main bitmap again
+                .map(|relative_vert| relative_vert + mask_region.position())
+                .collect::<VecDeque<_>>();
+        assert!(!delta_mask_vertices.is_empty());
 
         // Get the first vertex so we can shift the removal mask vertices to the nearest item
         let (first_removal_index, _) = vertices_on_mask.first().unwrap();
@@ -107,7 +98,7 @@ impl Isoline {
         let first_pos: Vec2<usize> = self.vertices.get(first_index).unwrap().as_();
 
         // Find the nearest to the first old vertex
-        let (closest, _) = removal_mask_vertices
+        let (closest, _) = delta_mask_vertices
             .iter()
             .enumerate()
             .min_by_key(|(_index, vert)| vert.x * first_pos.x + vert.y * first_pos.y)
@@ -115,7 +106,7 @@ impl Isoline {
             .unwrap();
 
         // Put the removal vertices list in proper order
-        removal_mask_vertices.rotate_left(closest);
+        delta_mask_vertices.rotate_left(closest);
 
         dbg!(&closest);
 
@@ -126,7 +117,7 @@ impl Isoline {
 
         // Insert the newly generated vertices
         // PERF: find a way to do this in a single call
-        for vert in removal_mask_vertices.into_iter().map(Vec2::as_) {
+        for vert in delta_mask_vertices.into_iter().map(Vec2::as_) {
             self.vertices.insert(first_index, vert);
         }
     }
@@ -160,9 +151,7 @@ struct MarchingSquaresIterator<'a, const STOP_COUNT: usize> {
     /// Allows us to cross ambiguous points.
     prev_dir: MarchingSquaresWalkerDirection,
     /// Image we are walking over.
-    map: &'a BitSlice,
-    /// Size of the image.
-    size: Extent2<usize>,
+    map: &'a Bitmap,
 }
 
 impl<'a, const STOP_COUNT: usize> MarchingSquaresIterator<'a, STOP_COUNT> {
@@ -171,12 +160,9 @@ impl<'a, const STOP_COUNT: usize> MarchingSquaresIterator<'a, STOP_COUNT> {
     /// <div class='warning'>BitMap must be padded by 0 bits around the edges!</div>
     pub fn new(
         starting_position: Vec2<usize>,
-        map: &'a BitSlice,
-        size: Extent2<usize>,
+        map: &'a Bitmap,
         stop_at: [Vec2<usize>; STOP_COUNT],
     ) -> Self {
-        debug_assert_eq!(map.len(), size.w * size.h);
-
         let pos = starting_position;
         let start = pos;
         // Initial value doesn't matter
@@ -190,7 +176,6 @@ impl<'a, const STOP_COUNT: usize> MarchingSquaresIterator<'a, STOP_COUNT> {
             prev_dir,
             stop_at,
             map,
-            size,
         }
     }
 
@@ -199,24 +184,12 @@ impl<'a, const STOP_COUNT: usize> MarchingSquaresIterator<'a, STOP_COUNT> {
     /// The starting point is found as the first bit that's set.
     ///
     /// <div class='warning'>BitMap must be padded by 0 bits around the edges!</div>
-    pub fn new_find_starting_point(
-        map: &'a BitSlice,
-        size: Extent2<usize>,
-        stop_at: [Vec2<usize>; STOP_COUNT],
-    ) -> Self {
-        let starting_position_index = map
+    pub fn new_find_starting_point(map: &'a Bitmap, stop_at: [Vec2<usize>; STOP_COUNT]) -> Self {
+        let starting_position = map
             .first_one()
             .expect("Cannot create marching squares iterator over empty map");
-        let starting_position = Vec2::new(
-            starting_position_index % size.w,
-            starting_position_index / size.w,
-        );
-        debug_assert_eq!(
-            starting_position.x + starting_position.y * size.w,
-            starting_position_index
-        );
 
-        Self::new(starting_position, map, size, stop_at)
+        Self::new(starting_position, map, stop_at)
     }
 
     /// Convert a position to a 4bit number looking at it as a 2x2 grid if possible.
@@ -226,9 +199,9 @@ impl<'a, const STOP_COUNT: usize> MarchingSquaresIterator<'a, STOP_COUNT> {
         debug_assert!(self.pos.x > 0);
         debug_assert!(self.pos.y > 0);
 
-        let index = self.pos.x + self.pos.y * self.size.w;
-        let topleft = self.map[index - 1 - self.size.w] as u8;
-        let topright = self.map[index - self.size.w] as u8;
+        let index = self.pos.x + self.pos.y * self.map.width();
+        let topleft = self.map[index - 1 - self.map.width()] as u8;
+        let topright = self.map[index - self.map.width()] as u8;
         let botleft = self.map[index - 1] as u8;
         let botright = self.map[index] as u8;
 
@@ -293,7 +266,7 @@ impl<'a, const STOP_COUNT: usize> Iterator for MarchingSquaresIterator<'a, STOP_
                 // Keep walking, ignoring all parts between the line segments
                 loop {
                     self.pos.y += 1;
-                    debug_assert!(self.pos.y < self.size.h);
+                    debug_assert!(self.pos.y < self.map.height());
                     if self.should_stop() {
                         return Some(None);
                     }
@@ -327,7 +300,7 @@ impl<'a, const STOP_COUNT: usize> Iterator for MarchingSquaresIterator<'a, STOP_
                 // Keep walking, ignoring all parts between the line segments
                 loop {
                     self.pos.x += 1;
-                    debug_assert!(self.pos.x < self.size.w);
+                    debug_assert!(self.pos.x < self.map.width());
                     if self.should_stop() {
                         return Some(None);
                     }

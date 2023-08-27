@@ -4,6 +4,7 @@ use vek::{Extent2, Vec2};
 
 use crate::{
     camera::Camera,
+    graphics::Color,
     input::Input,
     math::{Iso, Rotation},
     object::ObjectSettings,
@@ -13,6 +14,8 @@ use crate::{
         Physics,
     },
     projectile::Projectile,
+    solid_shape::SolidShape,
+    sprite::SpriteOffset,
     terrain::Terrain,
     SIZE,
 };
@@ -39,6 +42,8 @@ pub enum DebugScreen {
     Collisions,
     /// Separatable terrain sandbox.
     Terrain,
+    /// Shape we can edit by clicking.
+    Shape,
 }
 
 impl DebugScreen {
@@ -51,6 +56,7 @@ impl DebugScreen {
             DebugScreen::SpriteRotations => "Sprite Rotation Test",
             DebugScreen::Collisions => "Collision Detection Test",
             DebugScreen::Terrain => "Click to Remove Terrain Pixels",
+            DebugScreen::Shape => "Click to Remove Shape Pixels",
         }
     }
 }
@@ -64,7 +70,8 @@ impl DebugScreen {
             Self::SpawnCubes => Self::SpriteRotations,
             Self::SpriteRotations => Self::Collisions,
             Self::Collisions => Self::Terrain,
-            Self::Terrain => Self::Empty,
+            Self::Terrain => Self::Shape,
+            Self::Shape => Self::Empty,
         }
     }
 }
@@ -87,6 +94,8 @@ pub struct DebugDraw {
     boxes: Vec<RigidBodyHandle>,
     /// Platform.
     platform: RigidBodyHandle,
+    /// Solid shape we can edit by clicking.
+    shape: SolidShape,
 }
 
 impl DebugDraw {
@@ -107,6 +116,14 @@ impl DebugDraw {
             .with_restitution(0.0)
             .spawn(&mut physics);
 
+        // Create a simple rectangle shape
+        let shape = SolidShape::from_rectangle(
+            Extent2::new(100.0, 100.0),
+            SpriteOffset::Middle,
+            Color::Gray,
+            Color::Black,
+        );
+
         Self {
             screen,
             mouse,
@@ -116,6 +133,7 @@ impl DebugDraw {
             physics,
             boxes,
             platform,
+            shape,
         }
     }
 
@@ -170,12 +188,20 @@ impl DebugDraw {
             ));
         }
 
-        if self.screen == DebugScreen::Terrain && input.left_mouse.is_pressed() {
+        if self.screen == DebugScreen::Terrain && input.left_mouse.is_released() {
             // Click to slice the terrain
             terrain.remove_circle(
                 camera.translate_from_screen(input.mouse_pos.as_()),
                 10.0,
                 physics,
+            );
+        }
+
+        if self.screen == DebugScreen::Shape && input.left_mouse.is_released() {
+            // Click to slice the terrain
+            self.shape.remove_circle(
+                self.mouse.as_() - Vec2::new(SIZE.w / 2 - 50, SIZE.h / 2 - 50).as_(),
+                10.0,
             );
         }
 
@@ -267,6 +293,22 @@ impl DebugDraw {
                         self.render_collision_response(&response, iso, mouse_iso, canvas);
                     }
                 }
+            }
+            DebugScreen::Shape => {
+                self.shape.sprite().render(
+                    canvas,
+                    &Camera::default(),
+                    Vec2::new(SIZE.w / 2, SIZE.h / 2).as_(),
+                );
+
+                self.render_collider(
+                    &self
+                        .shape
+                        .to_collider()
+                        .vertices(Iso::new(Vec2::new(SIZE.w / 2, SIZE.h / 2 - 50).as_(), 0.0)),
+                    &Camera::default(),
+                    canvas,
+                );
             }
             DebugScreen::Terrain | DebugScreen::SpawnProjectiles | DebugScreen::Empty => (),
         }
