@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use bitvec::slice::BitSlice;
 use itertools::Itertools;
 use vek::{Aabr, Extent2, Rect, Vec2};
@@ -33,23 +35,100 @@ impl Isoline {
     ///
     /// This is an optimization so the whole shape doesn't have to be recalculated.
     ///
-    /// When a new island is formed it's returned.
-    #[must_use]
+    /// Assumes no islands exist on the bitmap.
+    /// If the whole shape is cleared an extra border of 1 pixel should be added to each side.
     pub fn update(
         &mut self,
         bitmap: &BitSlice,
         size: Extent2<usize>,
-        removal_delta: &BitSlice,
-        region: Rect<usize, usize>,
-    ) -> Vec<Self> {
+        removal_mask: &BitSlice,
+        mask_region: Rect<usize, usize>,
+    ) {
         puffin::profile_scope!("Update isoline");
-        // TODO: detect islands
-        // TODO: use region
 
         debug_assert_eq!(bitmap.len(), size.w * size.h);
-        debug_assert_eq!(removal_delta.len(), region.w * region.h);
+        debug_assert_eq!(removal_mask.len(), mask_region.w * mask_region.h);
 
-        Vec::new()
+        // Find any vertices laying on the removal mask
+        let vertices_on_mask = self
+            .vertices
+            .iter()
+            .enumerate()
+            // Convert vert to usize
+            .map(|(index, vert)| (index, vert.as_()))
+            // Do a simple pass filtering all vertices not in the region out
+            .filter(|(_index, vert)| mask_region.contains_point(*vert))
+            // Do a pass filtering all vertices not on the removal mask out
+            .filter(|(_index, vert)| {
+                let vert_index_on_mask =
+                    (vert.x - mask_region.x) + (vert.y - mask_region.y) * mask_region.w;
+
+                removal_mask.get(vert_index_on_mask).is_some()
+            })
+            .collect::<Vec<_>>();
+
+        if vertices_on_mask.is_empty() {
+            // TODO: what do we do when the line is longer than the area?
+            println!("Collider update skipped");
+
+            return;
+        }
+
+        // Check if we have multiple line parts in the removal mask
+        if vertices_on_mask
+            .iter()
+            .zip(vertices_on_mask.iter().skip(1))
+            .any(|((cur_index, _), (next_index, _))| *cur_index != next_index - 1)
+        {
+            // TODO: handle multiple lines
+            todo!()
+        }
+
+        // Create vertices with a marching squares iterator over the mask bitmap
+        let mut removal_mask_vertices = MarchingSquaresIterator::new_find_starting_point(
+            removal_mask,
+            mask_region.extent(),
+            [],
+        )
+        .map(Option::unwrap)
+        // Put them in the coordinates of the main bitmap again
+        .map(|relative_vert| relative_vert + mask_region.position())
+        .collect::<VecDeque<_>>();
+        assert!(!removal_mask_vertices.is_empty());
+
+        // Get the first vertex so we can shift the removal mask vertices to the nearest item
+        let (first_removal_index, _) = vertices_on_mask.first().unwrap();
+        let first_index = if let Some(index) = first_removal_index.checked_sub(1) {
+            index
+        } else {
+            // Index was 0, wrap around
+            self.vertices.len() - 1
+        };
+        let first_pos: Vec2<usize> = self.vertices.get(first_index).unwrap().as_();
+
+        // Find the nearest to the first old vertex
+        let (closest, _) = removal_mask_vertices
+            .iter()
+            .enumerate()
+            .min_by_key(|(_index, vert)| vert.x * first_pos.x + vert.y * first_pos.y)
+            // Safe because we already check if it's empty
+            .unwrap();
+
+        // Put the removal vertices list in proper order
+        removal_mask_vertices.rotate_left(closest);
+
+        dbg!(&closest);
+
+        // Remove the vertices
+        for (index, _vert) in vertices_on_mask.into_iter().rev() {
+            self.vertices.remove(index);
+        }
+
+        // Insert the newly generated vertices
+        // PERF: find a way to do this in a single call
+        for vert in removal_mask_vertices.into_iter().map(Vec2::as_) {
+            self.vertices.insert(first_index, vert);
+        }
     }
 
     /// Create a collider from the vertices.

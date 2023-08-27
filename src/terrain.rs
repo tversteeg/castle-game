@@ -4,13 +4,12 @@ use vek::Vec2;
 use crate::{
     camera::Camera,
     graphics::Color,
-    object::ObjectSettings,
     physics::{
         rigidbody::{RigidBodyBuilder, RigidBodyHandle},
         Physics,
     },
     solid_shape::SolidShape,
-    sprite::{Sprite, SpriteOffset},
+    sprite::{SpriteOffset},
     SIZE,
 };
 
@@ -64,7 +63,7 @@ impl Terrain {
         // Create a heightmap for the terrain
         let rigidbody = {
             RigidBodyBuilder::new_static(Vec2::new(settings.width as f64 / 2.0, y))
-                .with_collider(shape.to_collider().clone())
+                .with_collider(shape.to_collider())
                 .spawn(physics)
         };
 
@@ -88,7 +87,7 @@ impl Terrain {
     /// Whether a point collides with the terrain.
     ///
     /// This doesn't use the collision shape but the actual pixels of the image.
-    pub fn point_collides(&self, point: Vec2<f64>, physics: &Physics) -> bool {
+    pub fn point_collides(&self, point: Vec2<f64>, _physics: &Physics) -> bool {
         // Convert the position to a coordinate that can be used as an index
         let offset = point - (0.0, self.y);
         self.shape.collides(offset)
@@ -98,14 +97,14 @@ impl Terrain {
     pub fn remove_pixel(&mut self, pixel: Vec2<f64>, physics: &mut Physics) {
         self.shape.remove_pixel(pixel - (0.0, self.y));
         self.rigidbody
-            .set_shape(self.shape.to_collider().clone(), physics);
+            .set_shape(self.shape.to_collider(), physics);
     }
 
     /// Remove a circle of pixels from the terrain.
     pub fn remove_circle(&mut self, center: Vec2<f64>, radius: f64, physics: &mut Physics) {
         self.shape.remove_circle(center - (0.0, self.y), radius);
         self.rigidbody
-            .set_shape(self.shape.to_collider().clone(), physics);
+            .set_shape(self.shape.to_collider(), physics);
     }
 }
 

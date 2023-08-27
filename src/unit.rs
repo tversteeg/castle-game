@@ -6,7 +6,7 @@ use crate::{
     camera::Camera,
     object::ObjectSettings,
     physics::{
-        rigidbody::{RigidBodyBuilder, RigidBodyHandle},
+        rigidbody::{RigidBodyHandle},
         Physics,
     },
     projectile::Projectile,

@@ -1,6 +1,6 @@
 use bitvec::{slice::BitSlice, vec::BitVec};
-use line_drawing::BresenhamCircle;
-use vek::{Aabr, Extent2, Rect, Vec2};
+
+use vek::{Extent2, Rect, Vec2};
 
 use crate::{
     gen::isoline::Isoline,
@@ -214,18 +214,20 @@ impl SolidShape {
         }
 
         // Redraw a rectangle of the sprite
-        self.apply_removal_deltas(&removal_delta, rect);
+        self.apply_removal_mask(&removal_delta, rect);
     }
 
     /// Apply a bit vector of delta values which will remove pixels.
-    fn apply_removal_deltas(&mut self, removal_delta: &BitSlice, rect: Rect<usize, usize>) {
+    fn apply_removal_mask(&mut self, removal_mask: &BitSlice, rect: Rect<usize, usize>) {
         puffin::profile_scope!("Apply removal deltas");
 
-        debug_assert_eq!(removal_delta.len(), rect.w * rect.h);
+        debug_assert_eq!(removal_mask.len(), rect.w * rect.h);
 
         // Ensure it doesn't go out of bounds
         let rect = self.clamp_rect(rect);
 
+        // Keep track of whether we updated any pixels
+        let mut applied = false;
         // Apply to the shape
         for y in 0..rect.h {
             // Y start index on the removal delta map
@@ -235,16 +237,26 @@ impl SolidShape {
 
             for x in 0..rect.w {
                 // PERF: use a bitwise operator and no loop here
-                if removal_delta[delta_index + x] {
-                    self.shape.set(shape_index + rect.x + x, false);
+                if removal_mask[delta_index + x] {
+                    let index = shape_index + rect.x + x;
+                    let pixel = self.shape.get_mut(index);
+                    if let Some(mut pixel) = pixel {
+                        // TODO: create map with updated pixels here
+                        if !applied && *pixel {
+                            applied = true;
+                        }
+                        *pixel = false;
+                    }
                 }
             }
         }
 
-        // Redraw the sprite
-        self.redraw_sprite_rectangle(rect);
-        // Remove the part of the collider
-        self.regenerate_collider_rectangle(removal_delta, rect);
+        if applied {
+            // Redraw the sprite
+            self.redraw_sprite_rectangle(rect);
+            // Remove the part of the collider
+            self.regenerate_collider_rectangle(removal_mask, rect);
+        }
     }
 
     /// Redraw the sprite pixels of a rectangle, which will be clamped if outside of range.
@@ -270,16 +282,12 @@ impl SolidShape {
     }
 
     /// Regenerate the rectangle part of the collider, which will be clamped if outside of range.
-    fn regenerate_collider_rectangle(
-        &mut self,
-        removal_delta: &BitSlice,
-        rect: Rect<usize, usize>,
-    ) {
+    fn regenerate_collider_rectangle(&mut self, removal_mask: &BitSlice, rect: Rect<usize, usize>) {
         puffin::profile_scope!("Regenerate collider");
 
         // PERF: cache isoline result
         self.collider
-            .update(&self.shape, self.size, removal_delta, rect);
+            .update(&self.shape, self.size, removal_mask, rect);
     }
 
     /// Convert a coordinate to a pixel index, returning nothing when out of bound.
@@ -368,8 +376,8 @@ impl SolidShape {
     }
 }
 
-#[rustfmt::skip]
 mod outline_offsets {
+    #[rustfmt::skip]
     pub const OUTLINE_OFFSETS_2: [(i32, i32); 20] = [
                   (-1, -2), ( 0, -2), ( 1, -2),          
         (-2, -1), (-1, -1), ( 0, -1), ( 1, -1), ( 2, -1),

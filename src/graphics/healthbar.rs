@@ -1,8 +1,8 @@
-use raqote::{AntialiasMode, BlendMode, DrawOptions, DrawTarget, SolidSource, Source};
+use raqote::{AntialiasMode, BlendMode, DrawOptions, DrawTarget, Source};
 use vek::{Extent2, Vec2};
 
 use crate::{
-    camera::{self, Camera},
+    camera::{Camera},
     graphics::Color,
     SIZE,
 };
