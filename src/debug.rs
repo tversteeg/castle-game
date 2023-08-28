@@ -95,7 +95,7 @@ pub struct DebugDraw {
     /// Platform.
     platform: RigidBodyHandle,
     /// Solid shape we can edit by clicking.
-    shape: SolidShape,
+    shapes: Vec<SolidShape>,
 }
 
 impl DebugDraw {
@@ -123,6 +123,7 @@ impl DebugDraw {
             Color::Gray,
             Color::Black,
         );
+        let shapes = vec![shape];
 
         Self {
             screen,
@@ -133,7 +134,7 @@ impl DebugDraw {
             physics,
             boxes,
             platform,
-            shape,
+            shapes,
         }
     }
 
@@ -199,10 +200,14 @@ impl DebugDraw {
 
         if self.screen == DebugScreen::Shape && input.left_mouse.is_released() {
             // Click to slice the terrain
-            self.shape.remove_circle(
-                self.mouse.as_() - Vec2::new(SIZE.w / 2 - 50, SIZE.h / 2 - 50).as_(),
-                10.0,
-            );
+            let mut new_shapes = Vec::new();
+            for shape in self.shapes.iter_mut() {
+                new_shapes.append(&mut shape.remove_circle(
+                    self.mouse.as_() - Vec2::new(SIZE.w / 2 - 50, SIZE.h / 2 - 50).as_(),
+                    10.0,
+                ));
+            }
+            self.shapes.append(&mut new_shapes);
         }
 
         self.mouse = input.mouse_pos.as_();
@@ -295,20 +300,21 @@ impl DebugDraw {
                 }
             }
             DebugScreen::Shape => {
-                self.shape.sprite().render(
-                    canvas,
-                    &Camera::default(),
-                    Vec2::new(SIZE.w / 2, SIZE.h / 2).as_(),
-                );
+                for shape in self.shapes.iter() {
+                    shape.sprite().render(
+                        canvas,
+                        &Camera::default(),
+                        Vec2::new(SIZE.w / 2, SIZE.h / 2).as_(),
+                    );
 
-                self.render_collider(
-                    &self
-                        .shape
-                        .to_collider()
-                        .vertices(Iso::new(Vec2::new(SIZE.w / 2, SIZE.h / 2 - 50).as_(), 0.0)),
-                    &Camera::default(),
-                    canvas,
-                );
+                    self.render_collider(
+                        &shape
+                            .to_collider()
+                            .vertices(Iso::new(Vec2::new(SIZE.w / 2, SIZE.h / 2 - 50).as_(), 0.0)),
+                        &Camera::default(),
+                        canvas,
+                    );
+                }
             }
             DebugScreen::Terrain | DebugScreen::SpawnProjectiles | DebugScreen::Empty => (),
         }

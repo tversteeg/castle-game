@@ -9,7 +9,7 @@ use crate::{
         Physics,
     },
     solid_shape::SolidShape,
-    sprite::{SpriteOffset},
+    sprite::SpriteOffset,
     SIZE,
 };
 
@@ -93,18 +93,10 @@ impl Terrain {
         self.shape.collides(offset)
     }
 
-    /// Remove a single pixel from the terrain.
-    pub fn remove_pixel(&mut self, pixel: Vec2<f64>, physics: &mut Physics) {
-        self.shape.remove_pixel(pixel - (0.0, self.y));
-        self.rigidbody
-            .set_shape(self.shape.to_collider(), physics);
-    }
-
     /// Remove a circle of pixels from the terrain.
     pub fn remove_circle(&mut self, center: Vec2<f64>, radius: f64, physics: &mut Physics) {
         self.shape.remove_circle(center - (0.0, self.y), radius);
-        self.rigidbody
-            .set_shape(self.shape.to_collider(), physics);
+        self.rigidbody.set_shape(self.shape.to_collider(), physics);
     }
 }
 

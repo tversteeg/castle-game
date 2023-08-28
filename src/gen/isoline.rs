@@ -41,11 +41,49 @@ impl Isoline {
     pub fn update(&mut self, bitmap: &Bitmap, delta_mask: &Bitmap, mask_position: Vec2<usize>) {
         puffin::profile_scope!("Update isoline");
 
+        // PERF: don't do a full recalculation
+        let vertices = MarchingSquaresIterator::new_find_starting_point(bitmap, [])
+            .map(Option::unwrap)
+            .map(Vec2::as_)
+            .collect::<Vec<_>>();
+
+        // Simplify the segments
+        self.vertices = crate::gen::rdp::ramer_douglas_peucker(&vertices, 1.0);
+
+        /*
+        // Insert the newly generated vertices
+        // PERF: find a way to do this in a single call
+        for vert in delta_mask_vertices.into_iter().map(Vec2::as_) {
+            self.vertices.insert(first_index, vert);
+        }
+        */
+    }
+
+    /// Create a collider from the vertices.
+    #[must_use]
+    pub fn to_collider(&self, size: Extent2<f64>) -> Shape {
+        puffin::profile_scope!("Isoline to collider");
+
+        Shape::linestrip(
+            &self
+                .vertices
+                .iter()
+                .map(|vert| *vert - (size.w / 2.0, 0.0))
+                .collect::<Vec<_>>(),
+        )
+    }
+
+    /// Find any vertices laying on the removal mask.
+    fn vertices_on_mask(
+        &self,
+        delta_mask: &Bitmap,
+        mask_position: Vec2<usize>,
+    ) -> Vec<(usize, Vec2<usize>)> {
+        puffin::profile_scope!("Find vertices on mask");
+
         let mask_region = delta_mask.rect(mask_position);
 
-        // Find any vertices laying on the removal mask
-        let vertices_on_mask = self
-            .vertices
+        self.vertices
             .iter()
             .enumerate()
             // Convert vert to usize
@@ -59,79 +97,7 @@ impl Isoline {
 
                 delta_mask[vert_index_on_mask]
             })
-            .collect::<Vec<_>>();
-
-        if vertices_on_mask.is_empty() {
-            // TODO: what do we do when the line is longer than the area?
-            println!("Collider update skipped");
-
-            return;
-        }
-
-        // Check if we have multiple line parts in the removal mask
-        if vertices_on_mask
-            .iter()
-            .zip(vertices_on_mask.iter().skip(1))
-            .any(|((cur_index, _), (next_index, _))| *cur_index != next_index - 1)
-        {
-            // TODO: handle multiple lines
-            todo!()
-        }
-
-        // Create vertices with a marching squares iterator over the mask bitmap
-        let mut delta_mask_vertices =
-            MarchingSquaresIterator::new_find_starting_point(delta_mask, [])
-                .map(Option::unwrap)
-                // Put them in the coordinates of the main bitmap again
-                .map(|relative_vert| relative_vert + mask_region.position())
-                .collect::<VecDeque<_>>();
-        assert!(!delta_mask_vertices.is_empty());
-
-        // Get the first vertex so we can shift the removal mask vertices to the nearest item
-        let (first_removal_index, _) = vertices_on_mask.first().unwrap();
-        let first_index = if let Some(index) = first_removal_index.checked_sub(1) {
-            index
-        } else {
-            // Index was 0, wrap around
-            self.vertices.len() - 1
-        };
-        let first_pos: Vec2<usize> = self.vertices.get(first_index).unwrap().as_();
-
-        // Find the nearest to the first old vertex
-        let (closest, _) = delta_mask_vertices
-            .iter()
-            .enumerate()
-            .min_by_key(|(_index, vert)| vert.x * first_pos.x + vert.y * first_pos.y)
-            // Safe because we already check if it's empty
-            .unwrap();
-
-        // Put the removal vertices list in proper order
-        delta_mask_vertices.rotate_left(closest);
-
-        dbg!(&closest);
-
-        // Remove the vertices
-        for (index, _vert) in vertices_on_mask.into_iter().rev() {
-            self.vertices.remove(index);
-        }
-
-        // Insert the newly generated vertices
-        // PERF: find a way to do this in a single call
-        for vert in delta_mask_vertices.into_iter().map(Vec2::as_) {
-            self.vertices.insert(first_index, vert);
-        }
-    }
-
-    /// Create a collider from the vertices.
-    #[must_use]
-    pub fn to_collider(&self, size: Extent2<f64>) -> Shape {
-        Shape::linestrip(
-            &self
-                .vertices
-                .iter()
-                .map(|vert| *vert - (size.w / 2.0, 0.0))
-                .collect::<Vec<_>>(),
-        )
+            .collect()
     }
 }
 
@@ -341,10 +307,10 @@ impl<'a, const STOP_COUNT: usize> Iterator for MarchingSquaresIterator<'a, STOP_
 
         if self.pos == self.start {
             // We made a full loop
-            None
-        } else {
-            Some(Some(self.pos))
+            self.done = true;
         }
+
+        Some(Some(self.pos))
     }
 }
 
