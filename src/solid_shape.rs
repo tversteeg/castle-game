@@ -1,5 +1,3 @@
-use bitvec::{slice::BitSlice, vec::BitVec};
-
 use vek::{Extent2, Rect, Vec2};
 
 use crate::{

@@ -1,7 +1,4 @@
-use std::collections::VecDeque;
-
-use itertools::Itertools;
-use vek::{Aabr, Extent2, Rect, Vec2};
+use vek::{Extent2, Vec2};
 
 use crate::physics::collision::shape::Shape;
 
@@ -21,8 +18,7 @@ impl Isoline {
     #[must_use]
     pub fn from_bitmap(bitmap: &Bitmap) -> Self {
         // Create the vertices with a marching squares iterator over the bitmap
-        let vertices = MarchingSquaresIterator::new_find_starting_point(bitmap, [])
-            .map(Option::unwrap)
+        let vertices = MarchingSquaresIterator::new_find_starting_point(bitmap)
             .map(Vec2::as_)
             .collect::<Vec<_>>();
 
@@ -38,12 +34,11 @@ impl Isoline {
     ///
     /// Assumes no islands exist on the bitmap.
     /// If the whole shape is cleared an extra border of 1 pixel should be added to each side.
-    pub fn update(&mut self, bitmap: &Bitmap, delta_mask: &Bitmap, mask_position: Vec2<usize>) {
+    pub fn update(&mut self, bitmap: &Bitmap, _delta_mask: &Bitmap, _mask_position: Vec2<usize>) {
         puffin::profile_scope!("Update isoline");
 
         // PERF: don't do a full recalculation
-        let vertices = MarchingSquaresIterator::new_find_starting_point(bitmap, [])
-            .map(Option::unwrap)
+        let vertices = MarchingSquaresIterator::new_find_starting_point(bitmap)
             .map(Vec2::as_)
             .collect::<Vec<_>>();
 
@@ -103,13 +98,11 @@ impl Isoline {
 
 /// Marching square walker over the source image.
 #[derive(Debug, Clone)]
-struct MarchingSquaresIterator<'a, const STOP_COUNT: usize> {
+struct MarchingSquaresIterator<'a> {
     /// Current position.
     pos: Vec2<usize>,
     /// Starting position.
     start: Vec2<usize>,
-    /// Iterator fails when reaching any of these coordinates.
-    stop_at: [Vec2<usize>; STOP_COUNT],
     /// We are done iterating.
     done: bool,
     /// Previous direction.
@@ -120,15 +113,11 @@ struct MarchingSquaresIterator<'a, const STOP_COUNT: usize> {
     map: &'a Bitmap,
 }
 
-impl<'a, const STOP_COUNT: usize> MarchingSquaresIterator<'a, STOP_COUNT> {
+impl<'a> MarchingSquaresIterator<'a> {
     /// Create a new iterator walking over the source image using the marching square algorithm.
     ///
     /// <div class='warning'>BitMap must be padded by 0 bits around the edges!</div>
-    pub fn new(
-        starting_position: Vec2<usize>,
-        map: &'a Bitmap,
-        stop_at: [Vec2<usize>; STOP_COUNT],
-    ) -> Self {
+    pub fn new(starting_position: Vec2<usize>, map: &'a Bitmap) -> Self {
         let pos = starting_position;
         let start = pos;
         // Initial value doesn't matter
@@ -140,7 +129,6 @@ impl<'a, const STOP_COUNT: usize> MarchingSquaresIterator<'a, STOP_COUNT> {
             pos,
             start,
             prev_dir,
-            stop_at,
             map,
         }
     }
@@ -150,12 +138,12 @@ impl<'a, const STOP_COUNT: usize> MarchingSquaresIterator<'a, STOP_COUNT> {
     /// The starting point is found as the first bit that's set.
     ///
     /// <div class='warning'>BitMap must be padded by 0 bits around the edges!</div>
-    pub fn new_find_starting_point(map: &'a Bitmap, stop_at: [Vec2<usize>; STOP_COUNT]) -> Self {
+    pub fn new_find_starting_point(map: &'a Bitmap) -> Self {
         let starting_position = map
             .first_one()
             .expect("Cannot create marching squares iterator over empty map");
 
-        Self::new(starting_position, map, stop_at)
+        Self::new(starting_position, map)
     }
 
     /// Convert a position to a 4bit number looking at it as a 2x2 grid if possible.
@@ -181,24 +169,10 @@ impl<'a, const STOP_COUNT: usize> MarchingSquaresIterator<'a, STOP_COUNT> {
 
         dir_number == numbers[0] || dir_number == numbers[1] || dir_number == numbers[2]
     }
-
-    /// Check whether the coordinate is reached.
-    #[inline(always)]
-    fn should_stop(&mut self) -> bool {
-        for stop_at in self.stop_at {
-            if self.pos == stop_at {
-                self.done = true;
-
-                return true;
-            }
-        }
-
-        false
-    }
 }
 
-impl<'a, const STOP_COUNT: usize> Iterator for MarchingSquaresIterator<'a, STOP_COUNT> {
-    type Item = Option<Vec2<usize>>;
+impl<'a> Iterator for MarchingSquaresIterator<'a> {
+    type Item = Vec2<usize>;
 
     fn next(&mut self) -> Option<Self::Item> {
         puffin::profile_scope!("Marching squares iterator step");
@@ -216,9 +190,6 @@ impl<'a, const STOP_COUNT: usize> Iterator for MarchingSquaresIterator<'a, STOP_
                 loop {
                     self.pos.y -= 1;
                     debug_assert!(self.pos.y > 0);
-                    if self.should_stop() {
-                        return Some(None);
-                    }
 
                     if !self.is_dir_number([1, 5, 13]) {
                         break;
@@ -233,9 +204,6 @@ impl<'a, const STOP_COUNT: usize> Iterator for MarchingSquaresIterator<'a, STOP_
                 loop {
                     self.pos.y += 1;
                     debug_assert!(self.pos.y < self.map.height());
-                    if self.should_stop() {
-                        return Some(None);
-                    }
 
                     if !self.is_dir_number([8, 10, 11]) {
                         break;
@@ -250,9 +218,6 @@ impl<'a, const STOP_COUNT: usize> Iterator for MarchingSquaresIterator<'a, STOP_
                 loop {
                     self.pos.x -= 1;
                     debug_assert!(self.pos.x > 0);
-                    if self.should_stop() {
-                        return Some(None);
-                    }
 
                     if !self.is_dir_number([4, 12, 14]) {
                         break;
@@ -267,9 +232,6 @@ impl<'a, const STOP_COUNT: usize> Iterator for MarchingSquaresIterator<'a, STOP_
                 loop {
                     self.pos.x += 1;
                     debug_assert!(self.pos.x < self.map.width());
-                    if self.should_stop() {
-                        return Some(None);
-                    }
 
                     if !self.is_dir_number([2, 3, 7]) {
                         break;
@@ -285,10 +247,6 @@ impl<'a, const STOP_COUNT: usize> Iterator for MarchingSquaresIterator<'a, STOP_
                 } else {
                     self.pos.y -= 1;
                 }
-
-                if self.should_stop() {
-                    return Some(None);
-                }
             }
             // Right if previous was down, left if previous was up
             6 => {
@@ -296,10 +254,6 @@ impl<'a, const STOP_COUNT: usize> Iterator for MarchingSquaresIterator<'a, STOP_
                     self.pos.x += 1;
                 } else {
                     self.pos.x -= 1;
-                }
-
-                if self.should_stop() {
-                    return Some(None);
                 }
             }
             _ => panic!("Unknown direction"),
@@ -310,7 +264,7 @@ impl<'a, const STOP_COUNT: usize> Iterator for MarchingSquaresIterator<'a, STOP_
             self.done = true;
         }
 
-        Some(Some(self.pos))
+        Some(self.pos)
     }
 }
 
@@ -328,12 +282,14 @@ mod tests {
     use bitvec::prelude::*;
     use vek::{Extent2, Vec2};
 
+    use crate::gen::bitmap::Bitmap;
+
     use super::MarchingSquaresIterator;
 
     #[test]
     fn test_marching_cubes_iterator() {
         #[rustfmt::skip]
-        let image: &BitSlice = bits![
+        let image  = Bitmap::from_bitvec(bits![
             0, 0, 0, 0, 0, 0, 0,
             0, 0, 1, 1, 1, 0, 0,
             0, 1, 1, 1, 1, 1, 0,
@@ -343,10 +299,9 @@ mod tests {
             0, 0, 0, 1, 1, 0, 0,
             0, 0, 1, 1, 1, 0, 0,
             0, 0, 0, 0, 0, 0, 0,
-        ];
+        ].to_bitvec(), Extent2::new(7, 9));
 
-        let outline: Vec<_> =
-            MarchingSquaresIterator::new(Vec2::new(2, 2), image, Extent2::new(7, 9)).collect();
-        assert_eq!(outline.len(), 19);
+        let outline: Vec<_> = MarchingSquaresIterator::new(Vec2::new(2, 2), &image).collect();
+        assert_eq!(outline.len(), 20);
     }
 }

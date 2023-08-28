@@ -3,7 +3,7 @@ use std::{
     ops::{Bound, Index, IndexMut, RangeBounds},
 };
 
-use bitvec::vec::BitVec;
+use bitvec::{slice::BitSlice, vec::BitVec};
 use vek::{Extent2, Rect, Vec2};
 
 /// Binary 2D map.
@@ -20,6 +20,11 @@ impl Bitmap {
     pub fn empty(size: Extent2<usize>) -> Self {
         let map = BitVec::repeat(false, size.product());
 
+        Self { size, map }
+    }
+
+    /// Create from a bitvec.
+    pub fn from_bitvec(map: BitVec, size: Extent2<usize>) -> Self {
         Self { size, map }
     }
 

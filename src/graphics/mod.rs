@@ -1,4 +1,4 @@
-use raqote::{SolidSource};
+use raqote::SolidSource;
 
 pub mod healthbar;
 

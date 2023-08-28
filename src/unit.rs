@@ -5,10 +5,7 @@ use vek::{Extent2, Vec2};
 use crate::{
     camera::Camera,
     object::ObjectSettings,
-    physics::{
-        rigidbody::{RigidBodyHandle},
-        Physics,
-    },
+    physics::{rigidbody::RigidBodyHandle, Physics},
     projectile::Projectile,
     random::RandomRangeF64,
     terrain::Terrain,

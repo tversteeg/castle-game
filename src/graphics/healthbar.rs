@@ -1,11 +1,7 @@
 use raqote::{AntialiasMode, BlendMode, DrawOptions, DrawTarget, Source};
 use vek::{Extent2, Vec2};
 
-use crate::{
-    camera::{Camera},
-    graphics::Color,
-    SIZE,
-};
+use crate::{camera::Camera, graphics::Color, SIZE};
 
 /// Don't draw with anti-aliasing.
 const DRAW_OPTIONS: DrawOptions = DrawOptions {
