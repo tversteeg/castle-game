@@ -31,7 +31,7 @@ rotation_friction = 1.0
 # Debug screen specific settings, press 'n' to go to next screen
 [debug]
 # Which debug section to start in when running the game
-start_screen = "terrain"
+start_screen = "shape"
 # Whether to draw physics collider shapes
 draw_physics_colliders = true
 # Whether to draw physics contact points

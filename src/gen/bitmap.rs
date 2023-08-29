@@ -3,7 +3,7 @@ use std::{
     ops::{Bound, Index, IndexMut, RangeBounds},
 };
 
-use bitvec::{slice::BitSlice, vec::BitVec};
+use bitvec::vec::BitVec;
 use vek::{Extent2, Rect, Vec2};
 
 /// Binary 2D map.
@@ -33,6 +33,9 @@ impl Bitmap {
     /// Returns a delta map of which pixels got updated the same size as the removal map.
     pub fn apply_removal_mask(&mut self, removal_mask: &Bitmap, offset: Vec2<usize>) -> Bitmap {
         puffin::profile_scope!("Apply removel mask");
+
+        debug_assert!(offset.x + removal_mask.size.w <= self.size.w);
+        debug_assert!(offset.y + removal_mask.size.h <= self.size.h);
 
         // Keep track of all pixels that got set
         let mut delta_map = Bitmap::empty(removal_mask.size);
@@ -67,8 +70,9 @@ impl Bitmap {
         puffin::profile_scope!("Clip");
 
         if offset.x >= 0 && offset.y >= 0 {
-            let total_size = size - offset.as_();
-            if self.size.w <= total_size.w && self.size.h <= total_size.h {
+            let mut total_size: Extent2<i32> = size.as_();
+            total_size -= offset;
+            if self.size.w <= total_size.w as usize && self.size.h <= total_size.h as usize {
                 // Current rectangle fits in the big rectangle, no need to clip
                 return (offset.as_(), self.clone());
             }
@@ -80,7 +84,7 @@ impl Bitmap {
         let start_y = offset.y.max(0) as usize;
         let end_y = (offset.y + self.size.h as i32).clamp(0, size.h as i32) as usize;
 
-        let new_size = Extent2::new(end_x - start_x, end_y - start_y);
+        let new_size = Extent2::new(end_x.saturating_sub(start_x), end_y.saturating_sub(start_y));
         let mut new_map = Self::empty(new_size);
 
         let index_start_x = if offset.x < 0 {
@@ -94,17 +98,17 @@ impl Bitmap {
             0
         };
 
-        // Copy the old pixels
+        // Copy the old pixels column by column
         for y in 0..new_size.h {
-            let y_new_index = y * new_size.w;
-            let y_cur_index = (index_start_y + y) * self.size.w;
-            // PERF: speed this up with ranges
-            for x in 0..new_size.w {
-                let x_cur_index = index_start_x + x;
-                let value = self[y_cur_index + x_cur_index];
-                new_map.set_at_index(y_new_index + x, value);
-            }
+            new_map.copy_slice_from(
+                Vec2::new(0, y),
+                self,
+                Vec2::new(index_start_x, index_start_y + y),
+                new_size.w,
+            )
         }
+
+        debug_assert_eq!(new_map.map.len(), new_map.size.product());
 
         (Vec2::new(start_x, start_y), new_map)
     }
@@ -131,20 +135,27 @@ impl Bitmap {
             }
         }
 
-        // Apply padding
-        min.x = min.x.saturating_sub(padding);
-        min.y = min.y.saturating_sub(padding);
-        max.x = (max.x + padding + 1).min(self.size.w);
-        max.y = (max.y + padding + 1).min(self.size.h);
+        let new_size = Extent2::new(max.x - min.x + 1, max.y - min.y + 1);
 
-        let neg_min = Vec2::new(-(min.x as i32), -(min.y as i32));
+        let previous = self.clone();
 
-        // Clip by moving the rectangle negatively towards the minimum point
-        *self = self
-            .clip(neg_min, Extent2::new(max.x - min.x, max.y - min.y))
-            .1;
+        // Create a new map to copy the old one into
+        self.size = new_size + (padding * 2, padding * 2);
+        self.map = BitVec::repeat(false, self.size.product());
 
-        min
+        // Copy horizontal slices from the old one
+        for y in 0..new_size.h {
+            self.copy_slice_from(
+                (padding, padding + y).into(),
+                &previous,
+                min + (0, y),
+                new_size.w,
+            )
+        }
+
+        debug_assert_eq!(self.map.len(), self.size.product());
+
+        min - (padding, padding)
     }
 
     /// Perform a floodfill to zero out values where values were previously set.
@@ -167,14 +178,26 @@ impl Bitmap {
             self.set_at_index(index, false);
 
             // Push the neighbors
+
             // Right
-            stack.push(index + 1);
+            if x < self.width() - 1 {
+                stack.push(index + 1);
+            }
+
             // Left
-            stack.push(index.wrapping_sub(1));
+            if x > 0 {
+                stack.push(index.wrapping_sub(1));
+            }
+
             // Up
-            stack.push(index + self.width());
+            if y < self.height() - 1 {
+                stack.push(index + self.width());
+            }
+
             // Down
-            stack.push(index.wrapping_sub(self.width()));
+            if y > 0 {
+                stack.push(index.wrapping_sub(self.width()));
+            }
         }
     }
 
@@ -185,8 +208,6 @@ impl Bitmap {
 
         // Create a new empty buffer for the copy
         let mut copy = Self::empty(self.size());
-
-        // Create a stack for pixels that need to be filled
 
         // Create a stack for pixels that need to be filled
         let mut stack = Vec::with_capacity(16);
@@ -204,14 +225,26 @@ impl Bitmap {
             copy.set_at_index(index, true);
 
             // Push the neighbors
+
             // Right
-            stack.push(index + 1);
+            if x < self.width() - 1 {
+                stack.push(index + 1);
+            }
+
             // Left
-            stack.push(index.wrapping_sub(1));
+            if x > 0 {
+                stack.push(index.wrapping_sub(1));
+            }
+
             // Up
-            stack.push(index + self.width());
+            if y < self.height() - 1 {
+                stack.push(index + self.width());
+            }
+
             // Down
-            stack.push(index.wrapping_sub(self.width()));
+            if y > 0 {
+                stack.push(index.wrapping_sub(self.width()));
+            }
         }
 
         copy
@@ -254,6 +287,25 @@ impl Bitmap {
         };
 
         self.map[start..end].fill(value);
+    }
+
+    /// Copy a range from another image.
+    #[inline(always)]
+    pub fn copy_slice_from(
+        &mut self,
+        start: Vec2<usize>,
+        other: &Self,
+        other_start: Vec2<usize>,
+        amount: usize,
+    ) {
+        debug_assert!(start.x + amount <= self.width());
+        debug_assert!(other_start.x + amount <= other.width());
+
+        let index = start.x + start.y * self.width();
+        let other_index = other_start.x + other_start.y * other.width();
+
+        self.map[index..(index + amount)]
+            .copy_from_bitslice(&other.map[other_index..(other_index + amount)]);
     }
 
     /// Calculate whether the shape has multiple islands.
@@ -309,12 +361,6 @@ impl Bitmap {
     pub fn height(&self) -> usize {
         self.size.h
     }
-
-    /// Create a rect with an offset.
-    #[inline(always)]
-    pub fn rect(&self, offset: Vec2<usize>) -> Rect<usize, usize> {
-        Rect::new(offset.x, offset.y, self.size.w, self.size.h)
-    }
 }
 
 impl Index<usize> for Bitmap {
@@ -356,5 +402,80 @@ impl Debug for Bitmap {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use bitvec::vec::BitVec;
+    use vek::{Extent2, Vec2};
+
+    use super::Bitmap;
+
+    #[test]
+    fn shrink_with_padding() {
+        // 4x4 image filled with ones
+        let size = Extent2::new(4, 4);
+        let mut image = Bitmap::from_bitvec(BitVec::repeat(true, size.product()), size);
+        // Set a pixel so we can check offset
+        image.set((1, 1), false);
+
+        let original = image.clone();
+
+        image.shrink_with_padding(1);
+        assert_eq!(image.size(), size + (2, 2), "{image:?}");
+        assert!(!image[(2, 2)], "{image:?}");
+
+        image.shrink_with_padding(2);
+        assert_eq!(image.size(), size + (4, 4), "{image:?}");
+        assert!(!image[(3, 3)], "{image:?}");
+
+        image.shrink_with_padding(1);
+        assert_eq!(image.size(), size + (2, 2), "{image:?}");
+        assert!(!image[(2, 2)], "{image:?}");
+
+        // When applying no padding the original should be set again
+        image.shrink_with_padding(0);
+        assert_eq!(image, original, "{image:?}");
+        assert!(!image[(1, 1)], "{image:?}");
+    }
+
+    #[test]
+    fn clip() {
+        // 4x4 image filled with a single one
+        let size = Extent2::new(4, 4);
+        let mut image = Bitmap::empty(size);
+        // Set a pixel so we can check offset
+        image.set((1, 1), true);
+
+        // Should clip first row of pixels
+        let (new_offset, new_image) = image.clip(Vec2::new(-1, 0), size);
+        assert_eq!(new_offset, Vec2::zero());
+        assert_eq!(new_image.size(), size - (1, 0));
+        assert!(new_image[(0, 1)]);
+
+        // Should clip first column of pixels
+        let (new_offset, new_image) = image.clip(Vec2::new(0, -1), size);
+        assert_eq!(new_offset, Vec2::zero());
+        assert_eq!(new_image.size(), size - (0, 1));
+        assert!(new_image[(1, 0)]);
+
+        // Shouldn't clip anything
+        let (new_offset, new_image) = image.clip(Vec2::new(1, 1), size + (1, 1));
+        assert_eq!(new_offset, Vec2::new(1, 1));
+        assert_eq!(new_image.size(), size);
+        assert!(new_image[(1, 1)]);
+
+        // Shoul clip last row & column of pixels
+        let (new_offset, new_image) = image.clip(Vec2::new(1, 1), size);
+        assert_eq!(new_offset, Vec2::new(1, 1));
+        assert_eq!(new_image.size(), size - (1, 1));
+        assert!(new_image[(1, 1)]);
+
+        // Shoul clip last row & column of pixels
+        let (new_offset, new_image) = image.clip(Vec2::new(0, 0), size - (1, 1));
+        assert_eq!(new_offset, Vec2::zero());
+        assert_eq!(new_image.size(), size - (1, 1));
+        assert!(new_image[(1, 1)]);
     }
 }

@@ -50,19 +50,13 @@ impl Terrain {
             })
             .collect::<Vec<_>>();
 
-        let shape = SolidShape::from_heights(
-            &top_heights,
-            100.0,
-            SpriteOffset::LeftTop,
-            Color::LightGreen,
-            Color::Green,
-        );
+        let shape = SolidShape::from_heights(&top_heights, 100.0, Color::LightGreen, Color::Green);
 
         let y = SIZE.h as f64 - shape.sprite().height() as f64;
 
         // Create a heightmap for the terrain
         let rigidbody = {
-            RigidBodyBuilder::new_static(Vec2::new(settings.width as f64 / 2.0, y))
+            RigidBodyBuilder::new_static(Vec2::new(0.0, y))
                 .with_collider(shape.to_collider())
                 .spawn(physics)
         };

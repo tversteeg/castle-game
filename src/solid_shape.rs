@@ -37,7 +37,6 @@ impl SolidShape {
     /// Create the shape from a simple solid rectangle.
     pub fn from_rectangle(
         size_without_outline: Extent2<f64>,
-        offset: SpriteOffset,
         fill_color: Color,
         outline_color: Color,
     ) -> Self {
@@ -56,7 +55,7 @@ impl SolidShape {
         }
 
         // Use an empty sprite, will be generated later
-        let sprite = Sprite::from_buffer(&vec![0; size.w * size.h], size, offset);
+        let sprite = Sprite::from_buffer(&vec![0; size.w * size.h], size, SpriteOffset::LeftTop);
 
         let collider = Isoline::from_bitmap(&shape);
 
@@ -81,7 +80,6 @@ impl SolidShape {
     pub fn from_heights(
         heights: &[f64],
         height: f64,
-        offset: SpriteOffset,
         fill_color: Color,
         outline_color: Color,
     ) -> Self {
@@ -112,7 +110,7 @@ impl SolidShape {
         }
 
         // Use an empty sprite, will be generated later
-        let sprite = Sprite::from_buffer(&vec![0; size.w * size.h], size, offset);
+        let sprite = Sprite::from_buffer(&vec![0; size.w * size.h], size, SpriteOffset::LeftTop);
 
         // Generate the first collider
         let collider = Isoline::from_bitmap(&shape);
@@ -177,7 +175,7 @@ impl SolidShape {
 
     /// Get the collider shape.
     pub fn to_collider(&self) -> Shape {
-        self.collider.to_collider(self.shape.size().as_())
+        self.collider.to_collider()
     }
 
     /// Whether a point collides.
@@ -193,27 +191,31 @@ impl SolidShape {
     pub fn remove_circle(&mut self, center: Vec2<f64>, radius: f64) -> Vec<Self> {
         puffin::profile_scope!("Remove circle");
 
-        // The rectangle that will be used to redraw the collider and the sprite
-        let rect = Rect::new(
-            center.x as i32 - radius as i32 - OUTLINE_SIZE as i32,
-            center.y as i32 - radius as i32 - OUTLINE_SIZE as i32,
-            radius as i32 * 2 + OUTLINE_SIZE as i32 * 2 + 1,
-            radius as i32 * 2 + OUTLINE_SIZE as i32 * 2 + 1,
-        );
+        // Do nothing if the circle is not within bounds
+        if center.x < -radius
+            || center.y < -radius
+            || center.x > self.shape.width() as f64 + radius
+            || center.y > self.shape.height() as f64 + radius
+        {
+            return Vec::new();
+        }
+
+        // Size is the same for both dimensions since it's a circle
+        let size = radius as usize * 2 + OUTLINE_SIZE * 2;
 
         // Delta bitmap with each pixel is removed inside the redraw area
-        let mut removal_mask = Bitmap::empty(rect.extent().as_());
+        let mut removal_mask = Bitmap::empty(Extent2::new(size, size));
 
         {
             puffin::profile_scope!("Create circle mask");
 
             // PERF: make this a lot more efficient
-            let center = Vec2::new(rect.w / 2, rect.h / 2).as_();
-            for y in 0..rect.h {
-                let y_index = (y * rect.h) as usize;
-                for x in 0..rect.w {
+            let center = Vec2::new(size / 2, size / 2).as_();
+            for y in 0..size {
+                let y_index = y * size;
+                for x in 0..size {
                     removal_mask.set_at_index(
-                        y_index + x as usize,
+                        y_index + x,
                         Vec2::new(x as f64, y as f64).distance(center) < radius,
                     );
                 }
@@ -221,7 +223,10 @@ impl SolidShape {
         }
 
         // Redraw a rectangle of the sprite
-        self.apply_removal_mask(&mut removal_mask, rect.position())
+        self.apply_removal_mask(
+            &mut removal_mask,
+            (center - (size as f64 / 2.0, size as f64 / 2.0)).as_(),
+        )
     }
 
     /// Apply a bit vector of delta values which will remove pixels.
@@ -254,9 +259,12 @@ impl SolidShape {
             // Remove all islands with a floodfill
             while !self.shape.is_empty() {
                 // Create a new shape from a floodfill
-                let new_shape = self
+                let mut new_shape = self
                     .shape
                     .zeroing_floodfill_with_copy(self.shape.first_one().unwrap());
+
+                // Make the shape more efficient
+                new_shape.shrink_with_padding(OUTLINE_SIZE);
 
                 new_shapes.push(Self::from_bitmap(
                     new_shape,
@@ -295,22 +303,17 @@ impl SolidShape {
     }
 
     /// Redraw the sprite pixels of a rectangle, which will be clamped if outside of range.
-    fn redraw_sprite_rectangle(&mut self, mut rect: Rect<usize, usize>) {
+    fn redraw_sprite_rectangle(&mut self, rect: Rect<usize, usize>) {
         puffin::profile_scope!("Redraw sprite rectangle");
 
-        // Add the outline to the rectangle
-        rect.x = rect.x.saturating_sub(OUTLINE_SIZE);
-        rect.y = rect.y.saturating_sub(OUTLINE_SIZE);
-        rect.w = (rect.w + OUTLINE_SIZE).min(self.shape.size().w);
-        rect.h = (rect.h + OUTLINE_SIZE).min(self.shape.size().h);
+        debug_assert_eq!(self.shape.size(), self.sprite.size().as_());
 
         // Set the sprite pixels
-        let aabr = rect.into_aabr();
-        for y in aabr.min.y..aabr.max.y {
-            let index_start = y * self.shape.size().w;
-            for x in aabr.min.x..aabr.max.x {
-                let index = index_start + x;
-                self.set_sprite_pixel_unchecked(index, Vec2::new(x, y));
+        for y in 0..rect.h {
+            let index_start = (y + rect.y) * self.shape.width();
+            for x in 0..rect.w {
+                let index = index_start + x + rect.x;
+                self.set_sprite_pixel_unchecked(index, Vec2::new(x, y) + rect.position());
             }
         }
     }
@@ -325,11 +328,11 @@ impl SolidShape {
 
         let x = coord.x as usize;
         let y = coord.y as usize;
-        if x >= self.shape.size().w || y >= self.shape.size().h {
+        if x >= self.shape.width() || y >= self.shape.height() {
             // Out of bounds
             None
         } else {
-            Some(x + y * self.shape.size().w)
+            Some(x + y * self.shape.width())
         }
     }
 

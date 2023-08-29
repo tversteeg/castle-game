@@ -205,7 +205,7 @@ pub enum SpriteOffset {
     /// Left top of the sprite will be rendered at `(0, 0)`.
     LeftTop,
     /// Sprite will be offset with the custom coordinates counting from the left top.
-    Custom(Vec2<u32>),
+    Custom(Vec2<i32>),
 }
 
 impl SpriteOffset {
@@ -217,7 +217,7 @@ impl SpriteOffset {
             }
             SpriteOffset::MiddleTop => Vec2::new(-(sprite_size.w as i32) / 2, 0),
             SpriteOffset::LeftTop => Vec2::zero(),
-            SpriteOffset::Custom(offset) => offset.as_(),
+            SpriteOffset::Custom(offset) => *offset,
         }
     }
 }

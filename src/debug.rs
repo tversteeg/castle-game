@@ -117,12 +117,8 @@ impl DebugDraw {
             .spawn(&mut physics);
 
         // Create a simple rectangle shape
-        let shape = SolidShape::from_rectangle(
-            Extent2::new(100.0, 100.0),
-            SpriteOffset::Middle,
-            Color::Gray,
-            Color::Black,
-        );
+        let shape =
+            SolidShape::from_rectangle(Extent2::new(100.0, 100.0), Color::Gray, Color::Black);
         let shapes = vec![shape];
 
         Self {
@@ -203,7 +199,7 @@ impl DebugDraw {
             let mut new_shapes = Vec::new();
             for shape in self.shapes.iter_mut() {
                 new_shapes.append(&mut shape.remove_circle(
-                    self.mouse.as_() - Vec2::new(SIZE.w / 2 - 50, SIZE.h / 2 - 50).as_(),
+                    self.mouse.as_() - Vec2::new(SIZE.w / 2, SIZE.h / 2).as_(),
                     10.0,
                 ));
             }
@@ -300,17 +296,12 @@ impl DebugDraw {
                 }
             }
             DebugScreen::Shape => {
+                let offset = Vec2::new(SIZE.w / 2, SIZE.h / 2).as_();
                 for shape in self.shapes.iter() {
-                    shape.sprite().render(
-                        canvas,
-                        &Camera::default(),
-                        Vec2::new(SIZE.w / 2, SIZE.h / 2).as_(),
-                    );
+                    shape.sprite().render(canvas, &Camera::default(), offset);
 
                     self.render_collider(
-                        &shape
-                            .to_collider()
-                            .vertices(Iso::new(Vec2::new(SIZE.w / 2, SIZE.h / 2 - 50).as_(), 0.0)),
+                        &shape.to_collider().vertices(Iso::new(offset, 0.0)),
                         &Camera::default(),
                         canvas,
                     );

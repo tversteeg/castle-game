@@ -56,61 +56,22 @@ impl Isoline {
 
     /// Create a collider from the vertices.
     #[must_use]
-    pub fn to_collider(&self, size: Extent2<f64>) -> Shape {
+    pub fn to_collider(&self) -> Shape {
         puffin::profile_scope!("Isoline to collider");
 
-        Shape::linestrip(
-            &self
-                .vertices
-                .iter()
-                .map(|vert| *vert - (size.w / 2.0, 0.0))
-                .collect::<Vec<_>>(),
-        )
-    }
-
-    /// Find any vertices laying on the removal mask.
-    fn vertices_on_mask(
-        &self,
-        delta_mask: &Bitmap,
-        mask_position: Vec2<usize>,
-    ) -> Vec<(usize, Vec2<usize>)> {
-        puffin::profile_scope!("Find vertices on mask");
-
-        let mask_region = delta_mask.rect(mask_position);
-
-        self.vertices
-            .iter()
-            .enumerate()
-            // Convert vert to usize
-            .map(|(index, vert)| (index, vert.as_()))
-            // Do a simple pass filtering all vertices not in the region out
-            .filter(|(_index, vert)| mask_region.contains_point(*vert))
-            // Do a pass filtering all vertices not on the removal mask out
-            .filter(|(_index, vert)| {
-                let vert_index_on_mask =
-                    (vert.x - mask_region.x) + (vert.y - mask_region.y) * mask_region.w;
-
-                delta_mask[vert_index_on_mask]
-            })
-            .collect()
+        Shape::linestrip(&self.vertices)
     }
 }
 
 /// Marching square walker over the source image.
 #[derive(Debug, Clone)]
-struct MarchingSquaresIterator<'a> {
-    /// Current position.
-    pos: Vec2<usize>,
+pub struct MarchingSquaresIterator<'a> {
+    /// Edge walker main algorithm.
+    edge_walker: EdgeWalker<'a>,
     /// Starting position.
     start: Vec2<usize>,
     /// We are done iterating.
     done: bool,
-    /// Previous direction.
-    ///
-    /// Allows us to cross ambiguous points.
-    prev_dir: MarchingSquaresWalkerDirection,
-    /// Image we are walking over.
-    map: &'a Bitmap,
 }
 
 impl<'a> MarchingSquaresIterator<'a> {
@@ -118,18 +79,14 @@ impl<'a> MarchingSquaresIterator<'a> {
     ///
     /// <div class='warning'>BitMap must be padded by 0 bits around the edges!</div>
     pub fn new(starting_position: Vec2<usize>, map: &'a Bitmap) -> Self {
-        let pos = starting_position;
-        let start = pos;
-        // Initial value doesn't matter
-        let prev_dir = MarchingSquaresWalkerDirection::Up;
+        let edge_walker = EdgeWalker::new(starting_position, map);
+        let start = starting_position;
         let done = false;
 
         Self {
-            done,
-            pos,
+            edge_walker,
             start,
-            prev_dir,
-            map,
+            done,
         }
     }
 
@@ -144,6 +101,197 @@ impl<'a> MarchingSquaresIterator<'a> {
             .expect("Cannot create marching squares iterator over empty map");
 
         Self::new(starting_position, map)
+    }
+}
+
+impl<'a> Iterator for MarchingSquaresIterator<'a> {
+    type Item = Vec2<usize>;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        puffin::profile_scope!("Marching squares iterator step");
+
+        if self.done {
+            return None;
+        }
+
+        // Generate new coordinates
+        self.edge_walker.step();
+
+        if self.edge_walker.position() == self.start {
+            // We made a full loop
+            self.done = true;
+        }
+
+        Some(self.edge_walker.position())
+    }
+}
+
+/// Walk around the edge of a bitmap.
+///
+/// Basis of [`MarchingSquaresIterator`].
+#[derive(Debug, Clone)]
+pub struct EdgeWalker<'a> {
+    /// Current position.
+    pos: Vec2<usize>,
+    /// Previous direction.
+    ///
+    /// Allows us to cross ambiguous points.
+    prev_dir: EdgeWalkerDirection,
+    /// Image we are walking over.
+    map: &'a Bitmap,
+}
+
+impl<'a> EdgeWalker<'a> {
+    /// New edge walker at position.
+    pub fn new(pos: Vec2<usize>, map: &'a Bitmap) -> Self {
+        let prev_dir = EdgeWalkerDirection::Up;
+
+        Self { pos, prev_dir, map }
+    }
+
+    /// Do a single step, not skipping any pixels.
+    #[inline]
+    pub fn single_step(&mut self) {
+        puffin::profile_scope!("Edge walker single step");
+
+        // Move the cursor based on the edge direction, following the outline
+        match self.dir_number() {
+            // Up
+            1 | 5 | 13 => {
+                self.pos.y -= 1;
+                debug_assert!(self.pos.y > 0);
+
+                self.prev_dir = EdgeWalkerDirection::Up;
+            }
+            // Down
+            8 | 10 | 11 => {
+                self.pos.y += 1;
+                debug_assert!(self.pos.y < self.map.height());
+
+                self.prev_dir = EdgeWalkerDirection::Down;
+            }
+            // Left
+            4 | 12 | 14 => {
+                self.pos.x -= 1;
+                debug_assert!(self.pos.x > 0);
+
+                self.prev_dir = EdgeWalkerDirection::Left;
+            }
+            // Right
+            2 | 3 | 7 => {
+                self.pos.x += 1;
+                debug_assert!(self.pos.x < self.map.width());
+
+                self.prev_dir = EdgeWalkerDirection::Right;
+            }
+            // Down if previous was left, up if previous was right
+            9 => {
+                if self.prev_dir == EdgeWalkerDirection::Left {
+                    self.pos.y += 1;
+                } else {
+                    self.pos.y -= 1;
+                }
+            }
+            // Right if previous was down, left if previous was up
+            6 => {
+                if self.prev_dir == EdgeWalkerDirection::Down {
+                    self.pos.x += 1;
+                } else {
+                    self.pos.x -= 1;
+                }
+            }
+            _ => panic!("Unknown direction"),
+        }
+    }
+
+    /// Do a step, skipping any pixels in the same direction.
+    #[inline]
+    pub fn step(&mut self) {
+        puffin::profile_scope!("Edge walker step");
+
+        // Move the cursor based on the edge direction, following the outline
+        match self.dir_number() {
+            // Up
+            1 | 5 | 13 => {
+                // Keep walking, ignoring all parts between the line segments
+                loop {
+                    self.pos.y -= 1;
+                    debug_assert!(self.pos.y > 0);
+
+                    if !self.is_dir_number([1, 5, 13]) {
+                        break;
+                    }
+                }
+
+                self.prev_dir = EdgeWalkerDirection::Up;
+            }
+            // Down
+            8 | 10 | 11 => {
+                // Keep walking, ignoring all parts between the line segments
+                loop {
+                    self.pos.y += 1;
+                    debug_assert!(self.pos.y < self.map.height());
+
+                    if !self.is_dir_number([8, 10, 11]) {
+                        break;
+                    }
+                }
+
+                self.prev_dir = EdgeWalkerDirection::Down;
+            }
+            // Left
+            4 | 12 | 14 => {
+                // Keep walking, ignoring all parts between the line segments
+                loop {
+                    self.pos.x -= 1;
+                    debug_assert!(self.pos.x > 0);
+
+                    if !self.is_dir_number([4, 12, 14]) {
+                        break;
+                    }
+                }
+
+                self.prev_dir = EdgeWalkerDirection::Left;
+            }
+            // Right
+            2 | 3 | 7 => {
+                // Keep walking, ignoring all parts between the line segments
+                loop {
+                    self.pos.x += 1;
+                    debug_assert!(self.pos.x < self.map.width());
+
+                    if !self.is_dir_number([2, 3, 7]) {
+                        break;
+                    }
+                }
+
+                self.prev_dir = EdgeWalkerDirection::Right;
+            }
+            // Down if previous was left, up if previous was right
+            9 => {
+                if self.prev_dir == EdgeWalkerDirection::Left {
+                    self.pos.y += 1;
+                } else {
+                    self.pos.y -= 1;
+                }
+            }
+            // Right if previous was down, left if previous was up
+            6 => {
+                if self.prev_dir == EdgeWalkerDirection::Down {
+                    self.pos.x += 1;
+                } else {
+                    self.pos.x -= 1;
+                }
+            }
+            _ => panic!("Unknown direction"),
+        }
+    }
+
+    /// Current position of the walker.
+    #[inline(always)]
+    pub fn position(&self) -> Vec2<usize> {
+        self.pos
     }
 
     /// Convert a position to a 4bit number looking at it as a 2x2 grid if possible.
@@ -171,106 +319,9 @@ impl<'a> MarchingSquaresIterator<'a> {
     }
 }
 
-impl<'a> Iterator for MarchingSquaresIterator<'a> {
-    type Item = Vec2<usize>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        puffin::profile_scope!("Marching squares iterator step");
-
-        if self.done {
-            return None;
-        }
-
-        // Move the cursor based on the edge direction, following the outline
-        // PERF: we are doing an extra check that's unused whenever the direction changes, find a way to improve this
-        match self.dir_number() {
-            // Up
-            1 | 5 | 13 => {
-                // Keep walking, ignoring all parts between the line segments
-                loop {
-                    self.pos.y -= 1;
-                    debug_assert!(self.pos.y > 0);
-
-                    if !self.is_dir_number([1, 5, 13]) {
-                        break;
-                    }
-                }
-
-                self.prev_dir = MarchingSquaresWalkerDirection::Up;
-            }
-            // Down
-            8 | 10 | 11 => {
-                // Keep walking, ignoring all parts between the line segments
-                loop {
-                    self.pos.y += 1;
-                    debug_assert!(self.pos.y < self.map.height());
-
-                    if !self.is_dir_number([8, 10, 11]) {
-                        break;
-                    }
-                }
-
-                self.prev_dir = MarchingSquaresWalkerDirection::Down;
-            }
-            // Left
-            4 | 12 | 14 => {
-                // Keep walking, ignoring all parts between the line segments
-                loop {
-                    self.pos.x -= 1;
-                    debug_assert!(self.pos.x > 0);
-
-                    if !self.is_dir_number([4, 12, 14]) {
-                        break;
-                    }
-                }
-
-                self.prev_dir = MarchingSquaresWalkerDirection::Left;
-            }
-            // Right
-            2 | 3 | 7 => {
-                // Keep walking, ignoring all parts between the line segments
-                loop {
-                    self.pos.x += 1;
-                    debug_assert!(self.pos.x < self.map.width());
-
-                    if !self.is_dir_number([2, 3, 7]) {
-                        break;
-                    }
-                }
-
-                self.prev_dir = MarchingSquaresWalkerDirection::Right;
-            }
-            // Down if previous was left, up if previous was right
-            9 => {
-                if self.prev_dir == MarchingSquaresWalkerDirection::Left {
-                    self.pos.y += 1;
-                } else {
-                    self.pos.y -= 1;
-                }
-            }
-            // Right if previous was down, left if previous was up
-            6 => {
-                if self.prev_dir == MarchingSquaresWalkerDirection::Down {
-                    self.pos.x += 1;
-                } else {
-                    self.pos.x -= 1;
-                }
-            }
-            _ => panic!("Unknown direction"),
-        }
-
-        if self.pos == self.start {
-            // We made a full loop
-            self.done = true;
-        }
-
-        Some(self.pos)
-    }
-}
-
 /// Directions the walker can go to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MarchingSquaresWalkerDirection {
+pub enum EdgeWalkerDirection {
     Up,
     Down,
     Left,
