@@ -1,10 +1,16 @@
 use std::{
-    fmt::{Debug, Formatter, Result},
+    fmt::{Debug, Formatter, Result, Write},
     ops::{Bound, Index, IndexMut, RangeBounds},
 };
 
 use bitvec::vec::BitVec;
+use spiral::ChebyshevIterator;
 use vek::{Extent2, Rect, Vec2};
+
+use super::isoline::EdgeWalker;
+
+/// How many debug characters to render horizontally in the terminal.
+const HORIZONTAL_DEBUG_CHARACTERS: usize = 100;
 
 /// Binary 2D map.
 #[derive(Clone, PartialEq)]
@@ -119,6 +125,9 @@ impl Bitmap {
     pub fn shrink_with_padding(&mut self, padding: usize) -> Vec2<usize> {
         puffin::profile_scope!("Shrink with padding");
 
+        // Nothing to shrink since the map is empty
+        debug_assert!(!self.is_empty());
+
         let mut min = Vec2::new(usize::MAX, usize::MAX);
         let mut max: Vec2<usize> = Vec2::zero();
 
@@ -155,7 +164,11 @@ impl Bitmap {
 
         debug_assert_eq!(self.map.len(), self.size.product());
 
-        min - (padding, padding)
+        // Remove the padding, because it won't change the position
+        min.x = min.x.saturating_sub(padding);
+        min.y = min.y.saturating_sub(padding);
+
+        min
     }
 
     /// Perform a floodfill to zero out values where values were previously set.
@@ -310,8 +323,8 @@ impl Bitmap {
 
     /// Calculate whether the shape has multiple islands.
     ///
-    /// This is an expensive calculation.
-    pub fn has_multiple_islands(&self) -> bool {
+    /// This is an expensive calculation but efficient for small images.
+    pub fn has_multiple_islands_floodfill(&self) -> bool {
         puffin::profile_scope!("Has multiple islands");
 
         // Do a floodfill on the first non-empty pixel found
@@ -327,15 +340,121 @@ impl Bitmap {
         }
     }
 
+    /// Try to get two islands from the shape.
+    ///
+    /// It could be that more islands are on the shape still.
+    ///
+    /// Returns the first pixel of both.
+    pub fn try_find_island_pair(&self) -> Option<(Vec2<usize>, Vec2<usize>)> {
+        puffin::profile_scope!("Try find island pair");
+
+        // Do a floodfill on the first non-empty pixel found
+        // Check from the center instead of the start so the edges aren't checked
+        if let Some(filled_pixel) = self.first_one_from_center() {
+            let mut check = self.clone();
+            check.zeroing_floodfill(filled_pixel);
+
+            // If any other pixel is still set it means there are multiple pixels
+            check
+                .first_one_from_center()
+                .map(|second_filled_pixel| (filled_pixel, second_filled_pixel))
+        } else {
+            // Image is empty
+            None
+        }
+    }
+
+    /// Calculate the area from a shape beginning at set position.
+    ///
+    /// Panics when starting position out of bounds or doesn't point to an edge of a shape.
+    /// Also panics when shape edges can't be walked.
+    pub fn area_from_shape_at_position(&self, shape_starting_position: Vec2<usize>) -> f64 {
+        EdgeWalker::new(shape_starting_position, self).walk_area()
+    }
+
     /// Get the coordinates of the first non-zero pixel.
     #[inline(always)]
     pub fn first_one(&self) -> Option<Vec2<usize>> {
         let position_index = self.map.first_one()?;
 
         Some(Vec2::new(
-            position_index % self.size.w,
-            position_index / self.size.w,
+            position_index % self.width(),
+            position_index / self.width(),
         ))
+    }
+
+    /// Get the coordinates of the first non-zero pixel from the center of the image.
+    #[inline(always)]
+    pub fn first_one_from_center(&self) -> Option<Vec2<usize>> {
+        self.next_or_previous_one(Vec2::new(self.size.w / 2, self.size.h / 2))
+    }
+
+    /// Find next non-zero value from position.
+    #[inline(always)]
+    pub fn next_or_previous_one(&self, position: Vec2<usize>) -> Option<Vec2<usize>> {
+        puffin::profile_scope!("Next or previous non-zero pixel");
+
+        debug_assert!(position.x < self.width());
+        debug_assert!(position.y < self.height());
+
+        ChebyshevIterator::new(
+            position.x as i32,
+            position.y as i32,
+            (self.width().max(self.height()) / 2) as i32,
+        )
+        .find(|(x, y)| {
+            *x >= 0
+                && *x < self.width() as i32
+                && *y >= 0
+                && *y < self.height() as i32
+                && self[(*x as usize, *y as usize)]
+        })
+        .map(|(x, y)| Vec2::new(x as usize, y as usize))
+    }
+
+    /// Calculate how many pixels got set.
+    #[inline(always)]
+    pub fn pixels_set(&self) -> usize {
+        self.map.count_ones()
+    }
+
+    /// Create a debug string from the map, marking a specific position.
+    #[cfg(feature = "debug")]
+    pub fn debug_mark_position(&self, mark: Vec2<usize>) -> String {
+        let mut canvas = drawille::Canvas::new(self.width() as u32, self.height() as u32);
+        let mut debug = String::new();
+
+        writeln!(&mut debug, "Bitmap {}x{}:", self.size.w, self.size.h).unwrap();
+
+        for y in 0..self.size.h {
+            for x in 0..self.size.w {
+                if self[(x, y)] {
+                    canvas.set(x as u32, y as u32);
+                }
+            }
+        }
+
+        const X_SIZE: usize = 20;
+        if mark.x < self.width() && mark.y < self.height() {
+            canvas.line_colored(
+                mark.x.wrapping_sub(X_SIZE).clamp(0, self.width()) as u32,
+                mark.y.wrapping_sub(X_SIZE).clamp(0, self.height()) as u32,
+                mark.x.wrapping_add(X_SIZE).clamp(0, self.width()) as u32,
+                mark.y.wrapping_add(X_SIZE).clamp(0, self.height()) as u32,
+                drawille::PixelColor::Red,
+            );
+            canvas.line_colored(
+                mark.x.wrapping_sub(X_SIZE).clamp(0, self.width()) as u32,
+                mark.y.wrapping_add(X_SIZE).clamp(0, self.height()) as u32,
+                mark.x.wrapping_add(X_SIZE).clamp(0, self.width()) as u32,
+                mark.y.wrapping_sub(X_SIZE).clamp(0, self.height()) as u32,
+                drawille::PixelColor::Red,
+            );
+        }
+
+        debug.push_str(&canvas.frame());
+
+        debug
     }
 
     // If any pixels are set.
@@ -390,18 +509,14 @@ impl Index<(usize, usize)> for Bitmap {
     }
 }
 
+#[cfg(feature = "debug")]
 impl Debug for Bitmap {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        writeln!(f, "Bitmap {}x{}:", self.size.w, self.size.h)?;
-
-        for y in 0..self.size.h {
-            for x in 0..self.size.w {
-                write!(f, "{}", if self[(x, y)] { "X" } else { "." })?;
-            }
-            writeln!(f)?;
-        }
-
-        Ok(())
+        writeln!(
+            f,
+            "{}",
+            self.debug_mark_position(Vec2::new(usize::MAX, usize::MAX))
+        )
     }
 }
 
@@ -477,5 +592,25 @@ mod tests {
         assert_eq!(new_offset, Vec2::zero());
         assert_eq!(new_image.size(), size - (1, 1));
         assert!(new_image[(1, 1)]);
+    }
+
+    #[test]
+    fn floodfill() {
+        // 6x6 image filled with ones
+        let size = Extent2::new(6, 6);
+        let mut image = Bitmap::from_bitvec(BitVec::repeat(true, size.product()), size);
+
+        // Create a diagonal of unset values
+        for i in 0..size.w {
+            image.set((size.w - i - 1, i), false);
+        }
+
+        // Performa floodfill on the top part
+        let removed = image.zeroing_floodfill_with_copy(Vec2::new(1, 1));
+
+        // Parts should be equal but rotated
+        assert!(removed[(0, 0)]);
+        assert!(image[(size.w - 1, size.h - 1)]);
+        assert_eq!(removed.pixels_set(), image.pixels_set());
     }
 }

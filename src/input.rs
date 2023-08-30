@@ -17,6 +17,7 @@ pub struct Input {
     pub c: ButtonState,
     pub o: ButtonState,
     pub n: ButtonState,
+    pub x: ButtonState,
 }
 
 impl Input {
@@ -33,6 +34,7 @@ impl Input {
         self.c.update();
         self.o.update();
         self.n.update();
+        self.x.update();
     }
 }
 

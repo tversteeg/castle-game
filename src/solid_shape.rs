@@ -247,59 +247,108 @@ impl SolidShape {
         offset += delta_mask.shrink_with_padding(OUTLINE_SIZE);
 
         // Get the area of the delta mask on the shape itself
-        let (_, shape_subsection) = self
+        let (_, mut shape_subsection) = self
             .shape
             .clip(Vec2::zero() - offset.as_(), delta_mask.size());
 
         // First do a small floodfill check on a small section to see if there are multiple islands
-        // Then do a broad floodfill check on the whole shape
+        // Then loop over all islands on the subsection, floodfilling them with zero values if they are not the biggest
         let mut new_shapes = Vec::new();
-        if shape_subsection.has_multiple_islands() && self.shape.has_multiple_islands() {
+        if shape_subsection.has_multiple_islands_floodfill()
+            // PERF: remove this call
+            && self.shape.has_multiple_islands_floodfill()
+        {
             puffin::profile_scope!("New shapes for islands");
-            // Remove all islands with a floodfill
-            while !self.shape.is_empty() {
-                // Create a new shape from a floodfill
-                let mut new_shape = self
+
+            // Coordinate with the biggest area
+            let mut biggest_area = 0.0;
+            let mut biggest_coord = Vec2::zero();
+
+            // Find island pairs on the small subsection shape, ignoring the biggest one
+            while let Some((island1, island2)) = shape_subsection.try_find_island_pair() {
+                // Convert the subsection coordinates to coordinates of the shape itself
+                let island1 = island1 + offset;
+                let island2 = island2 + offset;
+
+                // Calculate the area
+                let island1_area = self.shape.area_from_shape_at_position(island1);
+                let island2_area = self.shape.area_from_shape_at_position(island2);
+
+                // Ignore the island if it's already the biggest
+                if island1 != biggest_coord {
+                    if island1_area > biggest_area && island1_area > island2_area {
+                        // This is the biggest zone, ignore it
+                        biggest_area = island1_area;
+                        biggest_coord = island1;
+                    } else {
+                        // Create a new shape from a floodfill, cleaning the map from this island
+                        let mut new_shape = self.shape.zeroing_floodfill_with_copy(island1);
+                        debug_assert!(!new_shape.is_empty());
+
+                        // Make the shape more efficient
+                        new_shape.shrink_with_padding(OUTLINE_SIZE);
+
+                        new_shapes.push(Self::from_bitmap(
+                            new_shape,
+                            self.fill_color,
+                            self.outline_color,
+                        ));
+                    }
+                }
+
+                // Ignore the island if it's already the biggest
+                if island2 != biggest_coord {
+                    if island2_area > biggest_area && island2_area > island1_area {
+                        // This is the biggest zone, ignore it
+                        biggest_area = island2_area;
+                        biggest_coord = island2;
+                    } else {
+                        // Create a new shape from a floodfill, cleaning the map from this island
+                        let mut new_shape = self.shape.zeroing_floodfill_with_copy(island2);
+                        debug_assert!(!new_shape.is_empty());
+
+                        // Make the shape more efficient
+                        new_shape.shrink_with_padding(OUTLINE_SIZE);
+
+                        new_shapes.push(Self::from_bitmap(
+                            new_shape,
+                            self.fill_color,
+                            self.outline_color,
+                        ));
+                    }
+                }
+
+                // Recalculate shape subsection
+                // PERF: use a view instead
+                (_, shape_subsection) = self
                     .shape
-                    .zeroing_floodfill_with_copy(self.shape.first_one().unwrap());
-
-                // Make the shape more efficient
-                new_shape.shrink_with_padding(OUTLINE_SIZE);
-
-                new_shapes.push(Self::from_bitmap(
-                    new_shape,
-                    self.fill_color,
-                    self.outline_color,
-                ));
+                    .clip(Vec2::zero() - offset.as_(), delta_mask.size());
             }
 
-            // Set current one to the largest shape
-            let (largest_index, _) = new_shapes
-                .iter()
-                .enumerate()
-                .max_by_key(|(_index, shape)| shape.shape.size().product())
-                // Safe because there is a guarantee there exists at least two islands
-                .unwrap();
-            *self = new_shapes.remove(largest_index);
-
-            new_shapes
-        } else {
-            // No new shapes found, do a partial update
-            puffin::profile_scope!("Partial shape update");
-
-            // Redraw the sprite
-            self.redraw_sprite_rectangle(Rect::new(
-                offset.x,
-                offset.y,
-                delta_mask.width(),
-                delta_mask.height(),
-            ));
-
-            // Remove the part of the collider
-            self.collider.update(&self.shape, &delta_mask, offset);
-
-            Vec::new()
+            debug_assert!(!self.shape.is_empty());
         }
+
+        // Do a partial update on the main shape
+        puffin::profile_scope!("Partial shape update");
+
+        let redraw_rect = if new_shapes.is_empty() {
+            // No new shapes are being created, they don't have to be removed
+            Rect::new(offset.x, offset.y, delta_mask.width(), delta_mask.height())
+        } else {
+            // Remove the new shape sprite pixels
+            // TODO: only remove their rect as well
+            self.rect()
+        };
+
+        // Redraw the sprite
+        self.redraw_sprite_rectangle(redraw_rect);
+
+        // Remove the part of the collider
+        if !delta_mask.is_empty() {
+            self.collider.update(&self.shape, &delta_mask, offset);
+        }
+
+        new_shapes
     }
 
     /// Redraw the sprite pixels of a rectangle, which will be clamped if outside of range.
@@ -339,8 +388,6 @@ impl SolidShape {
     /// Set a sprite pixel without checking the bounds.
     #[inline(always)]
     fn set_sprite_pixel_unchecked(&mut self, index: usize, pixel: Vec2<usize>) {
-        puffin::profile_scope!("Set sprite pixel unchecked");
-
         self.sprite.pixels_mut()[index] = if self.shape[index] {
             // Solid fill
             self.fill_color.as_u32()

@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use vek::{Extent2, Vec2};
 
 use crate::physics::collision::shape::Shape;
@@ -17,6 +18,8 @@ impl Isoline {
     /// Bitmap is not allowed to contain multiple non-connected pixels.
     #[must_use]
     pub fn from_bitmap(bitmap: &Bitmap) -> Self {
+        puffin::profile_scope!("Isoline from bitmap");
+
         // Create the vertices with a marching squares iterator over the bitmap
         let vertices = MarchingSquaresIterator::new_find_starting_point(bitmap)
             .map(Vec2::as_)
@@ -60,6 +63,23 @@ impl Isoline {
         puffin::profile_scope!("Isoline to collider");
 
         Shape::linestrip(&self.vertices)
+    }
+
+    /// Calculate the total area.
+    #[must_use]
+    pub fn area(&self) -> f64 {
+        debug_assert!(self.vertices.len() > 2);
+
+        // Sum the determinants of all lines
+        self.vertices
+            .iter()
+            .circular_tuple_windows()
+            .map(|(v1, v2)| {
+                // Determinant
+                v1.x * v2.y - v1.y * v2.x
+            })
+            .sum::<f64>()
+            / 2.0
     }
 }
 
@@ -109,14 +129,12 @@ impl<'a> Iterator for MarchingSquaresIterator<'a> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        puffin::profile_scope!("Marching squares iterator step");
-
         if self.done {
             return None;
         }
 
         // Generate new coordinates
-        self.edge_walker.step();
+        self.edge_walker.step(Some(self.start));
 
         if self.edge_walker.position() == self.start {
             // We made a full loop
@@ -130,7 +148,7 @@ impl<'a> Iterator for MarchingSquaresIterator<'a> {
 /// Walk around the edge of a bitmap.
 ///
 /// Basis of [`MarchingSquaresIterator`].
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct EdgeWalker<'a> {
     /// Current position.
     pos: Vec2<usize>,
@@ -144,7 +162,48 @@ pub struct EdgeWalker<'a> {
 
 impl<'a> EdgeWalker<'a> {
     /// New edge walker at position.
-    pub fn new(pos: Vec2<usize>, map: &'a Bitmap) -> Self {
+    ///
+    /// Panics if starting on an empty or full tile, AKA a tile without an edge.
+    pub fn new(mut pos: Vec2<usize>, map: &'a Bitmap) -> Self {
+        debug_assert!(pos.x > 0);
+        debug_assert!(pos.y > 0);
+        debug_assert!(pos.x < map.width());
+        debug_assert!(pos.y < map.height());
+
+        // Move one pixel if the dir number doesn't match, since we check in a small square of 4 pixels
+        let dir_number = Self::dir_number(pos, map);
+        if dir_number == 0 || dir_number == 15 {
+            pos += (1, 1);
+        }
+
+        #[cfg(feature = "debug")]
+        assert_ne!(
+            Self::dir_number(pos, map),
+            0,
+            "Can't start edge walker on empty tile at position {pos} on:\n{}",
+            map.debug_mark_position(pos)
+        );
+        #[cfg(not(feature = "debug"))]
+        assert_ne!(
+            Self::dir_number(pos, map),
+            0,
+            "Can't start edge walker on empty tile at position {pos}",
+        );
+
+        #[cfg(feature = "debug")]
+        assert_ne!(
+            Self::dir_number(pos, map),
+            15,
+            "Can't start edge walker on full tile at position {pos} on:\n{}",
+            map.debug_mark_position(pos)
+        );
+        #[cfg(not(feature = "debug"))]
+        assert_ne!(
+            Self::dir_number(pos, map),
+            15,
+            "Can't start edge walker on full tile at position {pos}",
+        );
+
         let prev_dir = EdgeWalkerDirection::Up;
 
         Self { pos, prev_dir, map }
@@ -153,10 +212,8 @@ impl<'a> EdgeWalker<'a> {
     /// Do a single step, not skipping any pixels.
     #[inline]
     pub fn single_step(&mut self) {
-        puffin::profile_scope!("Edge walker single step");
-
         // Move the cursor based on the edge direction, following the outline
-        match self.dir_number() {
+        match Self::dir_number(self.pos, self.map) {
             // Up
             1 | 5 | 13 => {
                 self.pos.y -= 1;
@@ -207,17 +264,21 @@ impl<'a> EdgeWalker<'a> {
 
     /// Do a step, skipping any pixels in the same direction.
     #[inline]
-    pub fn step(&mut self) {
-        puffin::profile_scope!("Edge walker step");
-
+    pub fn step(&mut self, stop_at: Option<Vec2<usize>>) {
         // Move the cursor based on the edge direction, following the outline
-        match self.dir_number() {
+        match Self::dir_number(self.pos, self.map) {
             // Up
             1 | 5 | 13 => {
                 // Keep walking, ignoring all parts between the line segments
                 loop {
                     self.pos.y -= 1;
                     debug_assert!(self.pos.y > 0);
+
+                    if let Some(stop_at) = stop_at {
+                        if stop_at == self.pos {
+                            break;
+                        }
+                    }
 
                     if !self.is_dir_number([1, 5, 13]) {
                         break;
@@ -233,6 +294,12 @@ impl<'a> EdgeWalker<'a> {
                     self.pos.y += 1;
                     debug_assert!(self.pos.y < self.map.height());
 
+                    if let Some(stop_at) = stop_at {
+                        if stop_at == self.pos {
+                            break;
+                        }
+                    }
+
                     if !self.is_dir_number([8, 10, 11]) {
                         break;
                     }
@@ -247,6 +314,12 @@ impl<'a> EdgeWalker<'a> {
                     self.pos.x -= 1;
                     debug_assert!(self.pos.x > 0);
 
+                    if let Some(stop_at) = stop_at {
+                        if stop_at == self.pos {
+                            break;
+                        }
+                    }
+
                     if !self.is_dir_number([4, 12, 14]) {
                         break;
                     }
@@ -260,6 +333,12 @@ impl<'a> EdgeWalker<'a> {
                 loop {
                     self.pos.x += 1;
                     debug_assert!(self.pos.x < self.map.width());
+
+                    if let Some(stop_at) = stop_at {
+                        if stop_at == self.pos {
+                            break;
+                        }
+                    }
 
                     if !self.is_dir_number([2, 3, 7]) {
                         break;
@@ -284,7 +363,39 @@ impl<'a> EdgeWalker<'a> {
                     self.pos.x -= 1;
                 }
             }
-            _ => panic!("Unknown direction"),
+            _ => panic!("Unknown direction as position {}", self.pos),
+        }
+    }
+
+    /// Walk a full circle until the same point is reached again.
+    ///
+    /// Returns the area of the circle it made.
+    pub fn walk_area(&self) -> f64 {
+        puffin::profile_scope!("Calculate area with edge walker");
+
+        // Copy this struct, it's only a couple of bytes
+        let mut copy = self.clone();
+
+        // Keep track of the previous position so we can calculate the determinant of it as a line segment
+        let mut prev: Vec2<f64> = self.pos.as_();
+
+        // Total area as a sum of all determinants
+        let mut area_sum: f64 = 0.0;
+
+        loop {
+            // Generate new coordinates
+            copy.step(Some(self.pos));
+
+            // Calculate the determinate from the line segment
+            let cur: Vec2<f64> = copy.position().as_();
+            area_sum += cur.x * prev.y - cur.y * prev.x;
+
+            // Check if we are done
+            if copy.position() == self.pos {
+                return area_sum.abs() / 2.0;
+            }
+
+            prev = copy.position().as_();
         }
     }
 
@@ -296,16 +407,16 @@ impl<'a> EdgeWalker<'a> {
 
     /// Convert a position to a 4bit number looking at it as a 2x2 grid if possible.
     #[inline(always)]
-    fn dir_number(&self) -> u8 {
+    fn dir_number(pos: Vec2<usize>, map: &'a Bitmap) -> u8 {
         // Ensure we don't go out of bounds
-        debug_assert!(self.pos.x > 0);
-        debug_assert!(self.pos.y > 0);
+        debug_assert!(pos.x > 0);
+        debug_assert!(pos.y > 0);
 
-        let index = self.pos.x + self.pos.y * self.map.width();
-        let topleft = self.map[index - 1 - self.map.width()] as u8;
-        let topright = self.map[index - self.map.width()] as u8;
-        let botleft = self.map[index - 1] as u8;
-        let botright = self.map[index] as u8;
+        let index = pos.x + pos.y * map.width();
+        let topleft = map[index - 1 - map.width()] as u8;
+        let topright = map[index - map.width()] as u8;
+        let botleft = map[index - 1] as u8;
+        let botright = map[index] as u8;
 
         (botright << 3) | (botleft << 2) | (topright << 1) | topleft
     }
@@ -313,7 +424,7 @@ impl<'a> EdgeWalker<'a> {
     /// Whether the current position direction number is any of the passed direction combinations.
     #[inline(always)]
     fn is_dir_number(&self, numbers: [u8; 3]) -> bool {
-        let dir_number = self.dir_number();
+        let dir_number = Self::dir_number(self.pos, self.map);
 
         dir_number == numbers[0] || dir_number == numbers[1] || dir_number == numbers[2]
     }

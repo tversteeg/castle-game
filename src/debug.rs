@@ -146,8 +146,7 @@ impl DebugDraw {
     ) {
         puffin::profile_function!();
 
-        // When space is released
-        if input.n.is_released() {
+        if input.x.is_released() {
             self.screen = self.screen.next();
         }
         if input.r.is_released() {
