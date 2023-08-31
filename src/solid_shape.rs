@@ -247,98 +247,74 @@ impl SolidShape {
         offset += delta_mask.shrink_with_padding(OUTLINE_SIZE);
 
         // Get the area of the delta mask on the shape itself
-        let (_, mut shape_subsection) = self
+        let (_, shape_subsection) = self
             .shape
             .clip(Vec2::zero() - offset.as_(), delta_mask.size());
 
-        // First do a small floodfill check on a small section to see if there are multiple islands
-        // Then loop over all islands on the subsection, floodfilling them with zero values if they are not the biggest
-        let mut new_shapes = Vec::new();
-        if shape_subsection.has_multiple_islands_floodfill()
-            // PERF: remove this call
-            && self.shape.has_multiple_islands_floodfill()
-        {
-            puffin::profile_scope!("New shapes for islands");
+        // Rectangle to redraw, must include all shapes removed
+        let mut redraw_rect =
+            Rect::new(offset.x, offset.y, delta_mask.width(), delta_mask.height());
 
-            // Coordinate with the biggest area
-            let mut biggest_area = 0.0;
-            let mut biggest_coord = Vec2::zero();
+        let new_shapes = {
+            puffin::profile_scope!("Converting islands to new shapes");
 
-            // Find island pairs on the small subsection shape, ignoring the biggest one
-            while let Some((island1, island2)) = shape_subsection.try_find_island_pair() {
-                // Convert the subsection coordinates to coordinates of the shape itself
-                let island1 = island1 + offset;
-                let island2 = island2 + offset;
+            // Find all islands in the subsection
+            let mut biggest_area = f64::MAX;
+            let subsection_islands = shape_subsection
+                .islands()
+                .into_iter()
+                // Convert to shape space coordinates
+                .map(|island_coord| {
+                    let coord = island_coord + offset;
 
-                // Calculate the area
-                let island1_area = self.shape.area_from_shape_at_position(island1);
-                let island2_area = self.shape.area_from_shape_at_position(island2);
+                    // Calculate the area
+                    let area = self.shape.area_from_shape_at_position(coord);
 
-                // Ignore the island if it's already the biggest
-                if island1 != biggest_coord {
-                    if island1_area > biggest_area && island1_area > island2_area {
-                        // This is the biggest zone, ignore it
-                        biggest_area = island1_area;
-                        biggest_coord = island1;
-                    } else {
-                        // Create a new shape from a floodfill, cleaning the map from this island
-                        let mut new_shape = self.shape.zeroing_floodfill_with_copy(island1);
-                        debug_assert!(!new_shape.is_empty());
-
-                        // Make the shape more efficient
-                        new_shape.shrink_with_padding(OUTLINE_SIZE);
-
-                        new_shapes.push(Self::from_bitmap(
-                            new_shape,
-                            self.fill_color,
-                            self.outline_color,
-                        ));
+                    // Update biggest area
+                    if biggest_area < area {
+                        biggest_area = area;
                     }
-                }
 
-                // Ignore the island if it's already the biggest
-                if island2 != biggest_coord {
-                    if island2_area > biggest_area && island2_area > island1_area {
-                        // This is the biggest zone, ignore it
-                        biggest_area = island2_area;
-                        biggest_coord = island2;
-                    } else {
-                        // Create a new shape from a floodfill, cleaning the map from this island
-                        let mut new_shape = self.shape.zeroing_floodfill_with_copy(island2);
-                        debug_assert!(!new_shape.is_empty());
+                    (coord, area)
+                })
+                .collect::<Vec<_>>();
 
-                        // Make the shape more efficient
-                        new_shape.shrink_with_padding(OUTLINE_SIZE);
+            dbg!(biggest_area);
 
-                        new_shapes.push(Self::from_bitmap(
-                            new_shape,
-                            self.fill_color,
-                            self.outline_color,
-                        ));
+            // TODO: remove connected items
+            // Convert all remaing islands to new shapes
+            subsection_islands
+                .into_iter()
+                .filter_map(|(island_coord, island_area)| {
+                    // Ignore when the biggest area
+                    // TODO: use a better way to check this
+                    if island_area == biggest_area {
+                        return None;
                     }
-                }
 
-                // Recalculate shape subsection
-                // PERF: use a view instead
-                (_, shape_subsection) = self
-                    .shape
-                    .clip(Vec2::zero() - offset.as_(), delta_mask.size());
-            }
+                    // Create a new shape from a floodfill, cleaning the map from this island
+                    let mut new_shape = self.shape.zeroing_floodfill_with_copy(island_coord);
+                    debug_assert!(!new_shape.is_empty());
 
-            debug_assert!(!self.shape.is_empty());
-        }
+                    // Make the shape more efficient
+                    let new_shape_offset = new_shape.shrink_with_padding(OUTLINE_SIZE);
+
+                    // Redraw the removed part on this sprite
+                    redraw_rect = redraw_rect.union((new_shape_offset, new_shape.size()).into());
+
+                    Some(Self::from_bitmap(
+                        new_shape,
+                        self.fill_color,
+                        self.outline_color,
+                    ))
+                })
+                .collect()
+        };
+
+        debug_assert!(!self.shape.is_empty());
 
         // Do a partial update on the main shape
         puffin::profile_scope!("Partial shape update");
-
-        let redraw_rect = if new_shapes.is_empty() {
-            // No new shapes are being created, they don't have to be removed
-            Rect::new(offset.x, offset.y, delta_mask.width(), delta_mask.height())
-        } else {
-            // Remove the new shape sprite pixels
-            // TODO: only remove their rect as well
-            self.rect()
-        };
 
         // Redraw the sprite
         self.redraw_sprite_rectangle(redraw_rect);
@@ -352,10 +328,19 @@ impl SolidShape {
     }
 
     /// Redraw the sprite pixels of a rectangle, which will be clamped if outside of range.
-    fn redraw_sprite_rectangle(&mut self, rect: Rect<usize, usize>) {
+    fn redraw_sprite_rectangle(&mut self, mut rect: Rect<usize, usize>) {
         puffin::profile_scope!("Redraw sprite rectangle");
 
         debug_assert_eq!(self.shape.size(), self.sprite.size().as_());
+
+        // Nothing to draw
+        if rect.x >= self.shape.width() && rect.y >= self.shape.height() {
+            return;
+        }
+
+        // Clamp the rectangle
+        rect.w = rect.w.min(self.shape.width() - rect.x);
+        rect.h = rect.h.min(self.shape.height() - rect.y);
 
         // Set the sprite pixels
         for y in 0..rect.h {
@@ -432,10 +417,10 @@ impl SolidShape {
 mod outline_offsets {
     #[rustfmt::skip]
     pub const OUTLINE_OFFSETS_2: [(i32, i32); 20] = [
-                  (-1, -2), ( 0, -2), ( 1, -2),          
+                  (-1, -2), ( 0, -2), ( 1, -2),
         (-2, -1), (-1, -1), ( 0, -1), ( 1, -1), ( 2, -1),
         (-2,  0), (-1,  0),           ( 1,  0), ( 2,  0),
         (-2,  1), (-1,  1), ( 0,  1), ( 1,  1), ( 2,  1),
-                  (-1,  2), ( 0,  2), ( 1,  2),          
+                  (-1,  2), ( 0,  2), ( 1,  2),
     ];
 }

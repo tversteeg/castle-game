@@ -6,7 +6,7 @@ use crate::physics::collision::shape::Shape;
 use super::bitmap::Bitmap;
 
 /// Isoline mesh from a bitmap that can be updated.
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct Isoline {
     /// List of vertices connecting into a line for this mesh.
     vertices: Vec<Vec2<f64>>,
@@ -84,7 +84,7 @@ impl Isoline {
 }
 
 /// Marching square walker over the source image.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct MarchingSquaresIterator<'a> {
     /// Edge walker main algorithm.
     edge_walker: EdgeWalker<'a>,

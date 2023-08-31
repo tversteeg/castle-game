@@ -7,6 +7,8 @@ use bitvec::vec::BitVec;
 use spiral::ChebyshevIterator;
 use vek::{Extent2, Rect, Vec2};
 
+use crate::gen::isoline::MarchingSquaresIterator;
+
 use super::isoline::EdgeWalker;
 
 /// How many debug characters to render horizontally in the terminal.
@@ -220,6 +222,7 @@ impl Bitmap {
         puffin::profile_scope!("Floodfill with copy");
 
         // Create a new empty buffer for the copy
+        // PERF: find a way to not make a full copy
         let mut copy = Self::empty(self.size());
 
         // Create a stack for pixels that need to be filled
@@ -321,47 +324,26 @@ impl Bitmap {
             .copy_from_bitslice(&other.map[other_index..(other_index + amount)]);
     }
 
-    /// Calculate whether the shape has multiple islands.
-    ///
-    /// This is an expensive calculation but efficient for small images.
-    pub fn has_multiple_islands_floodfill(&self) -> bool {
-        puffin::profile_scope!("Has multiple islands");
-
-        // Do a floodfill on the first non-empty pixel found
-        if let Some(filled_pixel) = self.first_one() {
-            let mut check = self.clone();
-            check.zeroing_floodfill(filled_pixel);
-
-            // If any other pixel is still set it means there are multiple pixels
-            !check.is_empty()
-        } else {
-            // Image is empty
-            false
-        }
-    }
-
-    /// Try to get two islands from the shape.
-    ///
-    /// It could be that more islands are on the shape still.
-    ///
-    /// Returns the first pixel of both.
-    pub fn try_find_island_pair(&self) -> Option<(Vec2<usize>, Vec2<usize>)> {
-        puffin::profile_scope!("Try find island pair");
+    /// Try to get all continuously connected islands from the shape.
+    pub fn islands(&self) -> Vec<Vec2<usize>> {
+        puffin::profile_scope!("Try find islands");
 
         // Do a floodfill on the first non-empty pixel found
         // Check from the center instead of the start so the edges aren't checked
-        if let Some(filled_pixel) = self.first_one_from_center() {
-            let mut check = self.clone();
+        let mut islands = Vec::new();
+
+        // Copy the subsection so we can remove all pixels until it's empty
+        let mut check = self.clone();
+
+        // Check if any pixel hasn't been set yet
+        while let Some(filled_pixel) = check.first_one_from_center() {
+            // Floodfill from the pixel so it can be ignored
             check.zeroing_floodfill(filled_pixel);
 
-            // If any other pixel is still set it means there are multiple pixels
-            check
-                .first_one_from_center()
-                .map(|second_filled_pixel| (filled_pixel, second_filled_pixel))
-        } else {
-            // Image is empty
-            None
+            islands.push(filled_pixel);
         }
+
+        islands
     }
 
     /// Calculate the area from a shape beginning at set position.
@@ -369,6 +351,13 @@ impl Bitmap {
     /// Panics when starting position out of bounds or doesn't point to an edge of a shape.
     /// Also panics when shape edges can't be walked.
     pub fn area_from_shape_at_position(&self, shape_starting_position: Vec2<usize>) -> f64 {
+        // If the starting point is on an empty pixel there's no shape thus no area
+        if !self[shape_starting_position] {
+            return 0.0;
+        }
+
+        panic!()
+
         EdgeWalker::new(shape_starting_position, self).walk_area()
     }
 
@@ -434,6 +423,7 @@ impl Bitmap {
             }
         }
 
+        // TODO: fix for small images
         const X_SIZE: usize = 20;
         if mark.x < self.width() && mark.y < self.height() {
             canvas.line_colored(
