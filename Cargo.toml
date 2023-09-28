@@ -22,7 +22,7 @@ winit = "0.28"
 log = "0.4"
 pixels = "0.13"
 blit = "0.8"
-game-loop = { version = "0.10", features = ["winit"] }
+game-loop = { version = "1.0", features = ["winit"] }
 miette = { version = "5", features = ["fancy"] }
 image = { version = "0.24", default-features = false, features = ["png"] }
 rotsprite = "0.1"
@@ -42,8 +42,8 @@ spiral = "0.2.0"
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1", features = ["macros", "sync", "rt-multi-thread"] }
 fastrand = "2"
-puffin = "0.16"
-puffin_http = "0.13"
+puffin = "0.17"
+puffin_http = "0.14"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3", features = ["CanvasRenderingContext2d", "Document", "Element", "HtmlCanvasElement", "ImageData", "Window"] }
@@ -52,7 +52,7 @@ wasm-bindgen-futures = "0.4"
 console_log = { version = "1", features = ["wasm-bindgen", "color"] }
 console_error_panic_hook = "0.1"
 fastrand = { version = "2", default-features = false, features = ["js"] }
-puffin = "0.16"
+puffin = "0.17"
 
 [workspace]
 members = ["run-wasm"]

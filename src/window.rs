@@ -1,6 +1,8 @@
+use std::sync::Arc;
+
 use game_loop::winit::{dpi::LogicalSize, window::WindowBuilder};
 use miette::{IntoDiagnostic, Result};
-use pixels::{PixelsBuilder, SurfaceTexture};
+use pixels::{wgpu::BlendState, PixelsBuilder, SurfaceTexture};
 use vek::{Extent2, Vec2};
 use winit::{
     event::{ElementState, Event, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent},
@@ -22,9 +24,12 @@ where
     U: FnMut(&mut G, &Input, f32) + 'static,
     R: FnMut(&mut G, &mut [u32], f32) + 'static,
 {
+    #[cfg(target_arch = "wasm32")]
+    let canvas = wasm::setup_canvas();
+
     // Build the window builder with the event loop the user supplied
     let event_loop = EventLoop::new();
-    let logical_size = LogicalSize::new(size.w as f64 * 2.0, size.h as f64 * 2.0);
+    let logical_size = LogicalSize::new(size.w as f64, size.h as f64);
     #[allow(unused_mut)]
     let mut window_builder = WindowBuilder::new()
         .with_title("Castle Game")
@@ -36,31 +41,31 @@ where
     {
         use winit::platform::web::WindowBuilderExtWebSys;
 
-        window_builder = window_builder.with_canvas(Some(wasm::setup_canvas()));
+        window_builder = window_builder.with_canvas(Some(canvas));
     }
 
     let window = window_builder.build(&event_loop).into_diagnostic()?;
 
     let pixels = {
-        let surface_texture = SurfaceTexture::new(size.w as u32, size.h as u32, &window);
+        let surface_texture = SurfaceTexture::new(size.w as u32 * 2, size.h as u32 * 2, &window);
         PixelsBuilder::new(size.w as u32, size.h as u32, surface_texture)
-            .clear_color(pixels::wgpu::Color {
-                r: 0.796,
-                g: 0.859,
-                b: 0.988,
-                a: 1.0,
-            })
+            .clear_color(pixels::wgpu::Color::WHITE)
+            .blend_state(BlendState::REPLACE)
             .build_async()
             .await
     }
     .into_diagnostic()?;
+
+    // Set the canvas to the proper size
+    #[cfg(target_arch = "wasm32")]
+    wasm::update_canvas(size);
 
     // Open the window and run the event loop
     let mut buffer = vec![0u32; size.w * size.h];
 
     game_loop::game_loop(
         event_loop,
-        window,
+        Arc::new(window),
         (game_state, pixels, Input::default()),
         updates_per_second,
         0.1,
@@ -209,6 +214,7 @@ where
 
 #[cfg(target_arch = "wasm32")]
 mod wasm {
+    use vek::Extent2;
     use wasm_bindgen::JsCast;
     use web_sys::HtmlCanvasElement;
 
@@ -230,12 +236,32 @@ mod wasm {
 
         canvas.set_id("canvas");
         body.append_child(&canvas).unwrap();
-        canvas.style().set_css_text("display:block; margin: auto");
 
         let header = document.create_element("h2").unwrap();
         header.set_text_content(Some("Castle Game"));
         body.append_child(&header).unwrap();
 
         canvas
+    }
+
+    /// Update the size of the canvas.
+    pub fn update_canvas(size: Extent2<usize>) {
+        let window = web_sys::window().unwrap();
+
+        let document = window.document().unwrap();
+
+        let canvas = document
+            .get_element_by_id("canvas")
+            .unwrap()
+            .dyn_into::<HtmlCanvasElement>()
+            .unwrap();
+
+        canvas.style().set_css_text(&format!(
+            "display:block; margin: auto; image-rendering: pixelated; width: {}px; height: {}px",
+            size.w * 2,
+            size.h * 2
+        ));
+        canvas.set_width(size.w as u32 * 2);
+        canvas.set_height(size.h as u32 * 2);
     }
 }

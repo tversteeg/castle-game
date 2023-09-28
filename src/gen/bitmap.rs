@@ -356,8 +356,6 @@ impl Bitmap {
             return 0.0;
         }
 
-        panic!()
-
         EdgeWalker::new(shape_starting_position, self).walk_area()
     }
 
