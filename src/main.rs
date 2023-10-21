@@ -6,7 +6,6 @@ mod font;
 mod game;
 mod gen;
 mod graphics;
-mod input;
 mod math;
 mod object;
 mod physics;
@@ -17,7 +16,6 @@ mod sprite;
 mod terrain;
 mod timer;
 mod unit;
-mod window;
 
 use std::sync::OnceLock;
 
@@ -26,10 +24,11 @@ use assets_manager::{AssetGuard, Compound};
 use font::Font;
 use game::{GameState, Settings};
 use miette::Result;
+use pixel_game_lib::window::{Key, WindowConfig};
 use sprite::{RotatableSprite, Sprite};
-#[cfg(not(target_arch = "wasm32"))]
-use tokio::runtime::Runtime;
-use vek::Extent2;
+use vek::{Extent2, Vec2};
+
+use crate::graphics::Color;
 
 /// Window size.
 pub const SIZE: Extent2<usize> = Extent2::new(640, 360);
@@ -75,7 +74,7 @@ pub fn font(path: &str) -> AssetGuard<Font> {
     crate::asset(path)
 }
 
-async fn run() -> Result<()> {
+fn main() -> Result<()> {
     // Initialize the asset loader
     let assets = ASSETS.get_or_init(Assets::load);
     assets.enable_hot_reloading();
@@ -83,47 +82,7 @@ async fn run() -> Result<()> {
     // Construct the game
     let state = GameState::new();
 
-    window::run(
-        state,
-        SIZE,
-        UPDATES_PER_SECOND,
-        |g, input, dt| {
-            puffin::profile_scope!("Update");
-
-            // Update the game
-            g.update(input, dt as f64);
-
-            puffin::GlobalProfiler::lock().new_frame();
-        },
-        |g, buffer, frame_time| {
-            {
-                puffin::profile_scope!("Clear pixels");
-                buffer.fill(0);
-            }
-
-            {
-                puffin::profile_scope!("Render");
-
-                // Draw the game
-                g.render(buffer, frame_time as f64);
-            }
-        },
-    )
-    .await?;
-
-    Ok(())
-}
-
-/// Entry point starting either a WASM future or a Tokio runtime.
-fn main() {
-    #[cfg(target_arch = "wasm32")]
-    {
-        std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-        console_log::init_with_level(log::Level::Info).expect("error initializing logger");
-
-        wasm_bindgen_futures::spawn_local(async { run().await.unwrap() });
-    }
-
+    // Enable profiling server
     #[cfg(not(target_arch = "wasm32"))]
     {
         // Run puffin HTTP profiling server
@@ -133,8 +92,41 @@ fn main() {
 
         // Enable profiling
         puffin::set_scopes_on(true);
-
-        let rt = Runtime::new().unwrap();
-        rt.block_on(async { run().await.unwrap() });
     }
+
+    pixel_game_lib::window(
+        state,
+        WindowConfig {
+            buffer_size: SIZE,
+            title: "Castle Game".to_string(),
+            updates_per_second: UPDATES_PER_SECOND,
+            scaling: 2,
+        },
+        |g, input, mouse, dt| {
+            puffin::profile_scope!("Update");
+
+            // Update the game
+            g.update(input, mouse.map(Vec2::as_), dt as f64);
+
+            puffin::GlobalProfiler::lock().new_frame();
+
+            // Exit when escape is pressed
+            input.key_pressed(Key::Escape)
+        },
+        |g, canvas, frame_time| {
+            {
+                puffin::profile_scope!("Clear pixels");
+                canvas.fill(Color::SkyBlue.as_u32());
+            }
+
+            {
+                puffin::profile_scope!("Render");
+
+                // Draw the game
+                g.render(canvas, frame_time as f64);
+            }
+        },
+    )?;
+
+    Ok(())
 }

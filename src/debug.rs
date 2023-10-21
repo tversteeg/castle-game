@@ -1,11 +1,12 @@
 use line_drawing::Bresenham;
+use pixel_game_lib::window::Key;
 use serde::Deserialize;
 use vek::{Extent2, Vec2};
+use winit_input_helper::WinitInputHelper;
 
 use crate::{
     camera::Camera,
     graphics::Color,
-    input::Input,
     math::{Iso, Rotation},
     object::ObjectSettings,
     physics::{
@@ -137,7 +138,8 @@ impl DebugDraw {
     /// Update the debug state.
     pub fn update(
         &mut self,
-        input: &Input,
+        input: &WinitInputHelper,
+        mouse: Option<Vec2<f64>>,
         physics: &mut Physics,
         projectiles: &mut Vec<Projectile>,
         terrain: &mut Terrain,
@@ -146,66 +148,61 @@ impl DebugDraw {
     ) {
         puffin::profile_function!();
 
-        if input.x.is_released() {
+        if input.key_released(Key::X) {
             self.screen = self.screen.next();
         }
-        if input.r.is_released() {
+        if input.key_released(Key::R) {
             self.show_rotations = !self.show_rotations;
         }
-        if input.c.is_released() {
+        if input.key_released(Key::C) {
             self.show_collisions = !self.show_collisions;
         }
-        if input.o.is_released() {
+        if input.key_released(Key::O) {
             self.show_colliders = !self.show_colliders;
         }
 
-        if self.screen == DebugScreen::SpawnCubes {
-            if input.space.is_pressed() {
-                self.physics.step(dt);
+        if let Some(mouse) = mouse {
+            if self.screen == DebugScreen::SpawnCubes {
+                if input.key_held(Key::Space) {
+                    self.physics.step(dt);
+                }
+
+                if input.mouse_released(0) {
+                    // Spawn a projectile at the mouse coordinates, camera doesn't apply to local physics engine
+                    let object = crate::asset::<ObjectSettings>(CRATE);
+                    self.boxes
+                        .push(object.rigidbody_builder(mouse).spawn(&mut self.physics));
+                }
             }
 
-            if input.left_mouse.is_released() {
-                // Spawn a projectile at the mouse coordinates, camera doesn't apply to local physics engine
-                let object = crate::asset::<ObjectSettings>(CRATE);
-                self.boxes.push(
-                    object
-                        .rigidbody_builder(self.mouse)
-                        .spawn(&mut self.physics),
-                );
-            }
-        }
-
-        if self.screen == DebugScreen::SpawnProjectiles && input.left_mouse.is_released() {
-            // Spawn a projectile at the mouse coordinates
-            projectiles.push(Projectile::new(
-                camera.translate_from_screen(self.mouse),
-                Vec2::zero(),
-                physics,
-            ));
-        }
-
-        if self.screen == DebugScreen::Terrain && input.left_mouse.is_released() {
-            // Click to slice the terrain
-            terrain.remove_circle(
-                camera.translate_from_screen(input.mouse_pos.as_()),
-                10.0,
-                physics,
-            );
-        }
-
-        if self.screen == DebugScreen::Shape && input.left_mouse.is_released() {
-            // Click to slice the terrain
-            let mut new_shapes = Vec::new();
-            for shape in self.shapes.iter_mut() {
-                new_shapes.append(&mut shape.remove_circle(
-                    self.mouse.as_() - Vec2::new(SIZE.w / 2, SIZE.h / 2).as_(),
-                    10.0,
+            if self.screen == DebugScreen::SpawnProjectiles && input.mouse_released(0) {
+                // Spawn a projectile at the mouse coordinates
+                projectiles.push(Projectile::new(
+                    camera.translate_from_screen(self.mouse),
+                    Vec2::zero(),
+                    physics,
                 ));
             }
-            self.shapes.append(&mut new_shapes);
+
+            if self.screen == DebugScreen::Terrain && input.mouse_released(0) {
+                // Click to slice the terrain
+                terrain.remove_circle(camera.translate_from_screen(mouse), 10.0, physics);
+            }
+
+            if self.screen == DebugScreen::Shape && input.mouse_released(0) {
+                // Click to slice the terrain
+                let mut new_shapes = Vec::new();
+                for shape in self.shapes.iter_mut() {
+                    new_shapes.append(&mut shape.remove_circle(
+                        self.mouse.as_() - Vec2::new(SIZE.w / 2, SIZE.h / 2).as_(),
+                        10.0,
+                    ));
+                }
+                self.shapes.append(&mut new_shapes);
+            }
         }
 
-        self.mouse = input.mouse_pos.as_();
+        self.mouse = mouse.unwrap_or_default();
     }
 
     /// Draw things for debugging purposes.

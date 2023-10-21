@@ -1,12 +1,13 @@
 use assets_manager::{loader::TomlLoader, Asset};
+use pixel_game_lib::canvas::Canvas;
 use serde::Deserialize;
 use vek::Vec2;
+use winit_input_helper::WinitInputHelper;
 
 #[cfg(feature = "debug")]
 use crate::debug::{DebugDraw, DebugSettings};
 use crate::{
     camera::Camera,
-    input::Input,
     physics::{Physics, Settings as PhysicsSettings},
     projectile::Projectile,
     terrain::Settings as TerrainSettings,
@@ -65,44 +66,46 @@ impl GameState {
     }
 
     /// Draw a frame.
-    pub fn render(&mut self, canvas: &mut [u32], _frame_time: f64) {
-        self.terrain.render(canvas, &self.camera);
+    pub fn render(&mut self, canvas: &mut Canvas, _frame_time: f64) {
+        self.terrain.render(canvas.raw_buffer(), &self.camera);
 
         // Render all units
         self.units
             .iter()
-            .for_each(|unit| unit.render(canvas, &self.camera));
+            .for_each(|unit| unit.render(canvas.raw_buffer(), &self.camera));
 
         // Render all projectiles
-        self.projectiles
-            .iter()
-            .for_each(|projectile| projectile.render(canvas, &self.camera, &self.physics));
+        self.projectiles.iter().for_each(|projectile| {
+            projectile.render(canvas.raw_buffer(), &self.camera, &self.physics)
+        });
 
         // Render debug information
         #[cfg(feature = "debug")]
         self.debug_state
-            .render(&mut self.physics, &self.camera, canvas);
+            .render(&mut self.physics, &self.camera, canvas.raw_buffer());
     }
 
     /// Update a frame and handle user input.
-    pub fn update(&mut self, input: &Input, dt: f64) {
+    pub fn update(&mut self, input: &WinitInputHelper, mouse: Option<Vec2<i32>>, dt: f64) {
         let settings = crate::settings();
 
         // Move the camera based on the mouse position
-        if input.mouse_pos.x <= settings.pan_edge_offset {
-            self.camera.pan(
-                -settings.pan_speed * dt,
-                0.0,
-                0.0,
-                (settings.terrain.width - SIZE.w as u32) as f64,
-            );
-        } else if input.mouse_pos.x >= SIZE.w as i32 - settings.pan_edge_offset {
-            self.camera.pan(
-                settings.pan_speed * dt,
-                0.0,
-                0.0,
-                (settings.terrain.width - SIZE.w as u32) as f64,
-            );
+        if let Some(mouse) = mouse {
+            if mouse.x <= settings.pan_edge_offset {
+                self.camera.pan(
+                    -settings.pan_speed * dt,
+                    0.0,
+                    0.0,
+                    (settings.terrain.width - SIZE.w as u32) as f64,
+                );
+            } else if mouse.x >= SIZE.w as i32 - settings.pan_edge_offset {
+                self.camera.pan(
+                    settings.pan_speed * dt,
+                    0.0,
+                    0.0,
+                    (settings.terrain.width - SIZE.w as u32) as f64,
+                );
+            }
         }
 
         // Simulate the physics
@@ -141,6 +144,7 @@ impl GameState {
         #[cfg(feature = "debug")]
         self.debug_state.update(
             input,
+            mouse.map(Vec2::as_),
             &mut self.physics,
             &mut self.projectiles,
             &mut self.terrain,
