@@ -4,10 +4,6 @@ on:
     paths-ignore:
       - "docs/**"
       - "**.md"
-  pull_request:
-    paths-ignore:
-      - "docs/**"
-      - "**.md"
 
 jobs:
   # Check for formatting
@@ -15,7 +11,7 @@ jobs:
     name: Formatter check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -30,9 +26,9 @@ jobs:
           command: fmt
           args: --all -- --check
 
-  # Run compile check on Linux, macOS, and Windows
-  compile:
-    name: Compile
+  # Run test check on Linux, macOS, and Windows
+  test:
+    name: Test
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
@@ -40,7 +36,7 @@ jobs:
         os: [ubuntu-latest, macOS-latest, windows-latest]
     steps:
       # Checkout the branch being tested
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       # Install rust stable
       - uses: dtolnay/rust-toolchain@master
@@ -48,23 +44,23 @@ jobs:
           toolchain: stable
 
       # Cache the built dependencies
-      - uses: Swatinem/rust-cache@v2.4.0
+      - uses: Swatinem/rust-cache@v2.7.1
         with:
           save-if: ${{ github.event_name == 'push' }}
 
       # Install cargo-hack
       - uses: taiki-e/install-action@cargo-hack
 
-      # Compile all feature combinations on the target platform
-      - name: Compile
-        run: cargo hack --feature-powerset check
+      # Test all feature combinations on the target platform
+      - name: Test
+        run: cargo hack --feature-powerset test
 
   # Build the WASM target & push it to GitHub pages
   wasm:
-    name: WASM build
+    name: WASM test & build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       # Install rust stable
       - uses: dtolnay/rust-toolchain@master
@@ -73,7 +69,7 @@ jobs:
           targets: wasm32-unknown-unknown
 
       # Cache the built dependencies
-      - uses: Swatinem/rust-cache@v2.4.0
+      - uses: Swatinem/rust-cache@v2.7.1
         with:
           save-if: ${{ github.event_name == 'push' }}
 
