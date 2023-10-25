@@ -1,17 +1,11 @@
+use pixel_game_lib::physics::{
+    rigidbody::{RigidBodyBuilder, RigidBodyHandle},
+    Physics,
+};
 use serde::Deserialize;
 use vek::Vec2;
 
-use crate::{
-    camera::Camera,
-    graphics::Color,
-    physics::{
-        rigidbody::{RigidBodyBuilder, RigidBodyHandle},
-        Physics,
-    },
-    solid_shape::SolidShape,
-    sprite::SpriteOffset,
-    SIZE,
-};
+use crate::{camera::Camera, graphics::Color, solid_shape::SolidShape, SIZE};
 
 /// Level asset path.
 pub const ASSET_PATH: &str = "level.grass-1";

@@ -6,10 +6,11 @@ use assets_manager::{
 };
 use blit::{Blit, BlitBuffer, ToBlitBuffer};
 use image::ImageFormat;
+use pixel_game_lib::math::Iso;
 use serde::Deserialize;
 use vek::{Extent2, Vec2};
 
-use crate::{camera::Camera, math::Iso, SIZE};
+use crate::{camera::Camera, SIZE};
 
 /// Sprite that can be drawn on the  canvas.
 #[derive(Debug)]

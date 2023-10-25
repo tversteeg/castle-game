@@ -1,15 +1,11 @@
 use assets_manager::{loader::TomlLoader, Asset, AssetGuard};
+use pixel_game_lib::physics::{rigidbody::RigidBodyHandle, Physics};
 use serde::Deserialize;
 use vek::{Extent2, Vec2};
 
 use crate::{
-    camera::Camera,
-    object::ObjectSettings,
-    physics::{rigidbody::RigidBodyHandle, Physics},
-    projectile::Projectile,
-    random::RandomRangeF64,
-    terrain::Terrain,
-    timer::Timer,
+    camera::Camera, object::ObjectSettings, projectile::Projectile, random::RandomRangeF64,
+    terrain::Terrain, timer::Timer,
 };
 
 /// All unit types.

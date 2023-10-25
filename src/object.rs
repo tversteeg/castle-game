@@ -1,11 +1,9 @@
 use assets_manager::{loader::TomlLoader, AnyCache, Asset, BoxedError, Compound, SharedString};
+use pixel_game_lib::physics::{collision::shape::Shape, rigidbody::RigidBodyBuilder};
 use serde::Deserialize;
 use vek::{Extent2, Vec2};
 
-use crate::{
-    physics::{collision::shape::Shape, rigidbody::RigidBodyBuilder},
-    sprite::Sprite,
-};
+use crate::sprite::Sprite;
 
 /// Loadable object with physics.
 pub struct ObjectSettings {

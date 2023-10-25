@@ -1,12 +1,10 @@
+use pixel_game_lib::{
+    math::Rotation,
+    physics::{rigidbody::RigidBodyHandle, Physics},
+};
 use vek::Vec2;
 
-use crate::{
-    camera::Camera,
-    math::Rotation,
-    object::ObjectSettings,
-    physics::{rigidbody::RigidBodyHandle, Physics},
-    unit::Unit,
-};
+use crate::{camera::Camera, object::ObjectSettings, unit::Unit};
 
 /// Spear asset path.
 const ASSET_PATH: &str = "projectile.spear-1";

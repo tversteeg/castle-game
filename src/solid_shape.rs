@@ -1,9 +1,9 @@
+use pixel_game_lib::physics::collision::shape::Shape;
 use vek::{Extent2, Rect, Vec2};
 
 use crate::{
     gen::{bitmap::Bitmap, isoline::Isoline},
     graphics::Color,
-    physics::collision::shape::Shape,
     sprite::{Sprite, SpriteOffset},
 };
 

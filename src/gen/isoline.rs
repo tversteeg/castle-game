@@ -1,7 +1,6 @@
 use itertools::Itertools;
+use pixel_game_lib::physics::collision::shape::Shape;
 use vek::{Extent2, Vec2};
-
-use crate::physics::collision::shape::Shape;
 
 use super::bitmap::Bitmap;
 

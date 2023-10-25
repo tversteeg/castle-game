@@ -1,5 +1,8 @@
 use assets_manager::{loader::TomlLoader, Asset};
-use pixel_game_lib::canvas::Canvas;
+use pixel_game_lib::{
+    canvas::Canvas,
+    physics::{Physics, PhysicsSettings},
+};
 use serde::Deserialize;
 use vek::Vec2;
 use winit_input_helper::WinitInputHelper;
@@ -8,7 +11,6 @@ use winit_input_helper::WinitInputHelper;
 use crate::debug::{DebugDraw, DebugSettings};
 use crate::{
     camera::Camera,
-    physics::{Physics, Settings as PhysicsSettings},
     projectile::Projectile,
     terrain::Settings as TerrainSettings,
     terrain::Terrain,
@@ -109,7 +111,7 @@ impl GameState {
         }
 
         // Simulate the physics
-        self.physics.step(dt);
+        self.physics.step(dt, &settings.physics);
 
         // Update all projectiles
         self.projectiles

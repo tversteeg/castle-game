@@ -1,24 +1,20 @@
 use line_drawing::Bresenham;
-use pixel_game_lib::window::Key;
-use serde::Deserialize;
-use vek::{Extent2, Vec2};
-use winit_input_helper::WinitInputHelper;
-
-use crate::{
-    camera::Camera,
-    graphics::Color,
+use pixel_game_lib::{
     math::{Iso, Rotation},
-    object::ObjectSettings,
     physics::{
         collision::{shape::Shape, CollisionResponse},
         rigidbody::{RigidBodyBuilder, RigidBodyHandle},
         Physics,
     },
-    projectile::Projectile,
-    solid_shape::SolidShape,
-    sprite::SpriteOffset,
-    terrain::Terrain,
-    SIZE,
+    window::Key,
+};
+use serde::Deserialize;
+use vek::{Extent2, Vec2};
+use winit_input_helper::WinitInputHelper;
+
+use crate::{
+    camera::Camera, graphics::Color, object::ObjectSettings, projectile::Projectile,
+    solid_shape::SolidShape, terrain::Terrain, SIZE,
 };
 
 /// Asset paths.
@@ -164,7 +160,7 @@ impl DebugDraw {
         if let Some(mouse) = mouse {
             if self.screen == DebugScreen::SpawnCubes {
                 if input.key_held(Key::Space) {
-                    self.physics.step(dt);
+                    self.physics.step(dt, &crate::settings().physics);
                 }
 
                 if input.mouse_released(0) {
