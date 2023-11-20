@@ -515,6 +515,7 @@ mod tests {
 
     use super::Bitmap;
 
+    #[cfg(feature = "debug")]
     #[test]
     fn shrink_with_padding() {
         // 4x4 image filled with ones

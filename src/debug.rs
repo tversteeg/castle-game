@@ -6,11 +6,10 @@ use pixel_game_lib::{
         rigidbody::{RigidBodyBuilder, RigidBodyHandle},
         Physics,
     },
-    window::Key,
+    window::{Input, KeyCode},
 };
 use serde::Deserialize;
 use vek::{Extent2, Vec2};
-use winit_input_helper::WinitInputHelper;
 
 use crate::{
     camera::Camera, graphics::Color, object::ObjectSettings, projectile::Projectile,
@@ -134,7 +133,7 @@ impl DebugDraw {
     /// Update the debug state.
     pub fn update(
         &mut self,
-        input: &WinitInputHelper,
+        input: &Input,
         mouse: Option<Vec2<f64>>,
         physics: &mut Physics,
         projectiles: &mut Vec<Projectile>,
@@ -144,22 +143,22 @@ impl DebugDraw {
     ) {
         puffin::profile_function!();
 
-        if input.key_released(Key::X) {
+        if input.key_released(KeyCode::KeyX) {
             self.screen = self.screen.next();
         }
-        if input.key_released(Key::R) {
+        if input.key_released(KeyCode::KeyR) {
             self.show_rotations = !self.show_rotations;
         }
-        if input.key_released(Key::C) {
+        if input.key_released(KeyCode::KeyC) {
             self.show_collisions = !self.show_collisions;
         }
-        if input.key_released(Key::O) {
+        if input.key_released(KeyCode::KeyO) {
             self.show_colliders = !self.show_colliders;
         }
 
         if let Some(mouse) = mouse {
             if self.screen == DebugScreen::SpawnCubes {
-                if input.key_held(Key::Space) {
+                if input.key_held(KeyCode::Space) {
                     self.physics.step(dt, &crate::settings().physics);
                 }
 

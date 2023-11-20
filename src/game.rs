@@ -2,10 +2,10 @@ use assets_manager::{loader::TomlLoader, Asset};
 use pixel_game_lib::{
     canvas::Canvas,
     physics::{Physics, PhysicsSettings},
+    window::Input,
 };
 use serde::Deserialize;
 use vek::Vec2;
-use winit_input_helper::WinitInputHelper;
 
 #[cfg(feature = "debug")]
 use crate::debug::{DebugDraw, DebugSettings};
@@ -88,7 +88,7 @@ impl GameState {
     }
 
     /// Update a frame and handle user input.
-    pub fn update(&mut self, input: &WinitInputHelper, mouse: Option<Vec2<i32>>, dt: f64) {
+    pub fn update(&mut self, input: &Input, mouse: Option<Vec2<i32>>, dt: f64) {
         let settings = crate::settings();
 
         // Move the camera based on the mouse position

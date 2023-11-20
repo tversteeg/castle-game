@@ -22,7 +22,7 @@ use assets_manager::{AssetGuard, Compound};
 use font::Font;
 use game::{GameState, Settings};
 use miette::Result;
-use pixel_game_lib::window::{Key, WindowConfig};
+use pixel_game_lib::window::{KeyCode, WindowConfig};
 use sprite::{RotatableSprite, Sprite};
 use vek::{Extent2, Vec2};
 
@@ -109,7 +109,7 @@ fn main() -> Result<()> {
             puffin::GlobalProfiler::lock().new_frame();
 
             // Exit when escape is pressed
-            input.key_pressed(Key::Escape)
+            input.key_pressed(KeyCode::Escape)
         },
         |g, canvas, frame_time| {
             {
