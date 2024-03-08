@@ -1,0 +1,4 @@
+[toolchain]
+# We need 1.72.1 due to pixel-game-lib
+channel = "1.72.1"
+targets = ["wasm32-unknown-unknown"]

@@ -1,0 +1,38 @@
+# Distance from the edge at which the camera will pan
+pan_edge_offset = 80
+# How many pixels per second the camera will pan
+pan_speed = 100
+
+# Interval in seconds for when a unit spawns
+unit_spawn_interval = 300
+enemy_unit_spawn_interval = 400
+
+[terrain]
+# Size of the level
+width = 2000
+# Random scaling added to each pixel
+pixel_random_factor = 0.2
+# Random scaling added to each direction step of the amount of pixels
+direction_random_factor = 0.5
+# How many pixels before the direction changes
+direction_pixels = 5
+ 
+# Physics engine specific settings
+[physics]
+# How many substeps are taken in a single step
+substeps = 6
+# Gravity applied to everything
+gravity = 9.81
+# Damping applied to the velocity every timestep
+air_friction = 1.0
+# Dampling applied to rotations every timestep
+rotation_friction = 1.0
+
+# Debug screen specific settings, press 'n' to go to next screen
+[debug]
+# Which debug section to start in when running the game
+start_screen = "terrain"
+# Whether to draw physics collider shapes
+draw_physics_colliders = true
+# Whether to draw physics contact points
+draw_physics_contacts = true

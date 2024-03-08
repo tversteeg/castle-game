@@ -1,0 +1,34 @@
+health = 100
+allegiance = "player"
+
+# Sprites to render
+base_asset_path = "unit.base-1"
+hands_asset_path = "unit.spear-hands-1"
+projectile_asset_path = "projectile.spear-1"
+
+# How many pixels a unit moves in a second
+walk_speed = 15
+
+# Interval in seconds for when a new projectile is thrown
+projectile_spawn_interval = 5
+# Don't let the projectile spawn in the ground
+projectile_spawn_offset = { x = 0, y = -40 }
+# How fast a projectile is thrown
+projectile_velocity = { min = 60, max = 120 }
+# How long the hands are hidden after launching a projectile in seconds
+hide_hands_delay = 2
+
+# Size of the healthbar
+healthbar_size = { w = 20, h = 3 }
+# Where above the unit it floats
+healthbar_offset = { x = -10, y = -25 }
+
+[physics]
+# Handle all collisions manually
+is_kinematic = true
+
+# Collider shape for collisions with projectile
+[collider]
+shape = "rectangle"
+width = 10
+height = 30

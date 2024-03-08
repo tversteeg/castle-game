@@ -1,0 +1,12 @@
+rotations = 1
+
+offset = "middle_top"
+
+[physics]
+is_static = true
+friction = 0.8
+
+[collider]
+shape = "heightmap"
+spacing = 5
+height_offset = 2.5

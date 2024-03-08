@@ -1,308 +1,222 @@
-use cgmath::Point2;
-use collision::Discrete;
-use specs::prelude::*;
-use specs_derive::Component;
+use assets_manager::{loader::TomlLoader, Asset, AssetReadGuard};
+use pixel_game_lib::physics::{rigidbody::RigidBodyHandle, Physics};
+use serde::Deserialize;
+use vek::{Extent2, Vec2};
 
-use super::*;
+use crate::{
+    camera::Camera, object::ObjectSettings, projectile::Projectile, random::RandomRangeF64,
+    terrain::Terrain, timer::Timer,
+};
 
-#[derive(Component, Debug, Eq, PartialEq)]
-pub enum UnitState {
-    // The path is clear and the unit can walk
-    Walk,
-    // There is a high ledge in front of the unit and it needs to climb it
-    Climb,
-    // There is another unit in front of this unit
-    Wait,
-
-    // The unit is fighting with an enemy unit
-    Melee,
-    // The unit is shooting at an enemy unit
-    Shoot,
+/// All unit types.
+#[derive(Debug, Clone, Copy)]
+pub enum UnitType {
+    PlayerSpear,
+    EnemySpear,
 }
 
-#[derive(Component, Debug, Copy, Clone)]
-pub struct Health(pub f64);
+impl UnitType {
+    /// Settings path to load for this type.
+    pub fn settings(&self) -> AssetReadGuard<Settings> {
+        // Settings asset path
+        let path = match self {
+            Self::PlayerSpear => "unit.spear",
+            Self::EnemySpear => "unit.enemy-spear",
+        };
 
-#[derive(Component, Debug, Copy, Clone)]
-pub struct HealthBar {
+        pixel_game_lib::asset(path)
+    }
+
+    /// Asset path based on what type to load.
+    pub fn asset_path(&self) -> &'static str {
+        match self {
+            Self::PlayerSpear => "unit.spear",
+            Self::EnemySpear => "unit.enemy-spear",
+        }
+    }
+}
+
+/// Unit that can walk on the terrain.
+#[derive(Debug)]
+pub struct Unit {
+    /// Type of the unit, used to find the settings.
+    r#type: UnitType,
+    /// Absolute position.
+    pos: Vec2<f64>,
+    /// Timer for throwing a spear.
+    projectile_timer: Timer,
+    /// How long to hide the hands after a spear is thrown.
+    hide_hands_delay: f64,
+    /// How much health the unit has currently.
     pub health: f64,
-    pub max_health: f64,
-    pub width: usize,
-    pub pos: Point2<usize>,
-    pub offset: (i32, i32),
+    /// Collision shape.
+    pub rigidbody: RigidBodyHandle,
 }
 
-#[derive(Component, Debug, Copy, Clone)]
-pub struct Walk {
-    pub bounds: BoundingBox,
-    pub speed: f64,
-}
+impl Unit {
+    /// Create a new unit.
+    pub fn new(pos: Vec2<f64>, r#type: UnitType, physics: &mut Physics) -> Self {
+        let projectile_timer = Timer::new(r#type.settings().projectile_spawn_interval);
 
-impl Walk {
-    pub fn new(bounds: BoundingBox, speed: f64) -> Self {
-        Walk { bounds, speed }
-    }
-}
+        let hide_hands_delay = 0.0;
+        let health = r#type.settings().health;
 
-#[derive(SystemData)]
-pub struct WalkSystemData<'a> {
-    dt: Read<'a, DeltaTime>,
-    terrain: Read<'a, Terrain>,
-    dest: ReadStorage<'a, Destination>,
-    walk: ReadStorage<'a, Walk>,
-    state: WriteStorage<'a, UnitState>,
-    pos: WriteStorage<'a, WorldPosition>,
-}
+        // Load the object definition for properties of the object
+        let object = pixel_game_lib::asset::<ObjectSettings>(r#type.asset_path());
+        let rigidbody = object.rigidbody_builder(pos).spawn(physics);
 
-pub struct WalkSystem;
-impl<'a> System<'a> for WalkSystem {
-    type SystemData = WalkSystemData<'a>;
-
-    fn run(&mut self, mut system_data: Self::SystemData) {
-        let dt = system_data.dt.to_seconds();
-
-        for (dest, walk, state, pos) in (
-            &system_data.dest,
-            &system_data.walk,
-            &mut system_data.state,
-            &mut system_data.pos,
-        )
-            .join()
-        {
-            // Don't walk when the unitstate is not saying that it can walk
-            if *state != UnitState::Walk {
-                continue;
-            }
-
-            let hit_box = walk.bounds + *pos.0;
-            if let Some(hit) = system_data.terrain.rect_collides(hit_box) {
-                if hit.1 == hit_box.min.y as i32 {
-                    // Top edge of bounding box is hit, try to climb
-                    *state = UnitState::Climb;
-                    continue;
-                }
-            }
-
-            pos.0.x += walk.speed * dt * (dest.0 - pos.0.x).signum();
+        Self {
+            r#type,
+            pos,
+            projectile_timer,
+            hide_hands_delay,
+            health,
+            rigidbody,
         }
     }
-}
 
-pub struct HealthBarSystem;
-impl<'a> System<'a> for HealthBarSystem {
-    type SystemData = (
-        ReadStorage<'a, Health>,
-        ReadStorage<'a, WorldPosition>,
-        WriteStorage<'a, HealthBar>,
-    );
+    /// Move the unit.
+    ///
+    /// When a projectile is returned one is spawned.
+    pub fn update(
+        &mut self,
+        terrain: &Terrain,
+        dt: f64,
+        physics: &mut Physics,
+    ) -> Option<Projectile> {
+        puffin::profile_scope!("Unit update");
 
-    fn run(&mut self, (health, pos, mut health_bar): Self::SystemData) {
-        for (health, pos, health_bar) in (&health, &pos, &mut health_bar).join() {
-            health_bar.health = health.0;
-            health_bar.pos = pos.0.as_usize();
-            health_bar.pos.x = (health_bar.pos.x as i32 + health_bar.offset.0) as usize;
-            health_bar.pos.y = (health_bar.pos.y as i32 + health_bar.offset.1) as usize;
+        // Update rigidbody position
+        self.rigidbody.set_position(self.pos, physics);
+
+        if !terrain.point_collides(self.pos, physics) {
+            // No collision with the terrain, the unit falls down
+            self.pos.y += 1.0;
+        } else if terrain.point_collides(self.pos - (0.0, 1.0), physics) {
+            // The unit has sunk into the terrain, move it up
+            self.pos.y -= 1.0;
+        } else {
+            // Collision with the terrain, the unit walks to the right
+            let walk_speed = self.settings().walk_speed;
+            self.pos.x += walk_speed * dt;
+        }
+
+        // Update hands delay
+        if self.hide_hands_delay > 0.0 {
+            self.hide_hands_delay -= dt;
+        }
+
+        // Spawn a projectile if timer runs out
+        if self.projectile_timer.update(dt) {
+            let hide_hands_delay = self.settings().hide_hands_delay;
+            self.hide_hands_delay = hide_hands_delay;
+
+            let velocity = self.settings().projectile_velocity.value();
+
+            Some(Projectile::new(
+                self.pos + self.settings().projectile_spawn_offset,
+                Vec2::new(velocity, -velocity),
+                physics,
+            ))
+        } else {
+            None
         }
     }
-}
 
-pub struct UnitFallSystem;
-impl<'a> System<'a> for UnitFallSystem {
-    type SystemData = (
-        Read<'a, DeltaTime>,
-        Read<'a, Terrain>,
-        ReadStorage<'a, Walk>,
-        WriteStorage<'a, WorldPosition>,
-    );
+    /// Draw the unit.
+    pub fn render(&self, canvas: &mut [u32], camera: &Camera) {
+        puffin::profile_function!();
 
-    fn run(&mut self, (dt, terrain, walk, mut pos): Self::SystemData) {
-        let dt = dt.to_seconds();
+        let settings = self.settings();
 
-        for (walk, pos) in (&walk, &mut pos).join() {
-            pos.0.y += GRAVITY * dt;
+        crate::sprite(&settings.base_asset_path).render(
+            canvas,
+            camera,
+            (self.pos - self.ground_collision_point())
+                .numcast()
+                .unwrap_or_default(),
+        );
 
-            // Move the units if they collide with the ground in a loop until they don't touch the ground anymore
-            loop {
-                let hit_box = walk.bounds + *pos.0;
-                match terrain.rect_collides(hit_box) {
-                    Some(_) => {
-                        pos.0.y -= 1.0;
-                    }
-                    None => break,
-                }
+        if let Some(hands_asset_path) = &settings.hands_asset_path {
+            if self.hide_hands_delay <= 0.0 {
+                crate::sprite(hands_asset_path).render(
+                    canvas,
+                    camera,
+                    (self.pos - (1.0, 1.0) - self.ground_collision_point())
+                        .numcast()
+                        .unwrap_or_default(),
+                );
             }
         }
+
+        // Draw the healthbar
+        crate::graphics::healthbar::healthbar(
+            self.health,
+            settings.health,
+            self.pos + settings.healthbar_offset,
+            settings.healthbar_size,
+            canvas,
+            camera,
+        );
+    }
+
+    /// Where the unit collides with the ground.
+    fn ground_collision_point(&self) -> Vec2<f64> {
+        let base_asset_path = &self.settings().base_asset_path;
+        let sprite = crate::sprite(base_asset_path);
+
+        (sprite.width() as f64 / 2.0, sprite.height() as f64 - 2.0).into()
+    }
+
+    /// The settings for this unit.
+    fn settings(&self) -> AssetReadGuard<Settings> {
+        self.r#type.settings()
     }
 }
 
-pub struct UnitResumeWalkingSystem;
-impl<'a> System<'a> for UnitResumeWalkingSystem {
-    type SystemData = (
-        Entities<'a>,
-        ReadStorage<'a, WorldPosition>,
-        ReadStorage<'a, BoundingBox>,
-        ReadStorage<'a, Destination>,
-        WriteStorage<'a, UnitState>,
-    );
-
-    fn run(&mut self, (entities, pos, bb, dest, mut state): Self::SystemData) {
-        for (e1, pos1, bb1, dest1) in (&*entities, &pos, &bb, &dest).join() {
-            // A unit can only resume walking when it's waiting or fighting
-            if let Some(state1) = state.get_mut(e1) {
-                if *state1 != UnitState::Wait && *state1 != UnitState::Melee {
-                    continue;
-                }
-            }
-
-            // Get the bounding box of entity 1
-            let aabb1 = *bb1 + *pos1.0;
-
-            // If it's waiting or fighting and not colliding anymore let it walk
-            let mut intersects = false;
-            for (e2, pos2, bb2, dest2) in (&*entities, &pos, &bb, &dest).join() {
-                // Don't collide with itself
-                if e1 == e2 {
-                    continue;
-                }
-
-                // Get the bounding box of entity 2
-                let aabb2 = *bb2 + *pos2.0;
-
-                // If they bounding boxes of both units intersect
-                if aabb1.intersects(&*aabb2) {
-                    let dist1 = (dest1.0 - pos1.0.x).abs();
-                    let dist2 = (dest2.0 - pos2.0.x).abs();
-
-                    // If this is not the unit closest to it's destination
-                    if dist1 > dist2 {
-                        intersects = true;
-                        break;
-                    }
-                }
-            }
-
-            // Make it walk again if there is no collision
-            if !intersects {
-                if let Some(state1) = state.get_mut(e1) {
-                    *state1 = UnitState::Walk;
-                }
-            }
-        }
-    }
+/// Unit settings loaded from a file so it's easier to change them with hot-reloading.
+#[derive(Deserialize)]
+pub struct Settings {
+    /// Asset path for the base.
+    ///
+    /// Usually this is the body.
+    pub base_asset_path: String,
+    /// Asset path for the hands.
+    pub hands_asset_path: Option<String>,
+    /// Asset path for the projectile.
+    pub projectile_asset_path: Option<String>,
+    /// Who the unit belongs to.
+    pub allegiance: Allegiance,
+    /// How many pixels a unit moves in a second.
+    pub walk_speed: f64,
+    /// How much health the unit has on spawn.
+    pub health: f64,
+    /// Interval in seconds for when a new projectile is thrown.
+    pub projectile_spawn_interval: f64,
+    /// Offset in pixels from the center of the unit body from where the projectile is thrown.
+    pub projectile_spawn_offset: Vec2<f64>,
+    /// How fast a projectile is thrown.
+    pub projectile_velocity: RandomRangeF64,
+    /// How long the hands are hidden after launching a projectile.
+    pub hide_hands_delay: f64,
+    /// Size of the healthbar.
+    pub healthbar_size: Extent2<f32>,
+    /// Position offset of the healthbar.
+    pub healthbar_offset: Vec2<f64>,
 }
 
-#[derive(SystemData)]
-pub struct UnitCollideSystemData<'a> {
-    entities: Entities<'a>,
-    ally: ReadStorage<'a, Ally>,
-    pos: ReadStorage<'a, WorldPosition>,
-    bb: ReadStorage<'a, BoundingBox>,
-    dest: ReadStorage<'a, Destination>,
-    state: WriteStorage<'a, UnitState>,
+impl Asset for Settings {
+    const EXTENSION: &'static str = "toml";
+
+    type Loader = TomlLoader;
 }
 
-pub struct UnitCollideSystem;
-impl<'a> System<'a> for UnitCollideSystem {
-    type SystemData = UnitCollideSystemData<'a>;
-
-    fn run(&mut self, mut system_data: Self::SystemData) {
-        for (e1, pos1, bb1, dest1) in (
-            &*system_data.entities,
-            &system_data.pos,
-            &system_data.bb,
-            &system_data.dest,
-        )
-            .join()
-        {
-            // Get the bounding box of entity 1
-            let aabb1 = *bb1 + *pos1.0;
-
-            // Don't check if this unit is not walking
-            if let Some(state1) = system_data.state.get_mut(e1) {
-                // If it's not walking ignore it
-                if *state1 != UnitState::Walk {
-                    continue;
-                }
-            }
-
-            // Check for a collision if this unit is walking
-            for (e2, pos2, bb2, dest2) in (
-                &*system_data.entities,
-                &system_data.pos,
-                &system_data.bb,
-                &system_data.dest,
-            )
-                .join()
-            {
-                // Don't collide with itself
-                if e1 == e2 {
-                    continue;
-                }
-
-                // Join a melee
-                let is_melee = if let Some(state) = system_data.state.get_mut(e2) {
-                    *state == UnitState::Melee
-                } else {
-                    // Unit doesn't have a unit state?
-                    panic!("Unit doesn't have a unit state");
-                };
-
-                let aabb2 = if is_melee {
-                    // Get the half bounding box of entity 2
-                    bb2.to_half_width() + *pos2.0
-                } else {
-                    // Get the full bounding box of entity 2
-                    *bb2 + *pos2.0
-                };
-
-                // Ignore the units if they don't collide
-                if !aabb1.intersects(&*aabb2) {
-                    continue;
-                }
-
-                let is_ally1 = system_data.ally.get(e1).is_some();
-                let is_ally2 = system_data.ally.get(e2).is_some();
-
-                if is_ally1 == is_ally2 {
-                    // If they are both allies or both enemies let one of them wait
-                    let dist1 = (dest1.0 - pos1.0.x).abs();
-                    let dist2 = (dest2.0 - pos2.0.x).abs();
-                    // Let the unit wait which is furthest away from the destination
-                    if dist1 > dist2 {
-                        if let Some(state) = system_data.state.get_mut(e1) {
-                            *state = UnitState::Wait;
-                        }
-                        break;
-                    } else if let Some(state) = system_data.state.get_mut(e2) {
-                        *state = UnitState::Wait;
-                    }
-                } else {
-                    // If they are an ally and an enemy let them fight
-                    if let Some(state) = system_data.state.get_mut(e1) {
-                        *state = UnitState::Melee;
-                    }
-                    if let Some(state) = system_data.state.get_mut(e2) {
-                        *state = UnitState::Melee;
-                    }
-                    break;
-                }
-            }
-        }
-    }
-}
-
-pub fn reduce_unit_health<'a>(
-    entities: &'a Entities,
-    unit: Entity,
-    health: &'a mut Health,
-    dmg: f64,
-) -> bool {
-    health.0 -= dmg;
-    if health.0 <= 0.0 {
-        let _ = entities.delete(unit);
-
-        true
-    } else {
-        false
-    }
+/// Player unit or enemy unit.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Allegiance {
+    /// Unit belongs to the player.
+    Player,
+    /// Unit is controlled by enemy AI.
+    Enemy,
 }

@@ -1,0 +1,9 @@
+rotations = 16
+
+[physics]
+density = 0.001
+friction = 0.3
+restitution = 0.2
+
+[collider]
+shape = "rectangle"

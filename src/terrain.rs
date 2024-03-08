@@ -1,124 +1,102 @@
-use line_drawing::Bresenham;
-use specs::*;
-use specs_derive::Component;
+use pixel_game_lib::physics::{
+    rigidbody::{RigidBodyBuilder, RigidBodyHandle},
+    Physics,
+};
+use serde::Deserialize;
+use vek::Vec2;
 
-use crate::geom::*;
-use crate::physics::*;
+use crate::{camera::Camera, graphics::Color, solid_shape::SolidShape, SIZE};
 
-#[derive(Default)]
+/// Level asset path.
+pub const ASSET_PATH: &str = "level.grass-1";
+
+/// Destructible procedurally generated terrain buffer.
 pub struct Terrain {
-    pub buffer: Vec<u32>,
-
-    width: usize,
-    height: usize,
+    /// Y offset of the sprite.
+    pub y: f64,
+    /// Physics object reference.
+    pub rigidbody: RigidBodyHandle,
+    /// Array of the top collision point heights of the terrain for ecah pixel.
+    top_heights: Vec<f64>,
+    /// Solid shape and sprite.
+    shape: SolidShape,
 }
 
 impl Terrain {
-    pub fn new(size: (usize, usize)) -> Self {
-        Terrain {
-            buffer: vec![0xFF_FF_00_FF; (size.0 * size.1) as usize],
+    /// Load a terrain from image bytes.
+    pub fn new(physics: &mut Physics) -> Self {
+        let settings = &crate::settings().terrain;
 
-            width: size.0,
-            height: size.1,
-        }
-    }
+        // Generate random heights
+        let mut last = 0.0;
+        let mut dir = 0.0;
+        let top_heights = (0..crate::settings().terrain.width)
+            .map(|i| {
+                // Add some noise for every step
+                last += (fastrand::f64() - 0.5) * settings.pixel_random_factor * 2.0 + dir;
 
-    pub fn size(&self) -> (usize, usize) {
-        (self.width, self.height)
-    }
-
-    pub fn line_collides(&self, start: (i32, i32), end: (i32, i32)) -> Option<(i32, i32)> {
-        let (width, height) = self.size();
-
-        for pos in Bresenham::new(start, end) {
-            if pos.0 < 0 || pos.1 < 0 || pos.0 as usize >= width || pos.1 as usize >= height {
-                continue;
-            }
-
-            let index = pos.0 as usize + pos.1 as usize * width;
-            if (self.buffer[index] & 0xFF_FF_FF) != 0xFF_00_FF {
-                return Some(pos);
-            }
-        }
-
-        None
-    }
-
-    pub fn rect_collides(&self, rect: BoundingBox) -> Option<(i32, i32)> {
-        let mut rect = rect.to_i32();
-
-        // Clip the rectangle to the buffer
-        if rect.0 < 0 {
-            rect.2 += rect.0;
-            rect.0 = 0;
-        }
-        if rect.1 < 0 {
-            rect.3 += rect.1;
-            rect.1 = 0;
-        }
-
-        let (width, height) = self.size();
-        if rect.0 + rect.2 >= width as i32 {
-            rect.2 = width as i32 - rect.0 - 1;
-        }
-        if rect.1 + rect.3 >= height as i32 {
-            rect.3 = height as i32 - rect.1 - 1;
-        }
-
-        let start = (rect.0, rect.1);
-        let end = (rect.0 + rect.2, rect.1 + rect.3);
-
-        for y in start.1..end.1 {
-            for x in start.0..end.0 {
-                let index = x as usize + y as usize * width;
-                if (self.buffer[index] & 0xFF_FF_FF) != 0xFF_00_FF {
-                    return Some((x, y));
+                // Once every set steps change the direction
+                if i % settings.direction_pixels == 0 {
+                    dir = (fastrand::f64() - 0.5) * settings.direction_random_factor * 2.0;
                 }
-            }
-        }
 
-        None
+                last
+            })
+            .collect::<Vec<_>>();
+
+        let shape = SolidShape::from_heights(&top_heights, 100.0, Color::LightGreen, Color::Green);
+
+        let y = SIZE.h as f64 - shape.sprite().height() as f64;
+
+        // Create a heightmap for the terrain
+        let rigidbody = {
+            RigidBodyBuilder::new_static(Vec2::new(0.0, y))
+                .with_collider(shape.to_collider())
+                .spawn(physics)
+        };
+
+        Self {
+            rigidbody,
+            y,
+            top_heights,
+            shape,
+        }
     }
 
-    pub fn draw_pixel(&mut self, pos: (usize, usize), color: u32) {
-        if pos.0 >= self.width || pos.1 >= self.height {
-            return;
-        }
+    /// Draw the terrain based on a camera offset.
+    pub fn render(&self, canvas: &mut [u32], camera: &Camera) {
+        puffin::profile_scope!("Render terrain");
 
-        self.buffer[pos.0 + pos.1 * self.width] = color;
+        self.shape
+            .sprite()
+            .render(canvas, camera, Vec2::new(0.0, self.y));
+    }
+
+    /// Whether a point collides with the terrain.
+    ///
+    /// This doesn't use the collision shape but the actual pixels of the image.
+    pub fn point_collides(&self, point: Vec2<f64>, _physics: &Physics) -> bool {
+        // Convert the position to a coordinate that can be used as an index
+        let offset = point - (0.0, self.y);
+        self.shape.collides(offset)
+    }
+
+    /// Remove a circle of pixels from the terrain.
+    pub fn remove_circle(&mut self, center: Vec2<f64>, radius: f64, physics: &mut Physics) {
+        self.shape.remove_circle(center - (0.0, self.y), radius);
+        self.rigidbody.set_shape(self.shape.to_collider(), physics);
     }
 }
 
-#[derive(Component, Debug)]
-pub struct TerrainMask {
-    pub id: usize,
-    pub pos: (i32, i32),
-    pub size: (usize, usize),
-}
-
-impl TerrainMask {
-    pub fn new(id: usize, pos: (i32, i32), size: (usize, usize)) -> Self {
-        TerrainMask { id, pos, size }
-    }
-}
-
-#[derive(Component, Debug)]
-pub struct TerrainCollapse(pub BoundingBox);
-
-pub struct TerrainCollapseSystem;
-impl<'a> System<'a> for TerrainCollapseSystem {
-    type SystemData = (
-        Entities<'a>,
-        Read<'a, DeltaTime>,
-        Read<'a, Terrain>,
-        WriteStorage<'a, TerrainCollapse>,
-    );
-
-    fn run(&mut self, (entities, dt, _terrain, mut rect): Self::SystemData) {
-        let _dt = dt.to_seconds();
-
-        for (_entities, mut _rect) in (&*entities, &mut rect).join() {
-            //TODO implement
-        }
-    }
+/// Level settings loaded from a file so it's easier to change them with hot-reloading.
+#[derive(Deserialize)]
+pub struct Settings {
+    /// Total length of the terrain.
+    pub width: u32,
+    /// Random scaling added to each pixel.
+    pub pixel_random_factor: f64,
+    /// Random scaling added to each direction step of the amount of pixels.
+    pub direction_random_factor: f64,
+    /// How many pixels before the direction changes.
+    pub direction_pixels: u32,
 }

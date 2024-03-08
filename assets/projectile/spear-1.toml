@@ -1,0 +1,9 @@
+rotations = 32
+
+[physics]
+density = 0.001
+friction = 0.7
+
+[collider]
+shape = "rectangle"
+height = 5
