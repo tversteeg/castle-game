@@ -29,7 +29,7 @@ impl Projectile {
         puffin::profile_function!();
 
         // Load the object definition for properties of the object
-        let object = crate::asset::<ObjectSettings>(ASSET_PATH);
+        let object = pixel_game_lib::asset::<ObjectSettings>(ASSET_PATH);
 
         let rigidbody = object
             .rigidbody_builder(pos)

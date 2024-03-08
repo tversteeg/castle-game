@@ -1,4 +1,3 @@
-mod assets;
 mod camera;
 #[cfg(feature = "debug")]
 mod debug;
@@ -17,8 +16,7 @@ mod unit;
 
 use std::sync::OnceLock;
 
-use assets::Assets;
-use assets_manager::{AssetGuard, Compound};
+use assets_manager::{AssetReadGuard, Compound};
 use font::Font;
 use game::{GameState, Settings};
 use miette::Result;
@@ -33,50 +31,27 @@ pub const SIZE: Extent2<usize> = Extent2::new(640, 360);
 /// Updates per second of the update loop.
 const UPDATES_PER_SECOND: u32 = 60;
 
-/// The assets as a 'static reference.
-pub static ASSETS: OnceLock<Assets> = OnceLock::new();
-
-/// Load an generic asset.
-pub fn asset<T>(path: &str) -> AssetGuard<T>
-where
-    T: Compound,
-{
-    puffin::profile_function!();
-
-    ASSETS
-        .get()
-        .expect("Asset handling not initialized yet")
-        .asset(path)
-}
-
-/// Load the global settings.
-pub fn settings() -> AssetGuard<'static, Settings> {
-    ASSETS
-        .get()
-        .expect("Asset handling not initialized yet")
-        .settings()
+/// Load the settings.
+pub fn settings() -> AssetReadGuard<'static, Settings> {
+    pixel_game_lib::asset("settings")
 }
 
 /// Load a sprite.
-pub fn sprite(path: &str) -> AssetGuard<Sprite> {
-    crate::asset(path)
+pub fn sprite(path: &str) -> AssetReadGuard<Sprite> {
+    pixel_game_lib::asset(path)
 }
 
 /// Load a rotatable sprite.
-pub fn rotatable_sprite(path: &str) -> AssetGuard<RotatableSprite> {
-    crate::asset(path)
+pub fn rotatable_sprite(path: &str) -> AssetReadGuard<RotatableSprite> {
+    pixel_game_lib::asset(path)
 }
 
 /// Load a font.
-pub fn font(path: &str) -> AssetGuard<Font> {
-    crate::asset(path)
+pub fn font(path: &str) -> AssetReadGuard<Font> {
+    pixel_game_lib::asset(path)
 }
 
 fn main() -> Result<()> {
-    // Initialize the asset loader
-    let assets = ASSETS.get_or_init(Assets::load);
-    assets.enable_hot_reloading();
-
     // Construct the game
     let state = GameState::new();
 
@@ -98,7 +73,7 @@ fn main() -> Result<()> {
             buffer_size: SIZE,
             title: "Castle Game".to_string(),
             updates_per_second: UPDATES_PER_SECOND,
-            scaling: 2,
+            scaling: 4,
         },
         |g, input, mouse, dt| {
             puffin::profile_scope!("Update");

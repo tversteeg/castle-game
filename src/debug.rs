@@ -6,7 +6,7 @@ use pixel_game_lib::{
         rigidbody::{RigidBodyBuilder, RigidBodyHandle},
         Physics,
     },
-    window::{Input, KeyCode},
+    window::{Input, KeyCode, MouseButton},
 };
 use serde::Deserialize;
 use vek::{Extent2, Vec2};
@@ -162,15 +162,15 @@ impl DebugDraw {
                     self.physics.step(dt, &crate::settings().physics);
                 }
 
-                if input.mouse_released(0) {
+                if input.mouse_released(MouseButton::Left) {
                     // Spawn a projectile at the mouse coordinates, camera doesn't apply to local physics engine
-                    let object = crate::asset::<ObjectSettings>(CRATE);
+                    let object = pixel_game_lib::asset::<ObjectSettings>(CRATE);
                     self.boxes
                         .push(object.rigidbody_builder(mouse).spawn(&mut self.physics));
                 }
             }
 
-            if self.screen == DebugScreen::SpawnProjectiles && input.mouse_released(0) {
+            if self.screen == DebugScreen::SpawnProjectiles && input.mouse_released(MouseButton::Left) {
                 // Spawn a projectile at the mouse coordinates
                 projectiles.push(Projectile::new(
                     camera.translate_from_screen(self.mouse),
@@ -179,12 +179,12 @@ impl DebugDraw {
                 ));
             }
 
-            if self.screen == DebugScreen::Terrain && input.mouse_released(0) {
+            if self.screen == DebugScreen::Terrain && input.mouse_released(MouseButton::Left) {
                 // Click to slice the terrain
                 terrain.remove_circle(camera.translate_from_screen(mouse), 10.0, physics);
             }
 
-            if self.screen == DebugScreen::Shape && input.mouse_released(0) {
+            if self.screen == DebugScreen::Shape && input.mouse_released(MouseButton::Left) {
                 // Click to slice the terrain
                 let mut new_shapes = Vec::new();
                 for shape in self.shapes.iter_mut() {
@@ -251,13 +251,13 @@ impl DebugDraw {
             }
             DebugScreen::Collisions => {
                 // Draw collision between rotated rectangles
-                let object = crate::asset::<ObjectSettings>(SPEAR);
+                let object = pixel_game_lib::asset::<ObjectSettings>(SPEAR);
                 let shape = object.shape();
 
                 let mouse_iso = Iso::new(self.mouse.as_(), Rotation::from_degrees(-23f64));
 
                 // Detect collisions with the heightmap
-                let level_object = crate::asset::<ObjectSettings>(LEVEL);
+                let level_object = pixel_game_lib::asset::<ObjectSettings>(LEVEL);
                 let level_pos = Vec2::new(0.0, 100.0);
                 let level_iso = Iso::from_pos(level_pos);
 

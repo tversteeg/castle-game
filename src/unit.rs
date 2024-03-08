@@ -1,4 +1,4 @@
-use assets_manager::{loader::TomlLoader, Asset, AssetGuard};
+use assets_manager::{loader::TomlLoader, Asset, AssetReadGuard};
 use pixel_game_lib::physics::{rigidbody::RigidBodyHandle, Physics};
 use serde::Deserialize;
 use vek::{Extent2, Vec2};
@@ -17,14 +17,14 @@ pub enum UnitType {
 
 impl UnitType {
     /// Settings path to load for this type.
-    pub fn settings(&self) -> AssetGuard<Settings> {
+    pub fn settings(&self) -> AssetReadGuard<Settings> {
         // Settings asset path
         let path = match self {
             Self::PlayerSpear => "unit.spear",
             Self::EnemySpear => "unit.enemy-spear",
         };
 
-        crate::asset(path)
+        pixel_game_lib::asset(path)
     }
 
     /// Asset path based on what type to load.
@@ -62,7 +62,7 @@ impl Unit {
         let health = r#type.settings().health;
 
         // Load the object definition for properties of the object
-        let object = crate::asset::<ObjectSettings>(r#type.asset_path());
+        let object = pixel_game_lib::asset::<ObjectSettings>(r#type.asset_path());
         let rigidbody = object.rigidbody_builder(pos).spawn(physics);
 
         Self {
@@ -169,7 +169,7 @@ impl Unit {
     }
 
     /// The settings for this unit.
-    fn settings(&self) -> AssetGuard<Settings> {
+    fn settings(&self) -> AssetReadGuard<Settings> {
         self.r#type.settings()
     }
 }

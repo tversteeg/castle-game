@@ -19,11 +19,10 @@ debug = ["drawille"]
 
 [dependencies]
 blit = "0.8"
-miette = { version = "5", features = ["fancy"] }
+miette = { version = "7", features = ["fancy"] }
 image = { version = "0.24", default-features = false, features = ["png"] }
 rotsprite = "0.1"
 vek = "0.16"
-assets_manager = { version = "0.10", features = ["embedded", "hot-reloading", "toml", "png"], default-features = false }
 serde = "1"
 itertools = "0.12"
 parry2d-f64 = { version = "0.13", features = ["simd-stable"] }
@@ -34,16 +33,17 @@ bitvec = "1"
 line_drawing = "1"
 drawille = { version = "0.3", optional = true }
 spiral = "0.2"
-pixel-game-lib = "0.4"
+pixel-game-lib = "0.8"
+assets_manager = "0.11"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 fastrand = "2"
-puffin = "0.17"
-puffin_http = "0.14"
+puffin = "0.19"
+puffin_http = "0.16"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 fastrand = { version = "2", default-features = false, features = ["js"] }
-puffin = "0.17"
+puffin = "0.19"
 
 [workspace]
 members = ["run-wasm"]
